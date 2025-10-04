@@ -1,0 +1,1154 @@
+import productImage from '../img/localhost-file-not-found-480x480.png';
+
+export const products = [
+  {
+    id: 'mag-22511',
+    name: 'Magnetic Stirrer',
+    model: 'AT-MAG-225',
+    productId: 'MAG-22511',
+    tagline: 'Precision magnetic stirrer with digital control and chemical resistance',
+    category: 'Laboratory Equipment',
+    image: productImage,
+    price: 0,
+    originalPrice: 0,
+    overview: 'The Magnetic Stirrer (AT-MAG-225, Product ID: MAG-22511) from Ativeer Solutions is a precision-engineered laboratory instrument designed for efficient mixing and stirring of liquid samples. This versatile device combines robust construction with advanced digital controls to deliver consistent, reproducible results across a wide range of laboratory applications.',
+    features: [
+      'High chemical resistance of the work surface and protective housing',
+      'Integrated digital monitoring for speed and temperature (if heated)',
+      'Minimal maintenance and long service life',
+      'Compact, ergonomic design suitable for diverse laboratory spaces',
+      'Programmable speed control for precise RPM settings',
+      'Optional integrated heating system for simultaneous stirring and heating'
+    ],
+    specifications: {
+      dimensions: '250 × 220 × 120 mm',
+      weight: '2.5 kg',
+      power: '100-240V AC, 50/60 Hz, 50W',
+      speedRange: '100-1500 RPM',
+      maxCapacity: '2 liters',
+      temperatureRange: 'Ambient to 100°C (heated models)',
+      connectivity: 'Digital display with LED indicators'
+    },
+    applications: [
+      'Pharmaceutical R&D: Dissolution studies, compound preparation, and formulation research',
+      'Chemical Laboratories: Preparation of solutions, reagents, and controlled chemical reactions',
+      'Biotechnology and Life Sciences: Cell culture media preparation, buffer mixing, and protein dissolution',
+      'Food and Beverage Testing: Homogenization, additive blending, and quality control assessments',
+      'Academic and Research Institutions: Demonstrating mixing principles and experimental protocols'
+    ],
+    operation: 'The AT-MAG-225 features intuitive digital controls with LED display for real-time monitoring of speed, temperature (if heated), and operational status. The combination of high-speed rotation and stable magnetic coupling allows handling of both low-viscosity solutions and moderately viscous mixtures, ensuring reproducible results in laboratory workflows.',
+    advantages: [
+      'Accurate and reproducible mixing for sensitive applications',
+      'High chemical resistance of the work surface and protective housing',
+      'Integrated digital monitoring for speed and temperature (if heated)',
+      'Minimal maintenance and long service life',
+      'Compact, ergonomic design suitable for diverse laboratory spaces',
+      'Multi-mode stirring (continuous, pulse, and ramp)'
+    ],
+    considerations: [
+      'Considerations include ensuring appropriate container placement and avoiding excessively viscous liquids beyond specified capacity, which may impact stirring efficiency',
+      'Operators should follow standard laboratory safety protocols when using heated versions of the instrument',
+      'Regular cleaning of the top plate and inspection of the magnetic coupling system recommended'
+    ],
+    compliance: 'Manufactured under ISO 9001:2015 quality management system. CE marked and complies with IEC 61010-1 safety standards. RoHS compliant.',
+    commitment: '2-year warranty covering parts and labor. Technical support available via phone and email. Replacement parts and accessories readily available.'
+  },
+  {
+    id: 'phm-33012',
+    name: 'pH Meter',
+    model: 'AT-PHM-330',
+    productId: 'PHM-33012',
+    tagline: 'Precision analytical instrument for accurate pH measurements',
+    category: 'Analytical Instruments',
+    image: productImage,
+    price: 0,
+    originalPrice: 0,
+    overview: 'The AT-PHM-330 pH Meter (Product ID: PHM-33012) from Ativeer Solutions is a precision analytical instrument designed for accurate pH measurements in laboratory and field applications. This versatile device combines advanced microprocessor control with multi-point calibration to deliver reliable, reproducible results across diverse scientific and industrial settings.',
+    features: [
+      'High accuracy and reproducibility for precise pH measurements',
+      'Advanced microprocessor control and multi-point calibration',
+      'Automatic temperature compensation ensures consistent readings',
+      'Data storage and connectivity features support modern laboratory digitalization',
+      'Digital interface simplifies operation and data logging',
+      'Detachable electrode for easy cleaning and replacement'
+    ],
+    specifications: {
+      dimensions: '18 cm × 22 cm × 8 cm (W × D × H)',
+      weight: '1.5 kg',
+      power: '100-240V AC or battery operated',
+      pHRange: '-2.00 to 16.00 pH',
+      pHAccuracy: '±0.01 pH',
+      temperatureRange: '0 to 100°C',
+      connectivity: 'USB, RS-232'
+    },
+    applications: [
+      'Pharmaceutical Industry: Ensuring precise pH in formulation development, quality control, and stability testing of drugs and solutions',
+      'Chemical Laboratories: Monitoring reactions, titration studies, and reagent preparation with high accuracy',
+      'Food & Beverage Industry: Measuring pH in beverages, dairy products, sauces, and fermented foods to maintain product quality and regulatory compliance',
+      'Environmental Monitoring: Determining pH in water, soil, and wastewater samples for environmental research and compliance testing',
+      'Academic and Research Institutions: Teaching and demonstration of analytical principles, research experiments, and student lab exercises'
+    ],
+    operation: 'The AT-PHM-330 has been designed for user convenience. Its digital interface simplifies operation, allowing operators to calibrate, measure, and log data efficiently. The electrode is detachable for easy cleaning and replacement, and the instrument\'s housing can be wiped down with standard laboratory cleaning agents.',
+    advantages: [
+      'High accuracy, reproducibility, and adaptability to various laboratory conditions',
+      'Advanced microprocessor control and multi-point calibration enhance reliability',
+      'Automatic temperature compensation ensures consistent readings',
+      'Data storage and connectivity features support modern laboratory digitalization',
+      'Easy to clean and maintain with minimal routine maintenance',
+      'Versatile and adaptable to a wide range of laboratory and field applications'
+    ],
+    considerations: [
+      'Careful handling of the electrode to prevent breakage and proper calibration to maintain long-term accuracy',
+      'While designed for rigorous laboratory use, adherence to manufacturer guidelines ensures sustained performance',
+      'Regular calibration using buffer solutions and occasional inspection of electrode integrity recommended'
+    ],
+    compliance: 'Manufactured under ISO 9001:2015 quality management system. CE marked and complies with IEC 61010-1 safety standards. RoHS compliant.',
+    commitment: '2-year warranty on meter, 6 months on electrode. Calibration buffers and replacement electrodes available. Technical support included.'
+  },
+  {
+    id: 'pc-34567',
+    name: 'CryoMax-3000 PCR Cycler',
+    model: 'CryoMax-3000',
+    productId: 'PC-34567',
+    tagline: 'Rapid thermal cycling with gradient capability for PCR optimization',
+    category: 'Molecular Biology',
+    image: productImage,
+    price: 18999,
+    originalPrice: 25999,
+    overview: 'The CryoMax-3000 PCR Cycler combines speed, precision, and versatility in a compact benchtop design. Featuring advanced Peltier technology and gradient functionality, this thermal cycler is ideal for routine PCR, optimization experiments, and high-throughput applications in research and diagnostic laboratories.',
+    features: [
+      'Rapid ramping: 5°C/sec heating, 3°C/sec cooling',
+      'Gradient range: ±12°C across block (24 temperature zones)',
+      'Interchangeable block formats: 96-well, 384-well, 0.2mL tubes',
+      'Heated lid with adjustable pressure (30-60°C above block temp)',
+      'Intuitive color touchscreen with protocol wizard',
+      'USB and network connectivity for protocol sharing'
+    ],
+    specifications: {
+      dimensions: '32 cm × 38 cm × 30 cm (W × D × H)',
+      weight: '15.8 kg',
+      power: '100-240V AC, 50/60 Hz, 800W',
+      temperatureRange: '4-99°C',
+      temperatureAccuracy: '±0.2°C',
+      temperatureUniformity: '±0.3°C across block',
+      blockCapacity: '96 × 0.2mL or 384 × 0.02mL'
+    },
+    applications: [
+      'Standard and high-fidelity PCR amplification',
+      'Primer and annealing temperature optimization',
+      'Colony PCR and genotyping',
+      'RT-PCR and cDNA synthesis',
+      'Site-directed mutagenesis',
+      'Diagnostic assay development'
+    ],
+    operation: 'The CryoMax-3000 offers effortless operation through its intuitive touchscreen interface. Pre-loaded protocols cover common applications, while the protocol wizard guides users through custom program creation. The gradient calculator automatically determines optimal temperature distribution. Remote monitoring via network connection allows users to check run status from anywhere in the lab.',
+    advantages: [
+      'Rapid cycling reduces total run time by up to 40%',
+      'Gradient function eliminates need for multiple optimization runs',
+      'Interchangeable blocks maximize experimental flexibility',
+      'Excellent temperature uniformity ensures reproducible results',
+      'Quiet operation suitable for shared laboratory spaces',
+      'Comprehensive data logging for regulatory compliance'
+    ],
+    considerations: [
+      'Additional block formats sold separately',
+      'Requires adequate ventilation for heat dissipation',
+      'Gradient function not available with 384-well block',
+      'Regular cleaning of block and lid recommended for optimal performance'
+    ],
+    compliance: 'Manufactured under ISO 13485 quality management system. CE marked and complies with IEC 61010-1 and IEC 61010-2-010 safety standards. Software meets FDA 21 CFR Part 11 requirements for electronic records. Includes installation and operational qualification documentation.',
+    commitment: 'We back the CryoMax-3000 with a 3-year warranty on electronics and a 5-year warranty on Peltier modules. Our global service network provides rapid response for technical support and repairs. Complimentary training webinars and application protocols available to all customers.'
+  },
+  {
+    id: 'cf-12345',
+    name: 'FlowPro-F500 Centrifuge',
+    model: 'FlowPro-F500',
+    productId: 'CF-12345',
+    tagline: 'High-speed refrigerated centrifuge with advanced safety features',
+    category: 'Sample Preparation',
+    image: productImage,
+    price: 22999,
+    originalPrice: 29999,
+    overview: 'The FlowPro-F500 Refrigerated Centrifuge delivers exceptional performance for demanding sample preparation workflows. With its powerful motor, precise temperature control, and comprehensive safety systems, this centrifuge handles everything from routine blood processing to high-speed protein pelleting with ease and reliability.',
+    features: [
+      'Maximum speed: 15,000 RPM (21,380 × g)',
+      'Temperature range: -20°C to +40°C',
+      'Rapid pre-cooling to 4°C in under 10 minutes',
+      'Automatic rotor recognition with imbalance detection',
+      'Soft-start and soft-stop for gradient preservation',
+      'Multiple rotor options: fixed-angle, swing-bucket, microplate'
+    ],
+    specifications: {
+      dimensions: '58 cm × 68 cm × 85 cm (W × D × H)',
+      weight: '95 kg',
+      power: '208-240V AC, 50/60 Hz, 2000W',
+      capacity: 'Up to 4 × 750mL bottles or 6 × 250mL bottles',
+      noiseLevel: '< 58 dB(A) at maximum speed',
+      refrigerant: 'R-290 (eco-friendly)',
+      connectivity: 'USB, Ethernet, RS-232'
+    },
+    applications: [
+      'Blood component separation and processing',
+      'Cell harvesting and pelleting',
+      'Protein precipitation and purification',
+      'DNA/RNA extraction protocols',
+      'Virus concentration and purification',
+      'Density gradient centrifugation'
+    ],
+    operation: 'The FlowPro-F500 features a large LCD touchscreen with intuitive menu navigation. Users can save up to 100 custom programs with automatic rotor selection. The advanced control system monitors temperature, speed, and run time with real-time adjustments. Automatic door locking prevents opening during operation, while the imbalance detection system stops the run if unsafe conditions are detected.',
+    advantages: [
+      'Rapid cooling minimizes sample degradation',
+      'Quiet operation reduces laboratory noise pollution',
+      'Eco-friendly refrigerant reduces environmental impact',
+      'Automatic rotor recognition prevents programming errors',
+      'Comprehensive audit trail for regulatory compliance',
+      'Multiple rotor options accommodate diverse sample types'
+    ],
+    considerations: [
+      'Additional rotors and adapters sold separately',
+      'Requires dedicated 20A electrical circuit',
+      'Regular maintenance of refrigeration system recommended',
+      'Rotor cleaning and inspection required after each use',
+      'Annual safety inspection and calibration recommended'
+    ],
+    compliance: 'Manufactured according to ISO 9001:2015 and ISO 13485 standards. CE marked and complies with IEC 61010-1 and IEC 61010-2-020 safety standards for centrifuges. Refrigeration system complies with F-Gas regulations. Includes comprehensive safety documentation and risk assessment.',
+    commitment: 'The FlowPro-F500 is covered by a 3-year comprehensive warranty including parts, labor, and refrigeration system. We offer 24/7 technical support and maintain a global network of certified service engineers. Preventive maintenance contracts and rotor inspection services available.'
+  },
+  {
+    id: 'mc-67890',
+    name: 'SterileFlow-M200 Biosafety Cabinet',
+    model: 'SterileFlow-M200',
+    productId: 'MC-67890',
+    tagline: 'Class II Type A2 biosafety cabinet with superior airflow protection',
+    category: 'Safety Equipment',
+    image: productImage,
+    price: 11999,
+    originalPrice: 16999,
+    overview: 'The SterileFlow-M200 Biosafety Cabinet provides optimal protection for personnel, product, and environment during work with biological agents. Featuring advanced HEPA filtration, microprocessor-controlled airflow, and ergonomic design, this Class II Type A2 cabinet meets the highest standards for biosafety containment.',
+    features: [
+      'Class II Type A2 certification (NSF/ANSI 49)',
+      'Dual HEPA filtration: 99.99% efficiency at 0.3 μm',
+      'Microprocessor-controlled DC ECM blower for stable airflow',
+      'UV germicidal lamp for decontamination between sessions',
+      'Motorized front sash with safety interlocks',
+      'LED lighting: 1200 lux at work surface'
+    ],
+    specifications: {
+      dimensions: '122 cm × 76 cm × 203 cm (W × D × H)',
+      weight: '185 kg',
+      power: '100-240V AC, 50/60 Hz, 500W',
+      workZone: '107 cm × 51 cm × 56 cm (W × D × H)',
+      inflowVelocity: '0.51 m/s (100 fpm)',
+      downflowVelocity: '0.36 m/s (70 fpm)',
+      noiseLevel: '< 62 dB(A)'
+    },
+    applications: [
+      'Cell culture and tissue engineering',
+      'Microbiological research and diagnostics',
+      'Pharmaceutical compounding',
+      'Vaccine production and quality control',
+      'Biosafety Level 1 and 2 work',
+      'Sterile product preparation'
+    ],
+    operation: 'The SterileFlow-M200 features an intuitive control panel with digital displays for airflow velocities, filter pressure, and operational hours. The motorized sash automatically positions to the optimal working height. Audible and visual alarms alert users to airflow deviations or filter saturation. The cabinet requires a 5-minute purge cycle before use and UV decontamination between sessions.',
+    advantages: [
+      'Superior HEPA filtration protects product and personnel',
+      'Stable airflow maintained across full filter life',
+      'Ergonomic design reduces operator fatigue',
+      'Energy-efficient DC motor reduces operating costs',
+      'Easy-to-clean stainless steel interior',
+      'Comprehensive alarm system ensures safety compliance'
+    ],
+    considerations: [
+      'Requires professional installation and certification',
+      'Annual recertification required (NSF/ANSI 49)',
+      'HEPA filters require replacement every 3-5 years',
+      'UV lamp replacement recommended annually',
+      'Adequate room ventilation required for exhaust',
+      'Not suitable for volatile chemicals or radionuclides'
+    ],
+    compliance: 'Certified to NSF/ANSI Standard 49 for Class II (Type A2) Biosafety Cabinetry. Manufactured under ISO 9001:2015 quality management system. CE marked and complies with EN 12469 European standard. Electrical safety per IEC 61010-1. Includes certification documentation and test reports.',
+    commitment: 'The SterileFlow-M200 comes with a 5-year warranty on structural components and 2 years on electrical systems. We provide annual recertification services through our network of NSF-certified technicians. Comprehensive training on proper use and maintenance included with purchase.'
+  },
+  {
+    id: 'im-23456',
+    name: 'VisionScope-V300 Microscope',
+    model: 'VisionScope-V300',
+    productId: 'IM-23456',
+    tagline: 'Advanced inverted microscope with fluorescence and phase contrast',
+    category: 'Imaging Systems',
+    image: productImage,
+    price: 24999,
+    originalPrice: 32999,
+    overview: 'The VisionScope-V300 Inverted Microscope combines exceptional optical performance with modern digital imaging capabilities. Designed for live cell imaging and tissue culture applications, this versatile microscope offers brightfield, phase contrast, and multi-channel fluorescence in a stable, ergonomic platform.',
+    features: [
+      'Infinity-corrected optical system with plan apochromat objectives',
+      'Motorized 6-position objective turret',
+      'LED illumination for brightfield and fluorescence (DAPI, FITC, TRITC, Cy5)',
+      'Integrated 5MP CMOS camera with live preview',
+      'Motorized XY stage with 130mm × 85mm travel',
+      'Environmental chamber compatibility for live cell imaging'
+    ],
+    specifications: {
+      dimensions: '48 cm × 55 cm × 65 cm (W × D × H)',
+      weight: '32 kg',
+      power: '100-240V AC, 50/60 Hz, 120W',
+      objectives: '4×, 10×, 20×, 40× (phase), 60× (oil immersion)',
+      magnification: '40× to 600×',
+      camera: '5 megapixel, 2448 × 2048 pixels',
+      connectivity: 'USB 3.0, HDMI, Ethernet'
+    },
+    applications: [
+      'Live cell imaging and time-lapse microscopy',
+      'Cell culture monitoring and documentation',
+      'Fluorescence microscopy and immunofluorescence',
+      'Stem cell research and differentiation studies',
+      'Transfection efficiency assessment',
+      'Organoid and 3D culture imaging'
+    ],
+    operation: 'The VisionScope-V300 is controlled via intuitive software that manages all microscope functions including objective selection, illumination intensity, stage movement, and image capture. The software includes measurement tools, time-lapse programming, and multi-position imaging for automated experiments. Images can be exported in standard formats or directly to analysis software.',
+    advantages: [
+      'LED illumination provides consistent, long-lasting light source',
+      'Motorized components enable automated multi-position imaging',
+      'Integrated camera eliminates need for separate imaging system',
+      'Inverted design ideal for cell culture vessels and plates',
+      'Compact footprint fits standard laboratory benches',
+      'Comprehensive software included with advanced analysis tools'
+    ],
+    considerations: [
+      'Oil immersion objective requires immersion oil (not included)',
+      'Environmental chamber sold separately',
+      'Computer with Windows 10/11 required for full software functionality',
+      'Regular cleaning of objectives and optical path recommended',
+      'Fluorescence LED modules have finite lifetime (10,000+ hours)'
+    ],
+    compliance: 'Manufactured under ISO 9001:2015 quality management system. CE marked and complies with IEC 61010-1 safety standards. RoHS compliant. Camera and software meet FDA 21 CFR Part 11 requirements for electronic records in regulated environments.',
+    commitment: 'The VisionScope-V300 includes a 3-year warranty covering optics, mechanics, and electronics. We provide free software updates and technical support. Application specialists available for training and optimization. Annual preventive maintenance and calibration services available.'
+  },
+  {
+    id: 'hp-89012',
+    name: 'HeatPro-H400 Heating Block',
+    model: 'HeatPro-H400',
+    productId: 'HP-89012',
+    tagline: 'Precision dry bath incubator with interchangeable blocks',
+    category: 'Laboratory Equipment',
+    image: productImage,
+    price: 1299,
+    originalPrice: 1799,
+    overview: 'The HeatPro-H400 Heating Block provides precise temperature control for a wide range of laboratory applications. With interchangeable block formats and rapid heating capabilities, this compact unit is ideal for sample incubation, enzyme reactions, and molecular biology protocols.',
+    features: [
+      'Temperature range: Ambient +5°C to 150°C',
+      'Digital temperature display with ±0.1°C accuracy',
+      'Rapid heating: reaches 100°C in under 10 minutes',
+      'Interchangeable blocks for tubes, plates, and vials',
+      'Timer function: 1 minute to 99 hours 59 minutes',
+      'Over-temperature protection and auto-shutoff'
+    ],
+    specifications: {
+      dimensions: '20 cm × 25 cm × 12 cm (W × D × H)',
+      weight: '2.8 kg',
+      power: '100-240V AC, 50/60 Hz, 300W',
+      temperatureRange: 'Ambient +5°C to 150°C',
+      temperatureAccuracy: '±0.5°C',
+      heatingRate: '10°C per minute',
+      connectivity: 'USB (optional)'
+    },
+    applications: [
+      'Sample incubation and heating',
+      'Enzyme digestion reactions',
+      'DNA/RNA elution',
+      'Melting agarose',
+      'Bacterial culture warming',
+      'General laboratory heating'
+    ],
+    operation: 'Simple push-button controls allow users to set temperature and time with ease. The LED display shows current and target temperatures. Audible alarm signals when target temperature is reached and when timer expires. Blocks can be quickly exchanged without tools.',
+    advantages: [
+      'Compact design saves valuable bench space',
+      'Interchangeable blocks provide versatility',
+      'Rapid heating reduces wait time',
+      'Precise temperature control ensures reproducibility',
+      'Easy to clean aluminum blocks',
+      'Energy-efficient design'
+    ],
+    considerations: [
+      'Additional block formats sold separately',
+      'Not suitable for shaking or mixing',
+      'Requires flat, stable surface',
+      'Allow cooling time before changing blocks'
+    ],
+    compliance: 'CE marked and complies with IEC 61010-1 safety standards. RoHS compliant. Manufactured under ISO 9001:2015 quality management system.',
+    commitment: '2-year warranty covering parts and labor. Technical support available via phone and email. Replacement blocks and accessories readily available.'
+  },
+  {
+    id: 'vx-34567',
+    name: 'VortexMax-V250 Vortex Mixer',
+    model: 'VortexMax-V250',
+    productId: 'VX-34567',
+    tagline: 'Heavy-duty vortex mixer with variable speed control',
+    category: 'Laboratory Equipment',
+    image: productImage,
+    price: 449,
+    originalPrice: 649,
+    overview: 'The VortexMax-V250 Vortex Mixer delivers powerful, consistent mixing for tubes, vials, and flasks. With variable speed control and both touch and continuous modes, this robust mixer handles everything from gentle mixing to vigorous vortexing.',
+    features: [
+      'Variable speed: 0-3000 RPM',
+      'Touch and continuous operation modes',
+      'Heavy-duty motor for continuous use',
+      'Rubber cup head for secure tube grip',
+      'Non-slip rubber feet for stability',
+      'Compact footprint: fits any bench'
+    ],
+    specifications: {
+      dimensions: '15 cm × 15 cm × 18 cm (W × D × H)',
+      weight: '2.2 kg',
+      power: '100-240V AC, 50/60 Hz, 50W',
+      speedRange: '0-3000 RPM',
+      orbitDiameter: '4.5 mm',
+      maxCapacity: '250 mL flask',
+      noiseLevel: '< 55 dB(A)'
+    },
+    applications: [
+      'Mixing samples in tubes and vials',
+      'Resuspending cell pellets',
+      'Dissolving reagents',
+      'General laboratory mixing',
+      'Sample homogenization',
+      'Vortexing microplates (with adapter)'
+    ],
+    operation: 'Simply place tube on rubber cup and press down for touch mode, or flip switch for continuous operation. Speed dial allows precise control from gentle swirling to vigorous vortexing. Maintenance-free motor provides years of reliable service.',
+    advantages: [
+      'Powerful motor handles heavy loads',
+      'Variable speed accommodates all applications',
+      'Touch mode prevents over-mixing',
+      'Quiet operation suitable for any lab',
+      'Durable construction for long life',
+      'Easy to clean and maintain'
+    ],
+    considerations: [
+      'Microplate adapter sold separately',
+      'Not suitable for temperature-sensitive samples',
+      'Ensure tubes are properly capped',
+      'Clean spills immediately to prevent damage'
+    ],
+    compliance: 'CE marked and complies with IEC 61010-1 safety standards. RoHS compliant.',
+    commitment: '2-year warranty. Replacement parts and accessories available. Technical support via phone and email.'
+  },
+  {
+    id: 'ph-45678',
+    name: 'pHPro-P700 pH Meter',
+    model: 'pHPro-P700',
+    productId: 'PH-45678',
+    tagline: 'Benchtop pH meter with automatic temperature compensation',
+    category: 'Analytical Instruments',
+    image: productImage,
+    price: 899,
+    originalPrice: 1299,
+    overview: 'The pHPro-P700 pH Meter provides accurate, reliable pH measurements for laboratory and quality control applications. Featuring automatic temperature compensation, multi-point calibration, and a large LCD display, this meter ensures precise results every time.',
+    features: [
+      'pH range: -2.00 to 16.00 pH',
+      'Accuracy: ±0.01 pH',
+      'Automatic temperature compensation (ATC)',
+      '1, 2, 3, 4, or 5-point calibration',
+      'Large backlit LCD display',
+      'Data logging: stores up to 500 readings'
+    ],
+    specifications: {
+      dimensions: '18 cm × 22 cm × 8 cm (W × D × H)',
+      weight: '1.5 kg',
+      power: '100-240V AC or battery operated',
+      pHRange: '-2.00 to 16.00 pH',
+      pHAccuracy: '±0.01 pH',
+      temperatureRange: '0 to 100°C',
+      connectivity: 'USB, RS-232'
+    },
+    applications: [
+      'pH measurement in aqueous solutions',
+      'Buffer preparation and verification',
+      'Quality control in manufacturing',
+      'Environmental water testing',
+      'Food and beverage analysis',
+      'Research and development'
+    ],
+    operation: 'Calibrate using standard buffer solutions, then simply immerse electrode in sample and read pH value on display. ATC probe automatically compensates for temperature variations. Data can be logged internally or exported via USB.',
+    advantages: [
+      'High accuracy ensures reliable results',
+      'ATC eliminates manual temperature corrections',
+      'Multi-point calibration improves accuracy',
+      'Data logging provides traceability',
+      'Battery operation allows field use',
+      'Easy-to-read display'
+    ],
+    considerations: [
+      'pH electrode requires regular calibration',
+      'Electrode storage solution needed',
+      'Replace electrode every 12-18 months',
+      'Keep electrode hydrated when not in use'
+    ],
+    compliance: 'CE marked. Manufactured under ISO 9001:2015 quality management system. Meets GLP requirements.',
+    commitment: '2-year warranty on meter, 6 months on electrode. Calibration buffers and replacement electrodes available. Technical support included.'
+  },
+  {
+    id: 'sh-56789',
+    name: 'ShakePro-S300 Orbital Shaker',
+    model: 'ShakePro-S300',
+    productId: 'SH-56789',
+    tagline: 'Variable speed orbital shaker with digital display',
+    category: 'Laboratory Equipment',
+    image: productImage,
+    price: 1599,
+    originalPrice: 2199,
+    overview: 'The ShakePro-S300 Orbital Shaker provides gentle to vigorous shaking for cell culture, extraction, and mixing applications. With variable speed control, timer function, and a large platform, this shaker accommodates flasks, bottles, and microplates.',
+    features: [
+      'Speed range: 20-300 RPM',
+      'Orbit diameter: 19 mm',
+      'Platform size: 30 cm × 30 cm',
+      'Digital speed and time display',
+      'Timer: 1 min to 99 hours 59 min',
+      'Non-slip rubber mat included'
+    ],
+    specifications: {
+      dimensions: '40 cm × 40 cm × 15 cm (W × D × H)',
+      weight: '8.5 kg',
+      power: '100-240V AC, 50/60 Hz, 100W',
+      speedRange: '20-300 RPM',
+      speedAccuracy: '±1 RPM',
+      maxLoad: '5 kg',
+      noiseLevel: '< 60 dB(A)'
+    },
+    applications: [
+      'Cell culture shaking',
+      'Bacterial growth',
+      'Extraction and mixing',
+      'Staining and destaining',
+      'Washing and rinsing',
+      'General laboratory agitation'
+    ],
+    operation: 'Set desired speed and time using digital controls. Press start to begin shaking. Audible alarm sounds when timer expires. Platform accepts various clamps and racks for different vessel types.',
+    advantages: [
+      'Variable speed suits all applications',
+      'Large platform accommodates multiple vessels',
+      'Digital display ensures accuracy',
+      'Timer function prevents over-shaking',
+      'Quiet operation',
+      'Durable construction'
+    ],
+    considerations: [
+      'Clamps and racks sold separately',
+      'Ensure load is balanced',
+      'Not suitable for temperature control',
+      'Clean spills immediately'
+    ],
+    compliance: 'CE marked and complies with IEC 61010-1 safety standards. RoHS compliant.',
+    commitment: '2-year warranty. Replacement mats and accessories available. Technical support included.'
+  },
+  {
+    id: 'pp-67890',
+    name: 'PipettePro-P1000 Pipette Set',
+    model: 'PipettePro-P1000',
+    productId: 'PP-67890',
+    tagline: 'Precision variable volume pipette set with autoclavable tips',
+    category: 'Laboratory Equipment',
+    image: productImage,
+    price: 599,
+    originalPrice: 899,
+    overview: 'The PipettePro-P1000 Pipette Set includes three precision pipettes covering 0.5-1000 μL range. Featuring ergonomic design, smooth operation, and excellent accuracy, these pipettes are essential tools for any laboratory.',
+    features: [
+      'Set includes: 0.5-10 μL, 10-100 μL, 100-1000 μL',
+      'Accuracy: ±1-3% depending on volume',
+      'Fully autoclavable lower assembly',
+      'Ergonomic design reduces hand fatigue',
+      'Volume lock prevents accidental changes',
+      'Includes tip ejector and calibration tool'
+    ],
+    specifications: {
+      volumes: '0.5-10 μL, 10-100 μL, 100-1000 μL',
+      accuracy: '±1-3%',
+      precision: '±0.5-1.5%',
+      weight: '80-120g per pipette',
+      autoclavable: 'Lower assembly (121°C, 20 min)',
+      warranty: '2 years'
+    },
+    applications: [
+      'Liquid handling in molecular biology',
+      'Sample preparation',
+      'PCR setup',
+      'ELISA and immunoassays',
+      'Cell culture',
+      'General laboratory pipetting'
+    ],
+    operation: 'Set desired volume using adjustment wheel. Depress plunger to first stop, immerse tip, and slowly release. Dispense by pressing to second stop. Eject tip using ejector button.',
+    advantages: [
+      'Complete volume range in one set',
+      'High accuracy and precision',
+      'Autoclavable for contamination control',
+      'Ergonomic design for comfort',
+      'Volume lock prevents errors',
+      'Easy to calibrate and maintain'
+    ],
+    considerations: [
+      'Tips sold separately',
+      'Regular calibration recommended',
+      'Use appropriate tips for each pipette',
+      'Store vertically when not in use'
+    ],
+    compliance: 'ISO 8655 compliant. CE marked. Manufactured under ISO 9001:2015 quality management system.',
+    commitment: '2-year warranty. Calibration services available. Replacement parts and tips readily available.'
+  },
+  {
+    id: 'bl-78901',
+    name: 'BalancePro-B200 Analytical Balance',
+    model: 'BalancePro-B200',
+    productId: 'BL-78901',
+    tagline: 'High-precision analytical balance with 0.1mg readability',
+    category: 'Analytical Instruments',
+    image: productImage,
+    price: 3499,
+    originalPrice: 4999,
+    overview: 'The BalancePro-B200 Analytical Balance delivers exceptional precision for demanding weighing applications. With 0.1mg readability, internal calibration, and a draft shield, this balance ensures accurate results in any laboratory environment.',
+    features: [
+      'Capacity: 220g',
+      'Readability: 0.1mg (0.0001g)',
+      'Internal calibration with motorized weights',
+      'Glass draft shield with sliding doors',
+      'Large backlit LCD display',
+      'Multiple weighing units and functions'
+    ],
+    specifications: {
+      capacity: '220g',
+      readability: '0.1mg (0.0001g)',
+      repeatability: '0.1mg',
+      linearity: '±0.2mg',
+      panSize: '90mm diameter',
+      stabilizationTime: '3 seconds',
+      connectivity: 'USB, RS-232'
+    },
+    applications: [
+      'Analytical chemistry',
+      'Pharmaceutical formulation',
+      'Quality control',
+      'Sample preparation',
+      'Standards preparation',
+      'Research and development'
+    ],
+    operation: 'Place sample on pan and wait for stability indicator. Balance automatically compensates for environmental factors. Internal calibration can be triggered manually or automatically. Data can be exported via USB or RS-232.',
+    advantages: [
+      'High precision for critical applications',
+      'Internal calibration ensures accuracy',
+      'Draft shield minimizes environmental effects',
+      'Fast stabilization saves time',
+      'Multiple units and functions',
+      'Data export for documentation'
+    ],
+    considerations: [
+      'Requires stable, vibration-free surface',
+      'Keep away from drafts and temperature changes',
+      'Regular calibration recommended',
+      'Handle with care to maintain accuracy'
+    ],
+    compliance: 'Meets OIML Class I requirements. CE marked. Manufactured under ISO 9001:2015 quality management system. GLP/GMP compliant.',
+    commitment: '3-year warranty. Calibration services available. Technical support and training included.'
+  },
+  {
+    id: 'st-89012',
+    name: 'StirPro-S400 Magnetic Stirrer',
+    model: 'StirPro-S400',
+    productId: 'ST-89012',
+    tagline: 'Hot plate magnetic stirrer with digital temperature control',
+    category: 'Laboratory Equipment',
+    image: productImage,
+    price: 799,
+    originalPrice: 1199,
+    overview: 'The StirPro-S400 combines magnetic stirring with precise heating in one compact unit. Ideal for chemical reactions, sample preparation, and general laboratory mixing, this stirrer features digital controls and a ceramic-coated aluminum top plate.',
+    features: [
+      'Stirring speed: 100-1500 RPM',
+      'Heating temperature: up to 380°C',
+      'Digital display for speed and temperature',
+      'Ceramic-coated aluminum top plate',
+      'External temperature probe input',
+      'Timer function: 1 min to 99 hours'
+    ],
+    specifications: {
+      dimensions: '20 cm × 28 cm × 10 cm (W × D × H)',
+      weight: '3.5 kg',
+      power: '100-240V AC, 50/60 Hz, 600W',
+      plateSize: '135mm × 135mm',
+      maxStirVolume: '5 liters',
+      temperatureRange: 'Ambient to 380°C',
+      temperatureAccuracy: '±2°C'
+    },
+    applications: [
+      'Chemical synthesis and reactions',
+      'Sample dissolution',
+      'Buffer preparation',
+      'Media preparation',
+      'Extraction procedures',
+      'General heating and stirring'
+    ],
+    operation: 'Place vessel on plate with stir bar inside. Set stirring speed and temperature using digital controls. External probe can be used for precise temperature control of solution. Timer function automatically stops heating and stirring.',
+    advantages: [
+      'Combined heating and stirring saves space',
+      'Digital controls ensure precision',
+      'Ceramic coating resists chemicals',
+      'External probe for accurate temperature control',
+      'Timer prevents overheating',
+      'Easy to clean surface'
+    ],
+    considerations: [
+      'Stir bars sold separately',
+      'External probe sold separately',
+      'Hot surface - handle with care',
+      'Allow cooling before cleaning',
+      'Use appropriate glassware'
+    ],
+    compliance: 'CE marked and complies with IEC 61010-1 and IEC 61010-2-010 safety standards. RoHS compliant.',
+    commitment: '2-year warranty. Replacement parts and accessories available. Technical support included.'
+  },
+  {
+    id: 'uc-90123',
+    name: 'UltraClean-U500 Ultrasonic Cleaner',
+    model: 'UltraClean-U500',
+    productId: 'UC-90123',
+    tagline: 'Digital ultrasonic cleaner with heating and degassing',
+    category: 'Laboratory Equipment',
+    image: productImage,
+    price: 1299,
+    originalPrice: 1899,
+    overview: 'The UltraClean-U500 Ultrasonic Cleaner uses high-frequency sound waves to remove contaminants from laboratory glassware, instruments, and parts. With heating, degassing, and timer functions, this cleaner ensures thorough, efficient cleaning.',
+    features: [
+      'Tank capacity: 5 liters',
+      'Ultrasonic frequency: 40 kHz',
+      'Heating: up to 80°C',
+      'Degassing function',
+      'Digital timer: 1-99 minutes',
+      'Stainless steel tank and basket'
+    ],
+    specifications: {
+      tankSize: '24 cm × 14 cm × 10 cm (L × W × H)',
+      capacity: '5 liters',
+      frequency: '40 kHz',
+      power: '200W ultrasonic, 400W heating',
+      temperatureRange: 'Ambient to 80°C',
+      dimensions: '33 cm × 19 cm × 32 cm (W × D × H)',
+      weight: '6.5 kg'
+    },
+    applications: [
+      'Cleaning laboratory glassware',
+      'Instrument cleaning',
+      'Parts degreasing',
+      'Jewelry cleaning',
+      'Optical lens cleaning',
+      'Removing stubborn residues'
+    ],
+    operation: 'Fill tank with cleaning solution, place items in basket, set temperature and time, and press start. Ultrasonic waves create microscopic bubbles that gently remove contaminants. Degassing function removes air from solution for better cleaning.',
+    advantages: [
+      'Thorough cleaning without scrubbing',
+      'Heating enhances cleaning efficiency',
+      'Degassing improves results',
+      'Timer allows unattended operation',
+      'Stainless steel construction',
+      'Gentle on delicate items'
+    ],
+    considerations: [
+      'Use appropriate cleaning solutions',
+      'Do not operate without liquid',
+      'Some materials may be damaged by ultrasound',
+      'Drain and clean tank regularly'
+    ],
+    compliance: 'CE marked and complies with IEC 61010-1 safety standards. RoHS compliant.',
+    commitment: '2-year warranty. Replacement baskets and accessories available. Technical support included.'
+  },
+  {
+    id: 'fr-01234',
+    name: 'FreezeMax-F800 Freezer',
+    model: 'FreezeMax-F800',
+    productId: 'FR-01234',
+    tagline: 'Ultra-low temperature freezer for long-term sample storage',
+    category: 'Sample Preparation',
+    image: productImage,
+    price: 12999,
+    originalPrice: 17999,
+    overview: 'The FreezeMax-F800 Ultra-Low Temperature Freezer provides reliable -80°C storage for valuable biological samples. With advanced insulation, microprocessor control, and comprehensive alarms, this freezer ensures sample integrity for years.',
+    features: [
+      'Temperature range: -50°C to -86°C',
+      'Capacity: 400 liters',
+      'Dual refrigeration system for redundancy',
+      'Microprocessor temperature control',
+      'Visual and audible alarms',
+      'Battery backup for alarm system'
+    ],
+    specifications: {
+      capacity: '400 liters',
+      temperatureRange: '-50°C to -86°C',
+      temperatureUniformity: '±3°C',
+      dimensions: '85 cm × 85 cm × 195 cm (W × D × H)',
+      weight: '285 kg',
+      power: '208-240V AC, 50/60 Hz, 1500W',
+      refrigerant: 'R-290/R-170 (eco-friendly)'
+    },
+    applications: [
+      'Long-term sample storage',
+      'Biological specimen preservation',
+      'Enzyme and protein storage',
+      'DNA/RNA banking',
+      'Cell line storage',
+      'Vaccine storage'
+    ],
+    operation: 'Set desired temperature using digital controller. Freezer automatically maintains temperature with dual refrigeration system. Alarms alert users to temperature deviations, power failures, or door ajar conditions. Data logging tracks temperature history.',
+    advantages: [
+      'Ultra-low temperature preserves samples',
+      'Dual system provides redundancy',
+      'Comprehensive alarms ensure safety',
+      'Energy-efficient design',
+      'Large capacity',
+      'Data logging for compliance'
+    ],
+    considerations: [
+      'Requires dedicated electrical circuit',
+      'Professional installation recommended',
+      'Regular maintenance required',
+      'Adequate ventilation needed',
+      'Backup storage plan recommended'
+    ],
+    compliance: 'CE marked. Complies with IEC 61010-1 safety standards. Refrigerant complies with environmental regulations. Includes IQ/OQ documentation.',
+    commitment: '3-year warranty on compressors, 2 years on other parts. 24/7 technical support. Preventive maintenance contracts available.'
+  },
+  {
+    id: 'au-12345',
+    name: 'AutoClave-A300 Sterilizer',
+    model: 'AutoClave-A300',
+    productId: 'AU-12345',
+    tagline: 'Benchtop autoclave with pre-programmed sterilization cycles',
+    category: 'Safety Equipment',
+    image: productImage,
+    price: 5999,
+    originalPrice: 8499,
+    overview: 'The AutoClave-A300 Sterilizer provides reliable steam sterilization for laboratory instruments, glassware, and media. With pre-programmed cycles, automatic controls, and safety features, this autoclave ensures effective sterilization every time.',
+    features: [
+      'Chamber capacity: 23 liters',
+      'Temperature: 105-134°C',
+      'Pressure: up to 2.2 bar',
+      'Pre-programmed cycles for different loads',
+      'Automatic water fill and drain',
+      'Built-in printer for cycle documentation'
+    ],
+    specifications: {
+      chamberSize: '25 cm diameter × 47 cm depth',
+      capacity: '23 liters',
+      temperatureRange: '105-134°C',
+      maxPressure: '2.2 bar',
+      dimensions: '50 cm × 60 cm × 85 cm (W × D × H)',
+      weight: '75 kg',
+      power: '208-240V AC, 50/60 Hz, 3000W'
+    },
+    applications: [
+      'Sterilizing laboratory glassware',
+      'Instrument sterilization',
+      'Media preparation',
+      'Waste decontamination',
+      'Liquid sterilization',
+      'Wrapped goods sterilization'
+    ],
+    operation: 'Load items into chamber, select appropriate cycle, and press start. Autoclave automatically fills with water, heats to temperature, maintains pressure for set time, and cools down. Printer documents cycle parameters for validation.',
+    advantages: [
+      'Pre-programmed cycles ensure proper sterilization',
+      'Automatic operation reduces user error',
+      'Built-in printer provides documentation',
+      'Safety interlocks prevent accidents',
+      'Large capacity handles multiple loads',
+      'Reliable steam sterilization'
+    ],
+    considerations: [
+      'Requires water supply and drain',
+      'Professional installation recommended',
+      'Regular maintenance and validation required',
+      'Proper loading technique important',
+      'Allow cooling before opening'
+    ],
+    compliance: 'CE marked. Complies with EN 13060 and EN 285 standards for sterilizers. Pressure vessel certified. Includes validation documentation.',
+    commitment: '3-year warranty. Annual validation and maintenance services available. 24/7 technical support. Replacement parts readily available.'
+  },
+  {
+    id: 'ic-23456',
+    name: 'IceMaker-I200 Ice Machine',
+    model: 'IceMaker-I200',
+    productId: 'IC-23456',
+    tagline: 'Compact ice maker producing 20kg of ice per day',
+    category: 'Laboratory Equipment',
+    image: productImage,
+    price: 1899,
+    originalPrice: 2699,
+    overview: 'The IceMaker-I200 produces clean, consistent ice for laboratory cooling applications. With automatic operation, built-in storage, and compact design, this ice maker ensures a steady supply of ice for your laboratory needs.',
+    features: [
+      'Production: 20 kg per 24 hours',
+      'Storage bin: 6 kg capacity',
+      'Automatic operation with ice level sensor',
+      'Air-cooled condenser',
+      'Stainless steel construction',
+      'Easy-access front panel for maintenance'
+    ],
+    specifications: {
+      production: '20 kg per 24 hours',
+      storage: '6 kg',
+      iceType: 'Cube (22mm × 22mm × 22mm)',
+      dimensions: '38 cm × 54 cm × 70 cm (W × D × H)',
+      weight: '35 kg',
+      power: '100-240V AC, 50/60 Hz, 350W',
+      waterConnection: '1/4" inlet'
+    },
+    applications: [
+      'Sample cooling',
+      'Ice baths',
+      'Cold room applications',
+      'Beverage cooling',
+      'General laboratory cooling',
+      'Equipment cooling'
+    ],
+    operation: 'Connect to water supply and power. Machine automatically produces ice and stores in bin. When bin is full, production stops. When ice is removed, production resumes. Self-cleaning cycle available.',
+    advantages: [
+      'Consistent ice production',
+      'Automatic operation',
+      'Compact design fits under counters',
+      'Stainless steel for hygiene',
+      'Easy maintenance',
+      'Energy efficient'
+    ],
+    considerations: [
+      'Requires water supply connection',
+      'Adequate ventilation needed',
+      'Regular cleaning recommended',
+      'Water filter recommended for quality',
+      'Drain connection helpful'
+    ],
+    compliance: 'CE marked. NSF certified for food contact. Complies with electrical safety standards.',
+    commitment: '2-year warranty on compressor, 1 year on other parts. Technical support available. Replacement parts and filters available.'
+  },
+  {
+    id: 'wa-34567',
+    name: 'WaterPure-W300 Water Purification System',
+    model: 'WaterPure-W300',
+    productId: 'WA-34567',
+    tagline: 'Type I ultrapure water system with UV and filtration',
+    category: 'Laboratory Equipment',
+    image: productImage,
+    price: 4999,
+    originalPrice: 6999,
+    overview: 'The WaterPure-W300 produces Type I ultrapure water for critical laboratory applications. With multiple purification stages including RO, DI, UV, and ultrafiltration, this system delivers consistent 18.2 MΩ·cm water quality.',
+    features: [
+      'Resistivity: 18.2 MΩ·cm at 25°C',
+      'Flow rate: 1.5 liters per minute',
+      'Multi-stage purification: RO, DI, UV, UF',
+      'Real-time water quality monitoring',
+      'Touchscreen display',
+      'Automatic sanitization cycle'
+    ],
+    specifications: {
+      resistivity: '18.2 MΩ·cm at 25°C',
+      TOC: '< 5 ppb',
+      bacteria: '< 0.1 CFU/mL',
+      flowRate: '1.5 L/min',
+      tankCapacity: '30 liters',
+      dimensions: '45 cm × 50 cm × 140 cm (W × D × H)',
+      power: '100-240V AC, 50/60 Hz, 200W'
+    },
+    applications: [
+      'HPLC and UHPLC',
+      'ICP-MS and AAS',
+      'Molecular biology',
+      'Cell culture',
+      'Buffer preparation',
+      'General laboratory use'
+    ],
+    operation: 'System automatically produces and stores ultrapure water. Touchscreen displays real-time quality parameters. Dispense water via front panel or remote dispenser. System performs automatic sanitization and filter change alerts.',
+    advantages: [
+      'Consistent Type I water quality',
+      'Real-time monitoring ensures quality',
+      'Multiple purification stages',
+      'Automatic operation',
+      'Large storage tank',
+      'Low maintenance'
+    ],
+    considerations: [
+      'Requires tap water feed',
+      'Regular filter replacement needed',
+      'Drain connection required',
+      'Periodic sanitization recommended',
+      'Water quality depends on feed water'
+    ],
+    compliance: 'Meets ASTM, CAP, CLSI, and ISO 3696 Type I water standards. CE marked. Manufactured under ISO 9001:2015 quality management system.',
+    commitment: '3-year warranty. Annual service contracts available. Replacement filters and consumables readily available. Technical support and training included.'
+  },
+  {
+    id: 'gl-45678',
+    name: 'GlovePro-G400 Glove Box',
+    model: 'GlovePro-G400',
+    productId: 'GL-45678',
+    tagline: 'Anaerobic glove box with gas purification system',
+    category: 'Safety Equipment',
+    image: productImage,
+    price: 15999,
+    originalPrice: 21999,
+    overview: 'The GlovePro-G400 Glove Box provides a controlled anaerobic environment for oxygen-sensitive work. With active gas purification, airlock chamber, and ergonomic design, this glove box enables reliable anaerobic research and culture.',
+    features: [
+      'Working volume: 400 liters',
+      'Oxygen level: < 1 ppm',
+      'Active gas purification system',
+      'Airlock chamber for sample transfer',
+      'LED lighting: 1000 lux',
+      'Stainless steel interior'
+    ],
+    specifications: {
+      workingVolume: '400 liters',
+      dimensions: '120 cm × 75 cm × 85 cm (W × D × H)',
+      oxygenLevel: '< 1 ppm',
+      gasConsumption: '5-10 L/hour',
+      airlockCycle: '5 minutes',
+      gloves: 'Butyl rubber, 8" diameter ports',
+      power: '100-240V AC, 50/60 Hz, 300W'
+    },
+    applications: [
+      'Anaerobic microbiology',
+      'Oxygen-sensitive chemistry',
+      'Anaerobic cell culture',
+      'Microbiome research',
+      'Clostridium culture',
+      'Oxygen-sensitive material handling'
+    ],
+    operation: 'Maintain anaerobic atmosphere with nitrogen or nitrogen/hydrogen mix. Transfer samples via airlock with vacuum/gas purge cycles. Gas purification system continuously removes oxygen. Monitor oxygen levels on digital display.',
+    advantages: [
+      'Ultra-low oxygen levels',
+      'Active purification maintains atmosphere',
+      'Airlock prevents contamination',
+      'Large working volume',
+      'Ergonomic glove ports',
+      'Easy to clean interior'
+    ],
+    considerations: [
+      'Requires gas supply (N2 or N2/H2)',
+      'Professional installation recommended',
+      'Regular catalyst replacement needed',
+      'Glove replacement every 6-12 months',
+      'Adequate space required'
+    ],
+    compliance: 'CE marked. Manufactured under ISO 9001:2015 quality management system. Complies with laboratory safety standards.',
+    commitment: '3-year warranty. Annual service contracts available. Replacement gloves, catalysts, and parts available. Technical support and training included.'
+  },
+  {
+    id: 'lm-56789',
+    name: 'LightScope-L500 Microscope',
+    model: 'LightScope-L500',
+    productId: 'LM-56789',
+    tagline: 'LED binocular microscope with mechanical stage',
+    category: 'Imaging Systems',
+    image: productImage,
+    price: 1899,
+    originalPrice: 2699,
+    overview: 'The LightScope-L500 Binocular Microscope combines quality optics with modern LED illumination. Ideal for routine microscopy, education, and quality control, this microscope offers excellent image quality and comfortable viewing.',
+    features: [
+      'Binocular viewing head, 45° inclined',
+      'LED illumination with intensity control',
+      'Objectives: 4×, 10×, 40×, 100× (oil)',
+      'Mechanical stage: 125mm × 125mm',
+      'Coaxial coarse and fine focus',
+      'Abbe condenser with iris diaphragm'
+    ],
+    specifications: {
+      magnification: '40× to 1000×',
+      eyepieces: 'WF10× (23mm)',
+      objectives: '4×, 10×, 40×, 100× (oil)',
+      illumination: 'LED, 3W',
+      stageSize: '125mm × 125mm',
+      dimensions: '20 cm × 35 cm × 40 cm (W × D × H)',
+      weight: '6.5 kg'
+    },
+    applications: [
+      'Routine microscopy',
+      'Hematology',
+      'Microbiology',
+      'Pathology',
+      'Quality control',
+      'Education and training'
+    ],
+    operation: 'Place slide on mechanical stage and secure with clips. Select objective and adjust focus using coaxial knobs. Adjust illumination intensity and condenser for optimal image. Oil immersion objective requires immersion oil.',
+    advantages: [
+      'LED illumination lasts 50,000+ hours',
+      'Binocular viewing reduces eye strain',
+      'Mechanical stage for precise positioning',
+      'Quality optics provide clear images',
+      'Coaxial focus for convenience',
+      'Durable construction'
+    ],
+    considerations: [
+      'Immersion oil required for 100× objective',
+      'Regular cleaning of optics recommended',
+      'Handle with care',
+      'Store in dust-free environment'
+    ],
+    compliance: 'CE marked. Manufactured under ISO 9001:2015 quality management system.',
+    commitment: '3-year warranty on optics and mechanics, 1 year on LED. Replacement parts and accessories available. Technical support included.'
+  },
+  {
+    id: 'tm-67890',
+    name: 'ThermoLog-T600 Temperature Logger',
+    model: 'ThermoLog-T600',
+    productId: 'TM-67890',
+    tagline: 'Multi-channel temperature data logger with cloud connectivity',
+    category: 'Analytical Instruments',
+    image: productImage,
+    price: 899,
+    originalPrice: 1299,
+    overview: 'The ThermoLog-T600 Temperature Logger monitors and records temperature data from multiple locations. With cloud connectivity, alarm notifications, and compliance-ready reports, this logger ensures temperature-sensitive materials are properly stored.',
+    features: [
+      '6 external probe inputs',
+      'Temperature range: -200°C to +200°C',
+      'Accuracy: ±0.5°C',
+      'Data logging: 1 million readings',
+      'Cloud connectivity with mobile app',
+      'Email/SMS alarm notifications'
+    ],
+    specifications: {
+      channels: '6 external probes',
+      temperatureRange: '-200°C to +200°C',
+      accuracy: '±0.5°C',
+      resolution: '0.1°C',
+      loggingInterval: '1 second to 24 hours',
+      memory: '1 million readings',
+      connectivity: 'Ethernet, Wi-Fi, USB',
+      power: '100-240V AC or battery backup'
+    },
+    applications: [
+      'Freezer and refrigerator monitoring',
+      'Incubator monitoring',
+      'Cold chain validation',
+      'Environmental monitoring',
+      'Stability studies',
+      'GMP/GLP compliance'
+    ],
+    operation: 'Connect temperature probes to desired locations. Configure logging intervals and alarm limits via web interface or mobile app. Logger automatically records data and sends to cloud. Receive instant alerts if temperatures exceed limits.',
+    advantages: [
+      'Multi-channel monitoring',
+      'Cloud storage ensures data security',
+      'Real-time alerts prevent losses',
+      'Compliance-ready reports',
+      'Battery backup during power outages',
+      'Remote access from anywhere'
+    ],
+    considerations: [
+      'Requires internet connection for cloud features',
+      'Probes sold separately',
+      'Subscription may be required for cloud service',
+      'Regular calibration recommended'
+    ],
+    compliance: 'Meets FDA 21 CFR Part 11 requirements. CE marked. Manufactured under ISO 9001:2015 quality management system. GMP/GLP compliant.',
+    commitment: '2-year warranty. Cloud service included for first year. Replacement probes and accessories available. Technical support included.'
+  }
+];
+
+export const categories = [
+  'All Products',
+  'Laboratory Equipment',
+  'Analytical Instruments',
+  'Molecular Biology',
+  'Sample Preparation',
+  'Safety Equipment',
+  'Imaging Systems'
+];
