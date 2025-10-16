@@ -9,6 +9,10 @@
 # Production
 /build
 
+# Excluded Folders
+/OFF
+
+
 # Misc
 .DS_Store
 .env.local
