@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useCurrency } from '../context/CurrencyContext';
+import { useAuth } from '../context/AuthContext';
 import '../styles/Navigation.css';
 
 const Navigation = () => {
@@ -10,6 +11,7 @@ const Navigation = () => {
   const location = useLocation();
   const { getCartTotal } = useCart();
   const { currency, setCurrency, getAvailableCurrencies } = useCurrency();
+  const { user, isAuthenticated, logout } = useAuth();
   const profileRef = useRef(null);
 
   const toggleMenu = () => {
@@ -22,6 +24,17 @@ const Navigation = () => {
 
   const toggleProfile = () => {
     setIsProfileOpen(!isProfileOpen);
+  };
+
+  const handleProfileNavigate = () => {
+    setIsProfileOpen(false);
+    closeMenu();
+  };
+
+  const handleLogout = () => {
+    logout();
+    setIsProfileOpen(false);
+    closeMenu();
   };
 
   const isActive = (path) => {
@@ -106,27 +119,34 @@ const Navigation = () => {
             {isProfileOpen && (
               <div className="dropdown-menu profile-menu">
                 <div className="dropdown-header">
-                  <div className="profile-greeting">Hello, Guest</div>
+                  <div className="profile-greeting">
+                    {isAuthenticated ? `Hello, ${user.fullName.split(' ')[0]}` : 'Hello, Guest'}
+                  </div>
+                  <div className="profile-helper">
+                    {isAuthenticated ? user.email : 'Sign in to personalize your experience'}
+                  </div>
                 </div>
-                <div className="dropdown-section">
-                  <div className="dropdown-section-title">Your Account</div>
-                  <button className="dropdown-item">
-                    <span className="item-icon">👤</span>
-                    Your Profile
-                  </button>
-                  <button className="dropdown-item">
-                    <span className="item-icon">📦</span>
-                    Your Orders
-                  </button>
-                  <button className="dropdown-item">
-                    <span className="item-icon">❤️</span>
-                    Your Wishlist
-                  </button>
-                  <button className="dropdown-item">
-                    <span className="item-icon">⭐</span>
-                    Your Reviews
-                  </button>
-                </div>
+                {isAuthenticated && (
+                  <div className="dropdown-section">
+                    <div className="dropdown-section-title">Your Account</div>
+                    <button type="button" className="dropdown-item">
+                      <span className="item-icon">👤</span>
+                      Your Profile
+                    </button>
+                    <button type="button" className="dropdown-item">
+                      <span className="item-icon">📦</span>
+                      Your Orders
+                    </button>
+                    <button type="button" className="dropdown-item">
+                      <span className="item-icon">❤️</span>
+                      Your Wishlist
+                    </button>
+                    <button type="button" className="dropdown-item">
+                      <span className="item-icon">⭐</span>
+                      Your Reviews
+                    </button>
+                  </div>
+                )}
                 <div className="dropdown-divider"></div>
                 <div className="dropdown-section">
                   <div className="dropdown-section-title">Currency & Region</div>
@@ -135,7 +155,7 @@ const Navigation = () => {
                       <span className="item-icon">💱</span>
                       Currency
                     </label>
-                    <select 
+                    <select
                       className="currency-select-dropdown"
                       value={currency}
                       onChange={(e) => setCurrency(e.target.value)}
@@ -147,29 +167,46 @@ const Navigation = () => {
                       ))}
                     </select>
                   </div>
-                  <button className="dropdown-item">
-                    <span className="item-icon">⚙️</span>
-                    Account Settings
-                  </button>
-                  <button className="dropdown-item">
-                    <span className="item-icon">🔔</span>
-                    Notifications
-                  </button>
-                  <button className="dropdown-item">
-                    <span className="item-icon">🌍</span>
-                    Language & Region
-                  </button>
+                  {isAuthenticated && (
+                    <>
+                      <button type="button" className="dropdown-item">
+                        <span className="item-icon">⚙️</span>
+                        Account Settings
+                      </button>
+                      <button type="button" className="dropdown-item">
+                        <span className="item-icon">🔔</span>
+                        Notifications
+                      </button>
+                      <button type="button" className="dropdown-item">
+                        <span className="item-icon">🌍</span>
+                        Language & Region
+                      </button>
+                    </>
+                  )}
                 </div>
                 <div className="dropdown-divider"></div>
                 <div className="dropdown-section">
-                  <button className="dropdown-item">
-                    <span className="item-icon">❓</span>
-                    Help & Support
-                  </button>
-                  <button className="dropdown-item logout-item">
-                    <span className="item-icon">🚪</span>
-                    Sign Out
-                  </button>
+                  {isAuthenticated ? (
+                    <button
+                      type="button"
+                      className="dropdown-item logout-item"
+                      onClick={handleLogout}
+                    >
+                      <span className="item-icon">🚪</span>
+                      Sign Out
+                    </button>
+                  ) : (
+                    <>
+                      <Link to="/login" className="dropdown-item" onClick={handleProfileNavigate}>
+                        <span className="item-icon">🔑</span>
+                        Sign In
+                      </Link>
+                      <Link to="/register" className="dropdown-item" onClick={handleProfileNavigate}>
+                        <span className="item-icon">✨</span>
+                        Create Account
+                      </Link>
+                    </>
+                  )}
                 </div>
               </div>
             )}
