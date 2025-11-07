@@ -15,8 +15,9 @@ app.use(express.urlencoded({ extended: true }));
 app.use((req, res, next) => {
   const allowedOrigins = [
     'http://localhost:3000',
+    'http://localhost:3001',
     'http://localhost:5000',
-    'https://your-netlify-site.netlify.app', // Replace with your actual Netlify URL
+    'https://ecommerce-admin-backend.onrender.com',
     process.env.FRONTEND_URL
   ].filter(Boolean);
   
