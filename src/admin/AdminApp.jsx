@@ -10,7 +10,11 @@ const AdminApp = () => {
   const [admin, setAdmin] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  console.log('🚀 AdminApp component mounted');
+  console.log('🌐 API_URL:', API_URL);
+
   useEffect(() => {
+    console.log('🔄 useEffect triggered');
     verifySession();
   }, []);
 

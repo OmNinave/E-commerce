@@ -23,6 +23,7 @@ function AppContent() {
 
   // If admin route, show admin dashboard
   if (location.pathname === '/admin') {
+    console.log('🔐 Admin route detected');
     return <AdminApp />;
   }
 
