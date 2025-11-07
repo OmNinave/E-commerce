@@ -12,19 +12,13 @@ import Cart from './components/Cart';
 import Checkout from './components/Checkout';
 import Login from './components/Login';
 import Register from './components/Register';
-import AdminApp from './admin/AdminApp';
 import ScrollToTop from './components/ScrollToTop';
 import './styles/App.css';
 
 function AppContent() {
   const location = useLocation();
   const hideFooter = location.pathname === '/products';
-  const hideNavigation = location.pathname === '/login' || location.pathname === '/register' || location.pathname === '/admin';
-
-  // If admin route, show only admin dashboard
-  if (location.pathname === '/admin') {
-    return <AdminApp />;
-  }
+  const hideNavigation = location.pathname === '/login' || location.pathname === '/register';
 
   return (
     <div className="app">
@@ -39,7 +33,6 @@ function AppContent() {
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/admin" element={<AdminApp />} />
         </Routes>
       </main>
       {!hideFooter && <Footer />}
