@@ -1,0 +1,1497 @@
+{
+  "users": [
+    {
+      "id": "user001",
+      "name": "User 1",
+      "email": "user1@example.com",
+      "registrationDate": "2025-11-01",
+      "accountCreatedDate": "2025-11-01",
+      "isNewUser": true,
+      "lastLoginDate": "2025-10-20"
+    },
+    {
+      "id": "user002",
+      "name": "User 2",
+      "email": "user2@example.com",
+      "registrationDate": "2025-09-27",
+      "accountCreatedDate": "2025-09-27",
+      "isNewUser": false,
+      "lastLoginDate": "2025-10-22"
+    },
+    {
+      "id": "user003",
+      "name": "User 3",
+      "email": "user3@example.com",
+      "registrationDate": "2025-09-16",
+      "accountCreatedDate": "2025-09-16",
+      "isNewUser": false,
+      "lastLoginDate": "2025-09-16"
+    },
+    {
+      "id": "user004",
+      "name": "User 4",
+      "email": "user4@example.com",
+      "registrationDate": "2025-09-10",
+      "accountCreatedDate": "2025-09-10",
+      "isNewUser": false,
+      "lastLoginDate": "2025-09-13"
+    },
+    {
+      "id": "user005",
+      "name": "User 5",
+      "email": "user5@example.com",
+      "registrationDate": "2025-10-16",
+      "accountCreatedDate": "2025-10-16",
+      "isNewUser": true,
+      "lastLoginDate": "2025-10-08"
+    },
+    {
+      "id": "user006",
+      "name": "User 6",
+      "email": "user6@example.com",
+      "registrationDate": "2025-11-01",
+      "accountCreatedDate": "2025-11-01",
+      "isNewUser": true,
+      "lastLoginDate": "2025-10-13"
+    },
+    {
+      "id": "user007",
+      "name": "User 7",
+      "email": "user7@example.com",
+      "registrationDate": "2025-09-07",
+      "accountCreatedDate": "2025-09-07",
+      "isNewUser": false,
+      "lastLoginDate": "2025-11-01"
+    },
+    {
+      "id": "user008",
+      "name": "User 8",
+      "email": "user8@example.com",
+      "registrationDate": "2025-09-20",
+      "accountCreatedDate": "2025-09-20",
+      "isNewUser": false,
+      "lastLoginDate": "2025-11-03"
+    },
+    {
+      "id": "user009",
+      "name": "User 9",
+      "email": "user9@example.com",
+      "registrationDate": "2025-11-03",
+      "accountCreatedDate": "2025-11-03",
+      "isNewUser": true,
+      "lastLoginDate": "2025-10-02"
+    },
+    {
+      "id": "user010",
+      "name": "User 10",
+      "email": "user10@example.com",
+      "registrationDate": "2025-09-25",
+      "accountCreatedDate": "2025-09-25",
+      "isNewUser": false,
+      "lastLoginDate": "2025-11-02"
+    },
+    {
+      "id": "user011",
+      "name": "User 11",
+      "email": "user11@example.com",
+      "registrationDate": "2025-09-24",
+      "accountCreatedDate": "2025-09-24",
+      "isNewUser": false,
+      "lastLoginDate": "2025-11-04"
+    },
+    {
+      "id": "user012",
+      "name": "User 12",
+      "email": "user12@example.com",
+      "registrationDate": "2025-10-08",
+      "accountCreatedDate": "2025-10-08",
+      "isNewUser": true,
+      "lastLoginDate": "2025-09-11"
+    },
+    {
+      "id": "user013",
+      "name": "User 13",
+      "email": "user13@example.com",
+      "registrationDate": "2025-09-09",
+      "accountCreatedDate": "2025-09-09",
+      "isNewUser": false,
+      "lastLoginDate": "2025-09-30"
+    },
+    {
+      "id": "user014",
+      "name": "User 14",
+      "email": "user14@example.com",
+      "registrationDate": "2025-09-12",
+      "accountCreatedDate": "2025-09-12",
+      "isNewUser": false,
+      "lastLoginDate": "2025-10-30"
+    },
+    {
+      "id": "user015",
+      "name": "User 15",
+      "email": "user15@example.com",
+      "registrationDate": "2025-10-14",
+      "accountCreatedDate": "2025-10-14",
+      "isNewUser": true,
+      "lastLoginDate": "2025-10-22"
+    },
+    {
+      "id": "user016",
+      "name": "User 16",
+      "email": "user16@example.com",
+      "registrationDate": "2025-10-21",
+      "accountCreatedDate": "2025-10-21",
+      "isNewUser": true,
+      "lastLoginDate": "2025-09-14"
+    },
+    {
+      "id": "user017",
+      "name": "User 17",
+      "email": "user17@example.com",
+      "registrationDate": "2025-11-05",
+      "accountCreatedDate": "2025-11-05",
+      "isNewUser": true,
+      "lastLoginDate": "2025-09-24"
+    },
+    {
+      "id": "user018",
+      "name": "User 18",
+      "email": "user18@example.com",
+      "registrationDate": "2025-10-14",
+      "accountCreatedDate": "2025-10-14",
+      "isNewUser": true,
+      "lastLoginDate": "2025-10-26"
+    },
+    {
+      "id": "user019",
+      "name": "User 19",
+      "email": "user19@example.com",
+      "registrationDate": "2025-09-15",
+      "accountCreatedDate": "2025-09-15",
+      "isNewUser": false,
+      "lastLoginDate": "2025-10-02"
+    },
+    {
+      "id": "user020",
+      "name": "User 20",
+      "email": "user20@example.com",
+      "registrationDate": "2025-11-02",
+      "accountCreatedDate": "2025-11-02",
+      "isNewUser": true,
+      "lastLoginDate": "2025-10-28"
+    }
+  ],
+  "products": [
+    {
+      "productId": "tit712",
+      "productName": "Titrator",
+      "currentQuantity": 42,
+      "totalSold": 8,
+      "price": 0,
+      "category": "Analytical",
+      "addedDate": "2025-11-03"
+    },
+    {
+      "productId": "hsrlc90",
+      "productName": "High-Speed Refrigerated Laboratory Centrifuge",
+      "currentQuantity": 30,
+      "totalSold": 20,
+      "price": 0,
+      "category": "Centrifuge",
+      "addedDate": "2025-09-27"
+    },
+    {
+      "productId": "uvv",
+      "productName": "UV-Visible Spectrophotometer",
+      "currentQuantity": 49,
+      "totalSold": 1,
+      "price": 0,
+      "category": "Analytical",
+      "addedDate": "2025-10-07"
+    },
+    {
+      "productId": "mpr5502",
+      "productName": "Microplate Reader",
+      "currentQuantity": 34,
+      "totalSold": 16,
+      "price": 0,
+      "category": "Detection",
+      "addedDate": "2025-10-28"
+    },
+    {
+      "productId": "pcrtc8",
+      "productName": "PCR Thermal Cycler",
+      "currentQuantity": 40,
+      "totalSold": 10,
+      "price": 0,
+      "category": "Molecular",
+      "addedDate": "2025-10-11"
+    },
+    {
+      "productId": "anlb1075",
+      "productName": "Analytical Balance",
+      "currentQuantity": 43,
+      "totalSold": 7,
+      "price": 0,
+      "category": "Analytical",
+      "addedDate": "2025-10-07"
+    },
+    {
+      "productId": "rev980",
+      "productName": "Rotary Evaporator",
+      "currentQuantity": 40,
+      "totalSold": 10,
+      "price": 0,
+      "category": "Preparation",
+      "addedDate": "2025-09-13"
+    },
+    {
+      "productId": "hao2008",
+      "productName": "Hot Air Oven",
+      "currentQuantity": 45,
+      "totalSold": 5,
+      "price": 0,
+      "category": "Environmental",
+      "addedDate": "2025-10-12"
+    },
+    {
+      "productId": "aut325",
+      "productName": "Autoclave Sterilizer",
+      "currentQuantity": 33,
+      "totalSold": 17,
+      "price": 0,
+      "category": "Environmental",
+      "addedDate": "2025-10-31"
+    },
+    {
+      "productId": "bsc450",
+      "productName": "Biological Safety Cabinet",
+      "currentQuantity": 50,
+      "totalSold": 0,
+      "price": 0,
+      "category": "Environmental",
+      "addedDate": "2025-10-27"
+    },
+    {
+      "productId": "mag225",
+      "productName": "Magnetic Stirrer",
+      "currentQuantity": 40,
+      "totalSold": 10,
+      "price": 0,
+      "category": "Analytical",
+      "addedDate": "2025-10-08"
+    },
+    {
+      "productId": "phm330",
+      "productName": "pH Meter",
+      "currentQuantity": 46,
+      "totalSold": 4,
+      "price": 0,
+      "category": "Measurement",
+      "addedDate": "2025-09-14"
+    },
+    {
+      "productId": "wb550",
+      "productName": "Water Bath",
+      "currentQuantity": 46,
+      "totalSold": 4,
+      "price": 0,
+      "category": "Environmental",
+      "addedDate": "2025-10-08"
+    },
+    {
+      "productId": "os720",
+      "productName": "Orbital Shaker",
+      "currentQuantity": 45,
+      "totalSold": 5,
+      "price": 0,
+      "category": "Centrifuge",
+      "addedDate": "2025-10-11"
+    },
+    {
+      "productId": "fh840",
+      "productName": "Fume Hood",
+      "currentQuantity": 39,
+      "totalSold": 11,
+      "price": 0,
+      "category": "Environmental",
+      "addedDate": "2025-09-24"
+    },
+    {
+      "productId": "mic620",
+      "productName": "Microscope",
+      "currentQuantity": 44,
+      "totalSold": 6,
+      "price": 0,
+      "category": "Detection",
+      "addedDate": "2025-09-13"
+    },
+    {
+      "productId": "inc810",
+      "productName": "Incubator",
+      "currentQuantity": 36,
+      "totalSold": 14,
+      "price": 0,
+      "category": "Environmental",
+      "addedDate": "2025-10-16"
+    },
+    {
+      "productId": "sf920",
+      "productName": "Spectrofluorometer",
+      "currentQuantity": 45,
+      "totalSold": 5,
+      "price": 0,
+      "category": "Analytical",
+      "addedDate": "2025-09-23"
+    },
+    {
+      "productId": "laf450",
+      "productName": "Laminar Air Flow Cabinet",
+      "currentQuantity": 38,
+      "totalSold": 12,
+      "price": 0,
+      "category": "Environmental",
+      "addedDate": "2025-10-19"
+    },
+    {
+      "productId": "epu220",
+      "productName": "Electrophoresis Unit",
+      "currentQuantity": 41,
+      "totalSold": 9,
+      "price": 0,
+      "category": "Molecular",
+      "addedDate": "2025-10-31"
+    },
+    {
+      "productId": "gc450",
+      "productName": "Gas Chromatograph",
+      "currentQuantity": 43,
+      "totalSold": 7,
+      "price": 0,
+      "category": "Chromatography",
+      "addedDate": "2025-10-23"
+    },
+    {
+      "productId": "hplc320",
+      "productName": "HPLC System",
+      "currentQuantity": 48,
+      "totalSold": 2,
+      "price": 0,
+      "category": "Chromatography",
+      "addedDate": "2025-09-15"
+    },
+    {
+      "productId": "fd750",
+      "productName": "Freeze Dryer",
+      "currentQuantity": 46,
+      "totalSold": 4,
+      "price": 0,
+      "category": "Drying",
+      "addedDate": "2025-11-03"
+    },
+    {
+      "productId": "co2820",
+      "productName": "CO2 Incubator",
+      "currentQuantity": 46,
+      "totalSold": 4,
+      "price": 0,
+      "category": "Environmental",
+      "addedDate": "2025-11-04"
+    },
+    {
+      "productId": "dis950",
+      "productName": "Distillation Unit",
+      "currentQuantity": 40,
+      "totalSold": 10,
+      "price": 0,
+      "category": "Analytical",
+      "addedDate": "2025-10-28"
+    },
+    {
+      "productId": "bod880",
+      "productName": "BOD Incubator",
+      "currentQuantity": 46,
+      "totalSold": 4,
+      "price": 0,
+      "category": "Environmental",
+      "addedDate": "2025-10-23"
+    },
+    {
+      "productId": "cnd760",
+      "productName": "Conductivity Meter",
+      "currentQuantity": 44,
+      "totalSold": 6,
+      "price": 0,
+      "category": "Analytical",
+      "addedDate": "2025-10-08"
+    },
+    {
+      "productId": "rfr842",
+      "productName": "Refractometer",
+      "currentQuantity": 47,
+      "totalSold": 3,
+      "price": 0,
+      "category": "Analytical",
+      "addedDate": "2025-11-02"
+    },
+    {
+      "productId": "clm915",
+      "productName": "Colorimeter",
+      "currentQuantity": 49,
+      "totalSold": 1,
+      "price": 0,
+      "category": "Analytical",
+      "addedDate": "2025-10-14"
+    },
+    {
+      "productId": "cev902",
+      "productName": "Centrifugal Evaporator",
+      "currentQuantity": 46,
+      "totalSold": 4,
+      "price": 0,
+      "category": "Drying",
+      "addedDate": "2025-10-03"
+    },
+    {
+      "productId": "mic305",
+      "productName": "Microtome",
+      "currentQuantity": 47,
+      "totalSold": 3,
+      "price": 0,
+      "category": "Analytical",
+      "addedDate": "2025-10-10"
+    },
+    {
+      "productId": "nev410",
+      "productName": "Nitrogen Evaporator",
+      "currentQuantity": 44,
+      "totalSold": 6,
+      "price": 0,
+      "category": "Drying",
+      "addedDate": "2025-09-16"
+    },
+    {
+      "productId": "ph220",
+      "productName": "Plate Heater",
+      "currentQuantity": 41,
+      "totalSold": 9,
+      "price": 0,
+      "category": "Environmental",
+      "addedDate": "2025-10-11"
+    },
+    {
+      "productId": "af450",
+      "productName": "Analytical Furnace",
+      "currentQuantity": 33,
+      "totalSold": 17,
+      "price": 0,
+      "category": "Analytical",
+      "addedDate": "2025-09-23"
+    },
+    {
+      "productId": "mfp450",
+      "productName": "Microfluidic Pump",
+      "currentQuantity": 50,
+      "totalSold": 0,
+      "price": 0,
+      "category": "Analytical",
+      "addedDate": "2025-10-31"
+    },
+    {
+      "productId": "vp720",
+      "productName": "Vacuum Pump",
+      "currentQuantity": 36,
+      "totalSold": 14,
+      "price": 0,
+      "category": "Analytical",
+      "addedDate": "2025-10-18"
+    },
+    {
+      "productId": "aut721",
+      "productName": "Autotitrator",
+      "currentQuantity": 45,
+      "totalSold": 5,
+      "price": 0,
+      "category": "Analytical",
+      "addedDate": "2025-11-03"
+    },
+    {
+      "productId": "wps880",
+      "productName": "Water Purification System",
+      "currentQuantity": 44,
+      "totalSold": 6,
+      "price": 0,
+      "category": "Environmental",
+      "addedDate": "2025-09-27"
+    },
+    {
+      "productId": "lr450",
+      "productName": "Laboratory Refrigerator",
+      "currentQuantity": 50,
+      "totalSold": 0,
+      "price": 0,
+      "category": "Environmental",
+      "addedDate": "2025-09-25"
+    },
+    {
+      "productId": "am620",
+      "productName": "Analytical Microscope",
+      "currentQuantity": 36,
+      "totalSold": 14,
+      "price": 0,
+      "category": "Analytical",
+      "addedDate": "2025-10-18"
+    },
+    {
+      "productId": "hmg750",
+      "productName": "Homogenizer",
+      "currentQuantity": 15,
+      "totalSold": 35,
+      "price": 0,
+      "category": "Analytical",
+      "addedDate": "2025-10-15"
+    },
+    {
+      "productId": "lyo880",
+      "productName": "Lyophilizer",
+      "currentQuantity": 35,
+      "totalSold": 15,
+      "price": 0,
+      "category": "Drying",
+      "addedDate": "2025-10-03"
+    },
+    {
+      "productId": "cc450",
+      "productName": "Cell Counter",
+      "currentQuantity": 46,
+      "totalSold": 4,
+      "price": 0,
+      "category": "Analytical",
+      "addedDate": "2025-09-22"
+    },
+    {
+      "productId": "col410",
+      "productName": "Colony Counter",
+      "currentQuantity": 41,
+      "totalSold": 9,
+      "price": 0,
+      "category": "Analytical",
+      "addedDate": "2025-10-31"
+    },
+    {
+      "productId": "dvm750",
+      "productName": "Digital Viscometer",
+      "currentQuantity": 36,
+      "totalSold": 14,
+      "price": 0,
+      "category": "Analytical",
+      "addedDate": "2025-09-12"
+    }
+  ],
+  "purchaseHistory": [
+    {
+      "userId": "user001",
+      "productId": "mag225",
+      "productName": "Magnetic Stirrer",
+      "purchaseDate": "2025-10-25",
+      "quantity": 1,
+      "price": 0
+    },
+    {
+      "userId": "user001",
+      "productId": "am620",
+      "productName": "Analytical Microscope",
+      "purchaseDate": "2025-10-27",
+      "quantity": 5,
+      "price": 0
+    },
+    {
+      "userId": "user001",
+      "productId": "inc810",
+      "productName": "Incubator",
+      "purchaseDate": "2025-10-04",
+      "quantity": 5,
+      "price": 0
+    },
+    {
+      "userId": "user001",
+      "productId": "tit712",
+      "productName": "Titrator",
+      "purchaseDate": "2025-10-26",
+      "quantity": 5,
+      "price": 0
+    },
+    {
+      "userId": "user001",
+      "productId": "dis950",
+      "productName": "Distillation Unit",
+      "purchaseDate": "2025-10-25",
+      "quantity": 4,
+      "price": 0
+    },
+    {
+      "userId": "user001",
+      "productId": "wb550",
+      "productName": "Water Bath",
+      "purchaseDate": "2025-09-30",
+      "quantity": 4,
+      "price": 0
+    },
+    {
+      "userId": "user001",
+      "productId": "wps880",
+      "productName": "Water Purification System",
+      "purchaseDate": "2025-09-27",
+      "quantity": 4,
+      "price": 0
+    },
+    {
+      "userId": "user002",
+      "productId": "col410",
+      "productName": "Colony Counter",
+      "purchaseDate": "2025-09-30",
+      "quantity": 4,
+      "price": 0
+    },
+    {
+      "userId": "user002",
+      "productId": "os720",
+      "productName": "Orbital Shaker",
+      "purchaseDate": "2025-09-16",
+      "quantity": 5,
+      "price": 0
+    },
+    {
+      "userId": "user002",
+      "productId": "laf450",
+      "productName": "Laminar Air Flow Cabinet",
+      "purchaseDate": "2025-10-20",
+      "quantity": 4,
+      "price": 0
+    },
+    {
+      "userId": "user002",
+      "productId": "fh840",
+      "productName": "Fume Hood",
+      "purchaseDate": "2025-09-10",
+      "quantity": 2,
+      "price": 0
+    },
+    {
+      "userId": "user002",
+      "productId": "hsrlc90",
+      "productName": "High-Speed Refrigerated Laboratory Centrifuge",
+      "purchaseDate": "2025-10-01",
+      "quantity": 5,
+      "price": 0
+    },
+    {
+      "userId": "user002",
+      "productId": "ph220",
+      "productName": "Plate Heater",
+      "purchaseDate": "2025-10-23",
+      "quantity": 5,
+      "price": 0
+    },
+    {
+      "userId": "user002",
+      "productId": "dvm750",
+      "productName": "Digital Viscometer",
+      "purchaseDate": "2025-10-07",
+      "quantity": 5,
+      "price": 0
+    },
+    {
+      "userId": "user002",
+      "productId": "af450",
+      "productName": "Analytical Furnace",
+      "purchaseDate": "2025-10-21",
+      "quantity": 2,
+      "price": 0
+    },
+    {
+      "userId": "user003",
+      "productId": "pcrtc8",
+      "productName": "PCR Thermal Cycler",
+      "purchaseDate": "2025-09-30",
+      "quantity": 1,
+      "price": 0
+    },
+    {
+      "userId": "user003",
+      "productId": "vp720",
+      "productName": "Vacuum Pump",
+      "purchaseDate": "2025-09-19",
+      "quantity": 4,
+      "price": 0
+    },
+    {
+      "userId": "user003",
+      "productId": "af450",
+      "productName": "Analytical Furnace",
+      "purchaseDate": "2025-10-29",
+      "quantity": 2,
+      "price": 0
+    },
+    {
+      "userId": "user003",
+      "productId": "inc810",
+      "productName": "Incubator",
+      "purchaseDate": "2025-09-23",
+      "quantity": 4,
+      "price": 0
+    },
+    {
+      "userId": "user003",
+      "productId": "phm330",
+      "productName": "pH Meter",
+      "purchaseDate": "2025-10-23",
+      "quantity": 4,
+      "price": 0
+    },
+    {
+      "userId": "user003",
+      "productId": "hmg750",
+      "productName": "Homogenizer",
+      "purchaseDate": "2025-10-20",
+      "quantity": 4,
+      "price": 0
+    },
+    {
+      "userId": "user003",
+      "productId": "epu220",
+      "productName": "Electrophoresis Unit",
+      "purchaseDate": "2025-11-05",
+      "quantity": 3,
+      "price": 0
+    },
+    {
+      "userId": "user003",
+      "productId": "hmg750",
+      "productName": "Homogenizer",
+      "purchaseDate": "2025-09-08",
+      "quantity": 3,
+      "price": 0
+    },
+    {
+      "userId": "user003",
+      "productId": "mic305",
+      "productName": "Microtome",
+      "purchaseDate": "2025-11-01",
+      "quantity": 3,
+      "price": 0
+    },
+    {
+      "userId": "user004",
+      "productId": "ph220",
+      "productName": "Plate Heater",
+      "purchaseDate": "2025-09-14",
+      "quantity": 4,
+      "price": 0
+    },
+    {
+      "userId": "user004",
+      "productId": "aut325",
+      "productName": "Autoclave Sterilizer",
+      "purchaseDate": "2025-10-04",
+      "quantity": 3,
+      "price": 0
+    },
+    {
+      "userId": "user004",
+      "productId": "am620",
+      "productName": "Analytical Microscope",
+      "purchaseDate": "2025-11-04",
+      "quantity": 1,
+      "price": 0
+    },
+    {
+      "userId": "user004",
+      "productId": "am620",
+      "productName": "Analytical Microscope",
+      "purchaseDate": "2025-11-06",
+      "quantity": 2,
+      "price": 0
+    },
+    {
+      "userId": "user004",
+      "productId": "inc810",
+      "productName": "Incubator",
+      "purchaseDate": "2025-10-21",
+      "quantity": 5,
+      "price": 0
+    },
+    {
+      "userId": "user004",
+      "productId": "af450",
+      "productName": "Analytical Furnace",
+      "purchaseDate": "2025-10-31",
+      "quantity": 5,
+      "price": 0
+    },
+    {
+      "userId": "user004",
+      "productId": "hmg750",
+      "productName": "Homogenizer",
+      "purchaseDate": "2025-10-29",
+      "quantity": 4,
+      "price": 0
+    },
+    {
+      "userId": "user004",
+      "productId": "mic620",
+      "productName": "Microscope",
+      "purchaseDate": "2025-10-12",
+      "quantity": 4,
+      "price": 0
+    },
+    {
+      "userId": "user004",
+      "productId": "mpr5502",
+      "productName": "Microplate Reader",
+      "purchaseDate": "2025-10-04",
+      "quantity": 3,
+      "price": 0
+    },
+    {
+      "userId": "user005",
+      "productId": "dis950",
+      "productName": "Distillation Unit",
+      "purchaseDate": "2025-10-26",
+      "quantity": 4,
+      "price": 0
+    },
+    {
+      "userId": "user005",
+      "productId": "nev410",
+      "productName": "Nitrogen Evaporator",
+      "purchaseDate": "2025-09-10",
+      "quantity": 3,
+      "price": 0
+    },
+    {
+      "userId": "user005",
+      "productId": "af450",
+      "productName": "Analytical Furnace",
+      "purchaseDate": "2025-09-10",
+      "quantity": 4,
+      "price": 0
+    },
+    {
+      "userId": "user005",
+      "productId": "cnd760",
+      "productName": "Conductivity Meter",
+      "purchaseDate": "2025-09-21",
+      "quantity": 1,
+      "price": 0
+    },
+    {
+      "userId": "user005",
+      "productId": "anlb1075",
+      "productName": "Analytical Balance",
+      "purchaseDate": "2025-10-07",
+      "quantity": 2,
+      "price": 0
+    },
+    {
+      "userId": "user005",
+      "productId": "hmg750",
+      "productName": "Homogenizer",
+      "purchaseDate": "2025-09-25",
+      "quantity": 4,
+      "price": 0
+    },
+    {
+      "userId": "user005",
+      "productId": "hmg750",
+      "productName": "Homogenizer",
+      "purchaseDate": "2025-09-14",
+      "quantity": 5,
+      "price": 0
+    },
+    {
+      "userId": "user005",
+      "productId": "gc450",
+      "productName": "Gas Chromatograph",
+      "purchaseDate": "2025-09-19",
+      "quantity": 3,
+      "price": 0
+    },
+    {
+      "userId": "user005",
+      "productId": "aut325",
+      "productName": "Autoclave Sterilizer",
+      "purchaseDate": "2025-10-15",
+      "quantity": 1,
+      "price": 0
+    },
+    {
+      "userId": "user005",
+      "productId": "dvm750",
+      "productName": "Digital Viscometer",
+      "purchaseDate": "2025-10-18",
+      "quantity": 4,
+      "price": 0
+    },
+    {
+      "userId": "user006",
+      "productId": "am620",
+      "productName": "Analytical Microscope",
+      "purchaseDate": "2025-10-30",
+      "quantity": 5,
+      "price": 0
+    },
+    {
+      "userId": "user006",
+      "productId": "lyo880",
+      "productName": "Lyophilizer",
+      "purchaseDate": "2025-10-05",
+      "quantity": 1,
+      "price": 0
+    },
+    {
+      "userId": "user006",
+      "productId": "vp720",
+      "productName": "Vacuum Pump",
+      "purchaseDate": "2025-10-22",
+      "quantity": 4,
+      "price": 0
+    },
+    {
+      "userId": "user006",
+      "productId": "co2820",
+      "productName": "CO2 Incubator",
+      "purchaseDate": "2025-10-28",
+      "quantity": 2,
+      "price": 0
+    },
+    {
+      "userId": "user007",
+      "productId": "pcrtc8",
+      "productName": "PCR Thermal Cycler",
+      "purchaseDate": "2025-10-25",
+      "quantity": 5,
+      "price": 0
+    },
+    {
+      "userId": "user007",
+      "productId": "epu220",
+      "productName": "Electrophoresis Unit",
+      "purchaseDate": "2025-09-21",
+      "quantity": 3,
+      "price": 0
+    },
+    {
+      "userId": "user007",
+      "productId": "nev410",
+      "productName": "Nitrogen Evaporator",
+      "purchaseDate": "2025-10-10",
+      "quantity": 1,
+      "price": 0
+    },
+    {
+      "userId": "user007",
+      "productId": "uvv",
+      "productName": "UV-Visible Spectrophotometer",
+      "purchaseDate": "2025-09-14",
+      "quantity": 1,
+      "price": 0
+    },
+    {
+      "userId": "user008",
+      "productId": "bod880",
+      "productName": "BOD Incubator",
+      "purchaseDate": "2025-10-09",
+      "quantity": 3,
+      "price": 0
+    },
+    {
+      "userId": "user008",
+      "productId": "laf450",
+      "productName": "Laminar Air Flow Cabinet",
+      "purchaseDate": "2025-10-27",
+      "quantity": 4,
+      "price": 0
+    },
+    {
+      "userId": "user008",
+      "productId": "vp720",
+      "productName": "Vacuum Pump",
+      "purchaseDate": "2025-10-23",
+      "quantity": 4,
+      "price": 0
+    },
+    {
+      "userId": "user008",
+      "productId": "vp720",
+      "productName": "Vacuum Pump",
+      "purchaseDate": "2025-09-23",
+      "quantity": 1,
+      "price": 0
+    },
+    {
+      "userId": "user008",
+      "productId": "clm915",
+      "productName": "Colorimeter",
+      "purchaseDate": "2025-10-19",
+      "quantity": 1,
+      "price": 0
+    },
+    {
+      "userId": "user008",
+      "productId": "hao2008",
+      "productName": "Hot Air Oven",
+      "purchaseDate": "2025-09-20",
+      "quantity": 5,
+      "price": 0
+    },
+    {
+      "userId": "user008",
+      "productId": "laf450",
+      "productName": "Laminar Air Flow Cabinet",
+      "purchaseDate": "2025-10-16",
+      "quantity": 2,
+      "price": 0
+    },
+    {
+      "userId": "user008",
+      "productId": "tit712",
+      "productName": "Titrator",
+      "purchaseDate": "2025-10-15",
+      "quantity": 2,
+      "price": 0
+    },
+    {
+      "userId": "user008",
+      "productId": "hmg750",
+      "productName": "Homogenizer",
+      "purchaseDate": "2025-10-02",
+      "quantity": 3,
+      "price": 0
+    },
+    {
+      "userId": "user009",
+      "productId": "mpr5502",
+      "productName": "Microplate Reader",
+      "purchaseDate": "2025-10-23",
+      "quantity": 3,
+      "price": 0
+    },
+    {
+      "userId": "user010",
+      "productId": "lyo880",
+      "productName": "Lyophilizer",
+      "purchaseDate": "2025-11-02",
+      "quantity": 4,
+      "price": 0
+    },
+    {
+      "userId": "user010",
+      "productId": "rfr842",
+      "productName": "Refractometer",
+      "purchaseDate": "2025-10-09",
+      "quantity": 3,
+      "price": 0
+    },
+    {
+      "userId": "user010",
+      "productId": "fh840",
+      "productName": "Fume Hood",
+      "purchaseDate": "2025-09-13",
+      "quantity": 3,
+      "price": 0
+    },
+    {
+      "userId": "user010",
+      "productId": "hsrlc90",
+      "productName": "High-Speed Refrigerated Laboratory Centrifuge",
+      "purchaseDate": "2025-10-25",
+      "quantity": 4,
+      "price": 0
+    },
+    {
+      "userId": "user011",
+      "productId": "tit712",
+      "productName": "Titrator",
+      "purchaseDate": "2025-09-16",
+      "quantity": 1,
+      "price": 0
+    },
+    {
+      "userId": "user011",
+      "productId": "rev980",
+      "productName": "Rotary Evaporator",
+      "purchaseDate": "2025-10-12",
+      "quantity": 1,
+      "price": 0
+    },
+    {
+      "userId": "user011",
+      "productId": "hplc320",
+      "productName": "HPLC System",
+      "purchaseDate": "2025-10-20",
+      "quantity": 2,
+      "price": 0
+    },
+    {
+      "userId": "user011",
+      "productId": "hsrlc90",
+      "productName": "High-Speed Refrigerated Laboratory Centrifuge",
+      "purchaseDate": "2025-09-19",
+      "quantity": 5,
+      "price": 0
+    },
+    {
+      "userId": "user011",
+      "productId": "mpr5502",
+      "productName": "Microplate Reader",
+      "purchaseDate": "2025-09-25",
+      "quantity": 3,
+      "price": 0
+    },
+    {
+      "userId": "user011",
+      "productId": "bod880",
+      "productName": "BOD Incubator",
+      "purchaseDate": "2025-09-30",
+      "quantity": 1,
+      "price": 0
+    },
+    {
+      "userId": "user011",
+      "productId": "hsrlc90",
+      "productName": "High-Speed Refrigerated Laboratory Centrifuge",
+      "purchaseDate": "2025-10-03",
+      "quantity": 3,
+      "price": 0
+    },
+    {
+      "userId": "user011",
+      "productId": "dvm750",
+      "productName": "Digital Viscometer",
+      "purchaseDate": "2025-11-01",
+      "quantity": 5,
+      "price": 0
+    },
+    {
+      "userId": "user012",
+      "productId": "col410",
+      "productName": "Colony Counter",
+      "purchaseDate": "2025-10-12",
+      "quantity": 5,
+      "price": 0
+    },
+    {
+      "userId": "user012",
+      "productId": "fh840",
+      "productName": "Fume Hood",
+      "purchaseDate": "2025-11-02",
+      "quantity": 5,
+      "price": 0
+    },
+    {
+      "userId": "user012",
+      "productId": "mpr5502",
+      "productName": "Microplate Reader",
+      "purchaseDate": "2025-09-22",
+      "quantity": 5,
+      "price": 0
+    },
+    {
+      "userId": "user012",
+      "productId": "mic620",
+      "productName": "Microscope",
+      "purchaseDate": "2025-10-11",
+      "quantity": 2,
+      "price": 0
+    },
+    {
+      "userId": "user012",
+      "productId": "am620",
+      "productName": "Analytical Microscope",
+      "purchaseDate": "2025-09-29",
+      "quantity": 1,
+      "price": 0
+    },
+    {
+      "userId": "user012",
+      "productId": "mpr5502",
+      "productName": "Microplate Reader",
+      "purchaseDate": "2025-09-21",
+      "quantity": 2,
+      "price": 0
+    },
+    {
+      "userId": "user013",
+      "productId": "hsrlc90",
+      "productName": "High-Speed Refrigerated Laboratory Centrifuge",
+      "purchaseDate": "2025-10-31",
+      "quantity": 3,
+      "price": 0
+    },
+    {
+      "userId": "user013",
+      "productId": "anlb1075",
+      "productName": "Analytical Balance",
+      "purchaseDate": "2025-10-18",
+      "quantity": 5,
+      "price": 0
+    },
+    {
+      "userId": "user013",
+      "productId": "lyo880",
+      "productName": "Lyophilizer",
+      "purchaseDate": "2025-11-01",
+      "quantity": 4,
+      "price": 0
+    },
+    {
+      "userId": "user013",
+      "productId": "fd750",
+      "productName": "Freeze Dryer",
+      "purchaseDate": "2025-10-14",
+      "quantity": 4,
+      "price": 0
+    },
+    {
+      "userId": "user014",
+      "productId": "sf920",
+      "productName": "Spectrofluorometer",
+      "purchaseDate": "2025-09-26",
+      "quantity": 1,
+      "price": 0
+    },
+    {
+      "userId": "user014",
+      "productId": "hmg750",
+      "productName": "Homogenizer",
+      "purchaseDate": "2025-09-07",
+      "quantity": 5,
+      "price": 0
+    },
+    {
+      "userId": "user014",
+      "productId": "aut721",
+      "productName": "Autotitrator",
+      "purchaseDate": "2025-10-29",
+      "quantity": 1,
+      "price": 0
+    },
+    {
+      "userId": "user014",
+      "productId": "vp720",
+      "productName": "Vacuum Pump",
+      "purchaseDate": "2025-10-27",
+      "quantity": 1,
+      "price": 0
+    },
+    {
+      "userId": "user014",
+      "productId": "dis950",
+      "productName": "Distillation Unit",
+      "purchaseDate": "2025-10-25",
+      "quantity": 2,
+      "price": 0
+    },
+    {
+      "userId": "user014",
+      "productId": "rev980",
+      "productName": "Rotary Evaporator",
+      "purchaseDate": "2025-09-28",
+      "quantity": 4,
+      "price": 0
+    },
+    {
+      "userId": "user015",
+      "productId": "fh840",
+      "productName": "Fume Hood",
+      "purchaseDate": "2025-10-13",
+      "quantity": 1,
+      "price": 0
+    },
+    {
+      "userId": "user016",
+      "productId": "af450",
+      "productName": "Analytical Furnace",
+      "purchaseDate": "2025-11-01",
+      "quantity": 4,
+      "price": 0
+    },
+    {
+      "userId": "user016",
+      "productId": "lyo880",
+      "productName": "Lyophilizer",
+      "purchaseDate": "2025-11-04",
+      "quantity": 4,
+      "price": 0
+    },
+    {
+      "userId": "user016",
+      "productId": "aut721",
+      "productName": "Autotitrator",
+      "purchaseDate": "2025-09-12",
+      "quantity": 4,
+      "price": 0
+    },
+    {
+      "userId": "user016",
+      "productId": "wps880",
+      "productName": "Water Purification System",
+      "purchaseDate": "2025-09-09",
+      "quantity": 2,
+      "price": 0
+    },
+    {
+      "userId": "user016",
+      "productId": "laf450",
+      "productName": "Laminar Air Flow Cabinet",
+      "purchaseDate": "2025-10-04",
+      "quantity": 2,
+      "price": 0
+    },
+    {
+      "userId": "user016",
+      "productId": "cc450",
+      "productName": "Cell Counter",
+      "purchaseDate": "2025-10-18",
+      "quantity": 4,
+      "price": 0
+    },
+    {
+      "userId": "user016",
+      "productId": "lyo880",
+      "productName": "Lyophilizer",
+      "purchaseDate": "2025-09-28",
+      "quantity": 2,
+      "price": 0
+    },
+    {
+      "userId": "user016",
+      "productId": "nev410",
+      "productName": "Nitrogen Evaporator",
+      "purchaseDate": "2025-09-17",
+      "quantity": 2,
+      "price": 0
+    },
+    {
+      "userId": "user016",
+      "productId": "epu220",
+      "productName": "Electrophoresis Unit",
+      "purchaseDate": "2025-10-08",
+      "quantity": 3,
+      "price": 0
+    },
+    {
+      "userId": "user016",
+      "productId": "hmg750",
+      "productName": "Homogenizer",
+      "purchaseDate": "2025-09-07",
+      "quantity": 4,
+      "price": 0
+    },
+    {
+      "userId": "user017",
+      "productId": "aut325",
+      "productName": "Autoclave Sterilizer",
+      "purchaseDate": "2025-09-29",
+      "quantity": 3,
+      "price": 0
+    },
+    {
+      "userId": "user017",
+      "productId": "cev902",
+      "productName": "Centrifugal Evaporator",
+      "purchaseDate": "2025-09-29",
+      "quantity": 4,
+      "price": 0
+    },
+    {
+      "userId": "user017",
+      "productId": "sf920",
+      "productName": "Spectrofluorometer",
+      "purchaseDate": "2025-09-13",
+      "quantity": 4,
+      "price": 0
+    },
+    {
+      "userId": "user018",
+      "productId": "mag225",
+      "productName": "Magnetic Stirrer",
+      "purchaseDate": "2025-09-28",
+      "quantity": 4,
+      "price": 0
+    },
+    {
+      "userId": "user019",
+      "productId": "gc450",
+      "productName": "Gas Chromatograph",
+      "purchaseDate": "2025-10-31",
+      "quantity": 4,
+      "price": 0
+    },
+    {
+      "userId": "user019",
+      "productId": "rev980",
+      "productName": "Rotary Evaporator",
+      "purchaseDate": "2025-10-10",
+      "quantity": 5,
+      "price": 0
+    },
+    {
+      "userId": "user019",
+      "productId": "cnd760",
+      "productName": "Conductivity Meter",
+      "purchaseDate": "2025-09-25",
+      "quantity": 5,
+      "price": 0
+    },
+    {
+      "userId": "user019",
+      "productId": "aut325",
+      "productName": "Autoclave Sterilizer",
+      "purchaseDate": "2025-10-02",
+      "quantity": 5,
+      "price": 0
+    },
+    {
+      "userId": "user019",
+      "productId": "pcrtc8",
+      "productName": "PCR Thermal Cycler",
+      "purchaseDate": "2025-10-19",
+      "quantity": 4,
+      "price": 0
+    },
+    {
+      "userId": "user019",
+      "productId": "co2820",
+      "productName": "CO2 Incubator",
+      "purchaseDate": "2025-11-02",
+      "quantity": 2,
+      "price": 0
+    },
+    {
+      "userId": "user019",
+      "productId": "aut325",
+      "productName": "Autoclave Sterilizer",
+      "purchaseDate": "2025-09-14",
+      "quantity": 5,
+      "price": 0
+    },
+    {
+      "userId": "user019",
+      "productId": "hmg750",
+      "productName": "Homogenizer",
+      "purchaseDate": "2025-10-05",
+      "quantity": 3,
+      "price": 0
+    },
+    {
+      "userId": "user020",
+      "productId": "mag225",
+      "productName": "Magnetic Stirrer",
+      "purchaseDate": "2025-09-13",
+      "quantity": 5,
+      "price": 0
+    }
+  ]
+}

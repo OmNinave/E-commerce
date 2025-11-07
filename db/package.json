@@ -1,0 +1,13 @@
+{
+  "name": "ecomerce-db",
+  "version": "1.0.0",
+  "description": "Database generator for e-commerce project",
+  "main": "generate_database.js",
+  "scripts": {
+    "generate": "node generate_database.js"
+  },
+  "dependencies": {
+    "fs": "0.0.1-security",
+    "path": "0.12.7"
+  }
+}

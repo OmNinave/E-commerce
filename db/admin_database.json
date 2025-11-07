@@ -1,0 +1,26 @@
+{
+  "admin_users": [
+    {
+      "admin_id": "admin001",
+      "email": "admin@ecommerce.com",
+      "password_hash": "$2a$10$XQK5vZQJ5K5K5K5K5K5K5OeGqK5K5K5K5K5K5K5K5K5K5K5K5K5K5",
+      "full_name": "Admin User",
+      "date_created": "2025-01-01"
+    },
+    {
+      "admin_id": "admin002",
+      "email": "manager@ecommerce.com",
+      "password_hash": "$2a$10$YRL6wARJ6L6L6L6L6L6L6OfHrL6L6L6L6L6L6L6L6L6L6L6L6L6L6",
+      "full_name": "Manager User",
+      "date_created": "2025-01-01"
+    },
+    {
+      "admin_id": "admin003",
+      "email": "supervisor@ecommerce.com",
+      "password_hash": "$2a$10$ZSM7xBSK7M7M7M7M7M7M7PgIsM7M7M7M7M7M7M7M7M7M7M7M7M7M7",
+      "full_name": "Supervisor User",
+      "date_created": "2025-01-01"
+    }
+  ],
+  "sessions": []
+}

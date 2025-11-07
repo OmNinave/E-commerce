@@ -47,6 +47,9 @@ const Footer = () => {
         <p className="footer-compliance">
           ISO 9001:2015 Certified | ISO 13485 Compliant
         </p>
+        <p className="footer-admin">
+          <a href="/admin" target="_blank" rel="noopener noreferrer" style={{color: '#999', fontSize: '12px', textDecoration: 'none'}}>Admin</a>
+        </p>
       </div>
     </footer>
   );
