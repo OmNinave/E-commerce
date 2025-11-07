@@ -12,10 +12,6 @@
 # Excluded Folders
 /OFF
 
-# Database files (backend only - not for static deployment)
-/db/*.json
-/db/admin_server.js
-
 # Misc
 .DS_Store
 .env.local
