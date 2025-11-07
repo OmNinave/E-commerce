@@ -18,25 +18,34 @@ const AdminApp = () => {
     const token = localStorage.getItem('adminToken');
     const savedAdmin = localStorage.getItem('adminUser');
 
+    console.log('🔍 Verifying session...', { token: token ? 'exists' : 'none', API_URL });
+
     if (token && savedAdmin) {
       try {
+        console.log('📡 Calling:', `${API_URL}/api/admin/verify`);
         const response = await fetch(`${API_URL}/api/admin/verify`, {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
         });
 
+        console.log('📥 Response status:', response.status);
+
         if (response.ok) {
           const data = await response.json();
+          console.log('✅ Session valid:', data);
           setAdmin(data.admin);
           setIsAuthenticated(true);
         } else {
+          console.log('❌ Session invalid, clearing storage');
           localStorage.removeItem('adminToken');
           localStorage.removeItem('adminUser');
         }
       } catch (err) {
-        console.error('Session verification failed:', err);
+        console.error('❌ Session verification failed:', err);
       }
+    } else {
+      console.log('ℹ️ No existing session');
     }
     setLoading(false);
   };
@@ -53,8 +62,24 @@ const AdminApp = () => {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <div>Loading...</div>
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: 'column',
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        gap: '20px'
+      }}>
+        <div style={{ fontSize: '24px' }}>Loading Admin Dashboard...</div>
+        <div style={{ fontSize: '14px', color: '#666' }}>API: {API_URL}</div>
+        <div className="spinner" style={{
+          border: '4px solid #f3f3f3',
+          borderTop: '4px solid #667eea',
+          borderRadius: '50%',
+          width: '40px',
+          height: '40px',
+          animation: 'spin 1s linear infinite'
+        }}></div>
       </div>
     );
   }
