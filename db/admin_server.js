@@ -17,8 +17,7 @@ app.use((req, res, next) => {
     'http://localhost:3000',
     'http://localhost:3001',
     'http://localhost:5000',
-    'https://ecommerce-admin-backend.onrender.com',
-    'https://ecommerce-store.netlify.app', // Your Netlify URL
+    'https://ecom-update-dzhp.onrender.com',
     process.env.FRONTEND_URL
   ].filter(Boolean);
   
