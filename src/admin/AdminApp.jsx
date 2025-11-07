@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import AdminLogin from './AdminLogin';
 import AdminDashboard from './AdminDashboard';
 
+// API URL - works for both local and production
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 const AdminApp = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [admin, setAdmin] = useState(null);
@@ -17,7 +20,7 @@ const AdminApp = () => {
 
     if (token && savedAdmin) {
       try {
-        const response = await fetch('http://localhost:5000/api/admin/verify', {
+        const response = await fetch(`${API_URL}/api/admin/verify`, {
           headers: {
             'Authorization': `Bearer ${token}`,
           },

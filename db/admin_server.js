@@ -5,15 +5,26 @@ const path = require('path');
 const crypto = require('crypto');
 
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// CORS middleware
+// CORS middleware - Allow both local and production origins
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', 'http://localhost:3000');
+  const allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:5000',
+    'https://your-netlify-site.netlify.app', // Replace with your actual Netlify URL
+    process.env.FRONTEND_URL
+  ].filter(Boolean);
+  
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin) || !origin) {
+    res.header('Access-Control-Allow-Origin', origin || '*');
+  }
+  
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.header('Access-Control-Allow-Credentials', 'true');
@@ -24,9 +35,9 @@ app.use((req, res, next) => {
   next();
 });
 
-// Load databases
-const adminDbPath = path.join(__dirname, '../db/admin_database.json');
-const mainDbPath = path.join(__dirname, '../db/full_database.json');
+// Load databases - Handle both local and Render paths
+const adminDbPath = path.join(__dirname, 'admin_database.json');
+const mainDbPath = path.join(__dirname, 'full_database.json');
 
 function loadAdminDb() {
   return JSON.parse(fs.readFileSync(adminDbPath, 'utf8'));
@@ -494,6 +505,8 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000);
 
-app.listen(PORT, () => {
-  console.log(`Admin API server running on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Admin API server running on port ${PORT}`);
+  console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🌐 Access at: http://localhost:${PORT}`);
 });

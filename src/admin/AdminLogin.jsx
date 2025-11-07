@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import '../styles/AdminLogin.css';
 
+// API URL - works for both local and production
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 const AdminLogin = ({ onLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -13,7 +16,7 @@ const AdminLogin = ({ onLogin }) => {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:5000/api/admin/login', {
+      const response = await fetch(`${API_URL}/api/admin/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

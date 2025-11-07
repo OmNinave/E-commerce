@@ -5,6 +5,9 @@ import {
 } from 'recharts';
 import '../styles/AdminDashboard.css';
 
+// API URL - works for both local and production
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 const AdminDashboard = ({ admin, onLogout }) => {
   const [analytics, setAnalytics] = useState(null);
   const [products, setProducts] = useState([]);
@@ -28,7 +31,7 @@ const AdminDashboard = ({ admin, onLogout }) => {
       setLoading(true);
       const token = localStorage.getItem('adminToken');
       
-      const response = await fetch(`http://localhost:5000/api/admin/analytics?timeRange=${timeRange}`, {
+      const response = await fetch(`${API_URL}/api/admin/analytics?timeRange=${timeRange}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -57,7 +60,7 @@ const AdminDashboard = ({ admin, onLogout }) => {
   const fetchProducts = async () => {
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch('http://localhost:5000/api/admin/products', {
+      const response = await fetch(`${API_URL}/api/admin/products`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -75,7 +78,7 @@ const AdminDashboard = ({ admin, onLogout }) => {
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch('http://localhost:5000/api/admin/users', {
+      const response = await fetch(`${API_URL}/api/admin/users`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -93,7 +96,7 @@ const AdminDashboard = ({ admin, onLogout }) => {
   const handleLogout = async () => {
     const token = localStorage.getItem('adminToken');
     try {
-      await fetch('http://localhost:5000/api/admin/logout', {
+      await fetch(`${API_URL}/api/admin/logout`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
