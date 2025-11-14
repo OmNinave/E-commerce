@@ -224,32 +224,27 @@ For detailed deployment instructions, see:
 
 ## 👤 Admin Access
 
-### 🔒 Setting Up Admin Account
+### Default Admin Credentials
 
-For security reasons, admin credentials are not included in this repository. 
+For testing and demonstration purposes, you can use these default credentials to access the admin dashboard:
 
-**For Local Development:**
-- Admin accounts are configured in `db/admin_database.json`
-- Check the database file for development admin credentials
-- **Never commit production credentials to version control!**
+- **Email**: `admin@ecommerce.com`
+- **Password**: `admin123`
 
-**For Production:**
-1. **Create a secure admin account** during initial setup
-2. **Use strong, unique passwords** (minimum 12 characters, mixed case, numbers, symbols)
-3. **Consider implementing**:
-   - Environment variables for admin credentials
-   - First-login password change requirement
-   - Two-factor authentication (2FA)
-   - Admin account creation during setup (not hardcoded)
+**Note**: This is a basic demonstration website. For production use, please change these credentials.
 
-### ⚠️ Security Best Practices
+### Accessing Admin Dashboard
 
-- **Never use default credentials in production**
-- **Change all default passwords** immediately after deployment
-- **Use environment variables** for sensitive credentials
-- **Implement password policies** (strength requirements, expiration)
-- **Enable session timeouts** for admin accounts
-- **Monitor admin access logs** for suspicious activity
+1. Start the backend server: `npm run admin-server`
+2. Start the frontend: `npm start`
+3. Navigate to: `http://localhost:3000/admin`
+4. Login with the credentials above
+5. Explore the admin dashboard features:
+   - Revenue analytics and charts
+   - Order management
+   - Product management
+   - User management
+   - Sales statistics
 
 ## 🧪 Testing
 
