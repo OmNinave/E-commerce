@@ -65,7 +65,7 @@ Before you begin, ensure you have the following installed:
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/Omninave28/Ecommerce.git
+   git clone https://github.com/OmNinave/Ecommerce.git
    cd Ecommerce
    ```
 
@@ -345,10 +345,10 @@ This project is licensed under the MIT License.
 
 ## 👨‍💻 Author
 
-**Omninave28**
+**OmNinave**
 
-- GitHub: [@Omninave28](https://github.com/Omninave28)
-- Repository: [Ecommerce](https://github.com/Omninave28/Ecommerce)
+- GitHub: [@OmNinave](https://github.com/OmNinave)
+- Repository: [Ecommerce](https://github.com/OmNinave/Ecommerce)
 
 ## 🙏 Acknowledgments
 
