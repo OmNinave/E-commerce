@@ -3,6 +3,8 @@ import AdminLogin from './AdminLogin';
 import AdminDashboard from './AdminDashboard';
 
 // API URL - works for both local and production
+// In production, REACT_APP_API_URL should be set to your Render backend URL
+// Example: https://your-app-name.onrender.com
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const AdminApp = () => {

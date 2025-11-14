@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { products } from '../data/products';
+import apiService from '../services/api';
 import { useCart } from '../context/CartContext';
 import { useCurrency } from '../context/CurrencyContext';
 import '../styles/ProductDetail.css';
@@ -12,10 +12,32 @@ const ProductDetail = () => {
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [showImageZoom, setShowImageZoom] = useState(false);
+  const [product, setProduct] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const { addToCart } = useCart();
   const { formatPrice } = useCurrency();
 
-  const product = products.find((p) => p.id === id);
+  // Fetch product from API
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const fetchedProduct = await apiService.getProduct(id);
+        setProduct(fetchedProduct);
+      } catch (err) {
+        console.error('Failed to load product:', err);
+        setError('Product not found');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchProduct();
+    }
+  }, [id]);
 
   // Save to recently viewed
   useEffect(() => {
@@ -27,10 +49,25 @@ const ProductDetail = () => {
     }
   }, [product]);
 
-  // Get similar products (same category, different id)
-  const similarProducts = products.filter(p => 
-    p.category === product?.category && p.id !== product?.id
-  ).slice(0, 4);
+  // Get similar products - fetch all products and filter
+  const [similarProducts, setSimilarProducts] = useState([]);
+  
+  useEffect(() => {
+    if (product) {
+      const fetchSimilar = async () => {
+        try {
+          const allProducts = await apiService.getProducts();
+          const similar = allProducts.filter(p => 
+            p.category === product.category && p.id !== product.id
+          ).slice(0, 4);
+          setSimilarProducts(similar);
+        } catch (err) {
+          console.error('Failed to load similar products:', err);
+        }
+      };
+      fetchSimilar();
+    }
+  }, [product]);
 
   // Mock reviews data
   const reviews = [
@@ -41,12 +78,31 @@ const ProductDetail = () => {
 
   const averageRating = reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length;
 
-  if (!product) {
+  if (isLoading) {
+    return (
+      <div className="product-detail-page">
+        <div style={{ padding: '50px', textAlign: 'center' }}>
+          <div className="spinner" style={{
+            border: '4px solid #f3f3f3',
+            borderTop: '4px solid #667eea',
+            borderRadius: '50%',
+            width: '40px',
+            height: '40px',
+            animation: 'spin 1s linear infinite',
+            margin: '0 auto'
+          }}></div>
+          <p>Loading product...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !product) {
     return (
       <div className="product-not-found">
         <div className="not-found-content">
           <h1>Product Not Found</h1>
-          <p>The product you're looking for doesn't exist or has been removed.</p>
+          <p>{error || "The product you're looking for doesn't exist or has been removed."}</p>
           <Link to="/products" className="back-button">
             Back to Products
           </Link>
@@ -490,7 +546,7 @@ const ProductDetail = () => {
         <div className="sponsored-content">
           <div className="sponsored-ad">
             <div className="ad-image">
-              <img src={products[0].image} alt="Sponsored product" />
+              <img src={product.image} alt="Sponsored product" />
             </div>
             <div className="ad-content">
               <h3 className="ad-title">Complete Your Lab Setup</h3>

@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useCurrency } from '../context/CurrencyContext';
+import { useAuth } from '../context/AuthContext';
+import apiService from '../services/api';
 import '../styles/Cart.css';
 
 const Cart = () => {
@@ -16,7 +18,10 @@ const Cart = () => {
     getTotalSavings
   } = useCart();
   const { formatPrice } = useCurrency();
+  const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const [isCreatingOrder, setIsCreatingOrder] = useState(false);
+  const [orderMessage, setOrderMessage] = useState('');
 
   const handleQuantityChange = (productId, newQuantity) => {
     const quantity = parseInt(newQuantity);
@@ -25,9 +30,48 @@ const Cart = () => {
     }
   };
 
-  const handleCheckout = () => {
-    // Navigate to checkout page (to be implemented)
-    navigate('/checkout');
+  const handleCheckout = async () => {
+    // Check if user is logged in
+    if (!isAuthenticated || !user) {
+      navigate('/login');
+      return;
+    }
+
+    setIsCreatingOrder(true);
+    setOrderMessage('');
+
+    try {
+      // Prepare order data
+      const orderData = {
+        userId: user.id,
+        items: cartItems.map(item => ({
+          id: item.id,
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price || 0
+        })),
+        totalAmount: getCartSubtotal()
+      };
+
+      // Create order in backend database
+      const order = await apiService.createOrder(orderData);
+      
+      // Clear cart after successful order
+      clearCart();
+      
+      // Show success message
+      setOrderMessage(`Order ${order.orderId} created successfully!`);
+      
+      // Navigate to checkout confirmation
+      setTimeout(() => {
+        navigate('/checkout', { state: { order } });
+      }, 1500);
+    } catch (error) {
+      console.error('Failed to create order:', error);
+      setOrderMessage(error.message || 'Failed to create order. Please try again.');
+    } finally {
+      setIsCreatingOrder(false);
+    }
   };
 
   if (cartItems.length === 0) {
@@ -183,9 +227,23 @@ const Cart = () => {
               )}
             </div>
 
-            <button onClick={handleCheckout} className="checkout-button">
-              Proceed to Checkout
+            {orderMessage && (
+              <div className={`order-message ${orderMessage.includes('successfully') ? 'success' : 'error'}`}>
+                {orderMessage}
+              </div>
+            )}
+            <button 
+              onClick={handleCheckout} 
+              className="checkout-button"
+              disabled={isCreatingOrder || !isAuthenticated}
+            >
+              {isCreatingOrder ? 'Creating Order...' : isAuthenticated ? 'Proceed to Checkout' : 'Login to Checkout'}
             </button>
+            {!isAuthenticated && (
+              <p style={{ fontSize: '14px', color: '#666', marginTop: '10px', textAlign: 'center' }}>
+                Please <Link to="/login" style={{ color: '#667eea' }}>login</Link> to create an order
+              </p>
+            )}
 
             <div className="summary-info">
               <div className="info-item">

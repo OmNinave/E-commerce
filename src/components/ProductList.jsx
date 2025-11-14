@@ -1,7 +1,9 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ProductCard from './ProductCard';
-import { products } from '../data/products';
+import apiService from '../services/api';
+// Fallback: Import static products if API fails
+import { products as staticProducts } from '../data/products';
 import '../styles/ProductList.css';
 
 const PRODUCTS_PER_PAGE = 12;
@@ -21,30 +23,113 @@ const ProductList = () => {
   const sidebarAd1Ref = useRef(null);
   const sidebarAd2Ref = useRef(null);
   const sidebarAd3Ref = useRef(null);
+  const [products, setProducts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Get unique categories
-  const categories = ['All', ...new Set(products.map(p => p.category))];
+  // Fetch products from API with fallback to static products
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        console.log('🔄 Fetching products from API...');
+        
+        const fetchedProducts = await apiService.getProducts();
+        
+        console.log('📦 Fetched products:', {
+          isArray: Array.isArray(fetchedProducts),
+          length: fetchedProducts?.length || 0,
+          firstProduct: fetchedProducts?.[0]?.name || 'N/A'
+        });
+        
+        if (fetchedProducts && Array.isArray(fetchedProducts) && fetchedProducts.length > 0) {
+          console.log(`✅ Loaded ${fetchedProducts.length} products from API`);
+          setProducts(fetchedProducts);
+          setError(null);
+        } else {
+          console.warn('⚠️ API returned empty/invalid products array, using static fallback');
+          console.log(`📦 Static products available: ${staticProducts?.length || 0}`);
+          if (staticProducts && Array.isArray(staticProducts) && staticProducts.length > 0) {
+            console.log(`✅ Using ${staticProducts.length} static products as fallback`);
+            setProducts(staticProducts);
+            setError('Using offline products. Backend may not be running.');
+          } else {
+            console.error('❌ Static products also unavailable!');
+            setProducts([]);
+            setError('No products available. Please check data files.');
+          }
+        }
+      } catch (err) {
+        console.error('❌ Failed to load products from API:', err);
+        console.log(`📦 Falling back to ${staticProducts.length} static products`);
+        
+        // Fallback to static products
+        console.log('📦 Checking static products fallback:', {
+          exists: !!staticProducts,
+          isArray: Array.isArray(staticProducts),
+          length: staticProducts?.length || 0
+        });
+        
+        if (staticProducts && Array.isArray(staticProducts) && staticProducts.length > 0) {
+          console.log(`✅ Using ${staticProducts.length} static products as fallback`);
+          setProducts(staticProducts);
+          setError('Backend server not available. Showing offline products. Start backend with: node db/admin_server.js');
+        } else {
+          console.error('❌ Static products fallback failed!');
+          setError('Failed to load products. Please check your connection and try again.');
+          setProducts([]);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
+
+  // Get unique categories - with safety check
+  const categories = products && products.length > 0 
+    ? ['All', ...new Set(products.map(p => p.category).filter(Boolean))]
+    : ['All'];
 
   const filteredProducts = useMemo(() => {
-    let filtered = products.filter((product) => {
-      const matchesSearch =
-        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.productId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.tagline.toLowerCase().includes(searchTerm.toLowerCase());
+    // Safety check: if products array is empty or not loaded yet
+    if (!products || products.length === 0) {
+      console.log('⚠️ No products available for filtering');
+      return [];
+    }
 
-      const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
+    console.log(`🔍 Filtering ${products.length} products...`, { searchTerm, selectedCategory, sortBy });
+
+    let filtered = products.filter((product) => {
+      // Safety checks for undefined/null values
+      const productName = (product.name || '').toLowerCase();
+      const productModel = (product.model || '').toLowerCase();
+      const productId = (product.productId || product.id || '').toLowerCase();
+      const productTagline = (product.tagline || '').toLowerCase();
+      const searchLower = searchTerm.toLowerCase();
+
+      const matchesSearch =
+        productName.includes(searchLower) ||
+        productModel.includes(searchLower) ||
+        productId.includes(searchLower) ||
+        productTagline.includes(searchLower);
+
+      const matchesCategory = selectedCategory === 'All' || (product.category === selectedCategory);
 
       return matchesSearch && matchesCategory;
     });
 
+    console.log(`✅ Filtered to ${filtered.length} products`);
+
     // Sort products
     switch (sortBy) {
       case 'name-asc':
-        filtered.sort((a, b) => a.name.localeCompare(b.name));
+        filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         break;
       case 'name-desc':
-        filtered.sort((a, b) => b.name.localeCompare(a.name));
+        filtered.sort((a, b) => (b.name || '').localeCompare(a.name || ''));
         break;
       case 'price-asc':
         filtered.sort((a, b) => (a.price || 0) - (b.price || 0));
@@ -53,7 +138,11 @@ const ProductList = () => {
         filtered.sort((a, b) => (b.price || 0) - (a.price || 0));
         break;
       case 'newest':
-        filtered.sort((a, b) => b.id - a.id);
+        filtered.sort((a, b) => {
+          const aId = a.id || '';
+          const bId = b.id || '';
+          return bId.localeCompare(aId);
+        });
         break;
       default:
         // featured - keep original order
@@ -61,7 +150,7 @@ const ProductList = () => {
     }
 
     return filtered;
-  }, [searchTerm, selectedCategory, sortBy]);
+  }, [products, searchTerm, selectedCategory, sortBy]); // FIXED: Added 'products' to dependencies
 
   // Calculate pagination
   const totalPages = Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE);
@@ -245,6 +334,60 @@ const ProductList = () => {
     };
   }, []);
 
+  if (isLoading) {
+    return (
+      <div className="product-list-page">
+        <div style={{ padding: '50px', textAlign: 'center' }}>
+          <div className="spinner" style={{
+            border: '4px solid #f3f3f3',
+            borderTop: '4px solid #667eea',
+            borderRadius: '50%',
+            width: '40px',
+            height: '40px',
+            animation: 'spin 1s linear infinite',
+            margin: '0 auto'
+          }}></div>
+          <p>Loading products...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && products.length === 0) {
+    return (
+      <div className="product-list-page">
+        <div style={{ padding: '50px', textAlign: 'center' }}>
+          <div style={{ 
+            backgroundColor: '#fff3cd', 
+            border: '1px solid #ffc107', 
+            borderRadius: '8px', 
+            padding: '20px', 
+            marginBottom: '20px',
+            maxWidth: '600px',
+            margin: '0 auto 20px'
+          }}>
+            <h3 style={{ color: '#856404', marginTop: 0 }}>⚠️ Warning</h3>
+            <p style={{ color: '#856404', marginBottom: 0 }}>{error}</p>
+          </div>
+          <button 
+            onClick={() => window.location.reload()}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: '#667eea',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '16px'
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="product-list-page">
       {/* Top Banner Ad */}
@@ -263,6 +406,19 @@ const ProductList = () => {
         <p className="page-subtitle">
           Explore our comprehensive range of professional laboratory equipment
         </p>
+        {error && products.length > 0 && (
+          <div style={{ 
+            backgroundColor: '#fff3cd', 
+            border: '1px solid #ffc107', 
+            borderRadius: '6px', 
+            padding: '12px 16px', 
+            marginTop: '15px',
+            fontSize: '14px',
+            color: '#856404'
+          }}>
+            ⚠️ {error}
+          </div>
+        )}
       </div>
 
       {/* Search Bar */}
@@ -437,6 +593,22 @@ const ProductList = () => {
 
         {/* Products Content */}
         <div className="products-content">
+          {/* Debug Info - Remove in production */}
+          {process.env.NODE_ENV === 'development' && (
+            <div style={{ 
+              padding: '10px', 
+              backgroundColor: '#f0f0f0', 
+              marginBottom: '20px', 
+              fontSize: '12px',
+              borderRadius: '4px'
+            }}>
+              <strong>Debug:</strong> Products: {products.length} | 
+              Filtered: {filteredProducts.length} | 
+              Current Page: {currentPage} | 
+              Showing: {currentProducts.length} | 
+              Total Pages: {totalPages}
+            </div>
+          )}
 
           {filteredProducts.length > 0 ? (
             <>

@@ -1,34 +1,11 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import apiService from '../services/api';
 
 const STORAGE_KEYS = {
-  users: 'prolab_auth_users',
   currentUser: 'prolab_auth_current_user'
 };
 
 const AuthContext = createContext({});
-
-const getUsers = () => {
-  if (typeof window === 'undefined') {
-    return [];
-  }
-  const stored = window.localStorage.getItem(STORAGE_KEYS.users);
-  if (!stored) {
-    return [];
-  }
-  try {
-    const parsed = JSON.parse(stored);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (error) {
-    return [];
-  }
-};
-
-const setUsers = (users) => {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  window.localStorage.setItem(STORAGE_KEYS.users, JSON.stringify(users));
-};
 
 const setCurrentUser = (user) => {
   if (typeof window === 'undefined') {
@@ -56,18 +33,6 @@ const loadCurrentUser = () => {
   }
 };
 
-const hashPassword = async (password) => {
-  if (typeof window === 'undefined' || !window.crypto?.subtle) {
-    return password;
-  }
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password);
-  const digest = await window.crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('');
-};
-
 const sanitizeUser = (user) => {
   const { password, ...rest } = user;
   return rest;
@@ -83,40 +48,31 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const registerUser = async ({ fullName, email, password }) => {
-    const users = getUsers();
-    const normalizedEmail = email.trim().toLowerCase();
-    if (users.some((existing) => existing.email === normalizedEmail)) {
-      throw new Error('An account already exists with this email.');
+    try {
+      // Register via backend API - saves to unified database
+      const newUser = await apiService.registerUser({ fullName, email, password });
+      const sanitized = sanitizeUser(newUser);
+      setCurrentUser(sanitized);
+      setUser(sanitized);
+      return sanitized;
+    } catch (error) {
+      // If API fails, throw error with message
+      throw new Error(error.message || 'Failed to create account. Please try again.');
     }
-    const hashedPassword = await hashPassword(password);
-    const newUser = {
-      id: `user_${Date.now()}`,
-      fullName: fullName.trim(),
-      email: normalizedEmail,
-      password: hashedPassword
-    };
-    const updatedUsers = [...users, newUser];
-    setUsers(updatedUsers);
-    const sanitized = sanitizeUser(newUser);
-    setCurrentUser(sanitized);
-    setUser(sanitized);
-    return sanitized;
   };
 
   const loginUser = async ({ email, password }) => {
-    const users = getUsers();
-    const normalizedEmail = email.trim().toLowerCase();
-    const hashedPassword = await hashPassword(password);
-    const existingUser = users.find(
-      (record) => record.email === normalizedEmail && record.password === hashedPassword
-    );
-    if (!existingUser) {
-      throw new Error('Invalid email or password.');
+    try {
+      // Login via backend API - updates last login in unified database
+      const existingUser = await apiService.loginUser({ email, password });
+      const sanitized = sanitizeUser(existingUser);
+      setCurrentUser(sanitized);
+      setUser(sanitized);
+      return sanitized;
+    } catch (error) {
+      // If API fails, throw error with message
+      throw new Error(error.message || 'Invalid email or password.');
     }
-    const sanitized = sanitizeUser(existingUser);
-    setCurrentUser(sanitized);
-    setUser(sanitized);
-    return sanitized;
   };
 
   const logout = () => {
