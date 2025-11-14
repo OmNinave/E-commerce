@@ -28,8 +28,9 @@ const AdminDashboard = ({ admin, onLogout }) => {
   const [ordersAnalytics, setOrdersAnalytics] = useState(null);
 
   useEffect(() => {
-    fetchAnalytics();
-    if (activeView === 'products') {
+    if (activeView === 'dashboard') {
+      fetchAnalytics();
+    } else if (activeView === 'products') {
       fetchProducts();
       fetchProductsAnalytics(); // Fetch immediately when switching to products view
     } else if (activeView === 'users') {
@@ -38,7 +39,14 @@ const AdminDashboard = ({ admin, onLogout }) => {
     } else if (activeView === 'orders') {
       fetchOrdersAnalytics(); // Fetch immediately when switching to orders view
     }
-  }, [timeRange, activeView]);
+  }, [activeView]);
+
+  // Fetch dashboard analytics when timeRange changes
+  useEffect(() => {
+    if (activeView === 'dashboard') {
+      fetchAnalytics();
+    }
+  }, [timeRange]);
 
   // Fetch analytics for each view when time range changes
   useEffect(() => {
@@ -214,8 +222,8 @@ const AdminDashboard = ({ admin, onLogout }) => {
   const fetchOrdersAnalytics = async () => {
     try {
       const token = localStorage.getItem('adminToken');
-      // Use the same endpoint as dashboard - it has orders data
-      const url = `${API_URL}/api/admin/analytics?timeRange=${ordersTimeRange}`;
+      // Use the dedicated orders analytics endpoint
+      const url = `${API_URL}/api/admin/analytics/orders?timeRange=${ordersTimeRange}`;
       
       console.log('📡 Fetching orders analytics from:', url);
       
@@ -230,11 +238,11 @@ const AdminDashboard = ({ admin, onLogout }) => {
         setOrdersAnalytics(data);
         console.log('✅ Orders Analytics loaded:', {
           timeRange: ordersTimeRange,
-          dates: data.charts?.dates?.length,
-          quantityData: data.charts?.quantityData?.length,
+          chartData: data.chartData?.length,
           orders: data.orders?.length,
-          hasData: !!(data.charts?.dates && data.charts.dates.length > 0),
-          sampleDates: data.charts?.dates?.slice(0, 3)
+          totalOrders: data.summary?.totalOrders,
+          hasData: !!(data.chartData && data.chartData.length > 0),
+          sampleData: data.chartData?.slice(0, 3)
         });
       } else {
         const errorText = await response.text();
@@ -878,22 +886,22 @@ const AdminDashboard = ({ admin, onLogout }) => {
                   </div>
                 </div>
               </div>
-              {ordersAnalytics && ordersAnalytics.charts && ordersAnalytics.charts.dates && ordersAnalytics.charts.dates.length > 0 ? (
+              {ordersAnalytics && ordersAnalytics.chartData && ordersAnalytics.chartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={320}>
                   <AreaChart 
-                    key={`orders-${ordersTimeRange}-${ordersAnalytics.charts.dates.length}`}
-                    data={(ordersAnalytics.charts.dates || []).map((date, index) => ({
-                      date: date,
-                      quantity: ordersAnalytics.charts.quantityData?.[index] || 0,
-                      sales: ordersAnalytics.charts.salesData?.[index] || 0
+                    key={`orders-${ordersTimeRange}-${ordersAnalytics.chartData.length}`}
+                    data={ordersAnalytics.chartData.map(item => ({
+                      date: item.date, // Already formatted by backend (Sun-Sat, Week 1-4, Jan-Dec)
+                      count: item.count || 0,
+                      revenue: item.revenue || 0
                     }))}>
                     <defs>
-                      <linearGradient id="colorQuantityOrders" x1="0" y1="0" x2="0" y2="1">
+                      <linearGradient id="colorCountOrders" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#9c27b0" stopOpacity={0.8}/>
                         <stop offset="50%" stopColor="#ba68c8" stopOpacity={0.6}/>
                         <stop offset="95%" stopColor="#9c27b0" stopOpacity={0}/>
                       </linearGradient>
-                      <linearGradient id="colorSalesOrders" x1="0" y1="0" x2="0" y2="1">
+                      <linearGradient id="colorRevenueOrders" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#ff9800" stopOpacity={0.8}/>
                         <stop offset="95%" stopColor="#ff9800" stopOpacity={0}/>
                       </linearGradient>
@@ -925,23 +933,23 @@ const AdminDashboard = ({ admin, onLogout }) => {
                     />
                     <Area 
                       type="monotone" 
-                      dataKey="quantity" 
+                      dataKey="count" 
                       stroke="#9c27b0" 
                       strokeWidth={3}
                       fillOpacity={1} 
-                      fill="url(#colorQuantityOrders)" 
-                      name="Orders Quantity"
+                      fill="url(#colorCountOrders)" 
+                      name="Order Count"
                       dot={{ fill: '#9c27b0', strokeWidth: 2, r: 4 }}
                       activeDot={{ r: 6, stroke: '#9c27b0', strokeWidth: 2 }}
                     />
                     <Area 
                       type="monotone" 
-                      dataKey="sales" 
+                      dataKey="revenue" 
                       stroke="#ff9800" 
                       strokeWidth={3}
                       fillOpacity={1} 
-                      fill="url(#colorSalesOrders)" 
-                      name="Orders Revenue"
+                      fill="url(#colorRevenueOrders)" 
+                      name="Revenue (₹)"
                       dot={{ fill: '#ff9800', strokeWidth: 2, r: 4 }}
                       activeDot={{ r: 6, stroke: '#ff9800', strokeWidth: 2 }}
                     />

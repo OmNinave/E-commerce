@@ -1068,18 +1068,97 @@ app.get('/api/admin/analytics/orders', requireAuth, (req, res) => {
     
     const orders = Object.values(ordersMap);
     
-    // Group by date for chart
-    const ordersByDate = {};
-    orders.forEach(order => {
-      const date = new Date(order.date).toISOString().split('T')[0];
-      if (!ordersByDate[date]) {
-        ordersByDate[date] = { date, count: 0, revenue: 0 };
-      }
-      ordersByDate[date].count += 1;
-      ordersByDate[date].revenue += order.totalAmount;
-    });
+    // Group by date for chart based on timeRange
+    let chartData = [];
     
-    const chartData = Object.keys(ordersByDate).sort().map(date => ordersByDate[date]);
+    if (timeRange === 'week') {
+      // Show 7 days (Sunday to Saturday)
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const dailyData = {};
+      
+      // Initialize all 7 days
+      for (let i = 0; i < 7; i++) {
+        const day = new Date(start);
+        day.setDate(start.getDate() + i);
+        const dayKey = day.toISOString().split('T')[0];
+        dailyData[dayKey] = { date: dayKey, count: 0, revenue: 0, dayName: dayNames[day.getDay()] };
+      }
+      
+      // Aggregate orders by day
+      orders.forEach(order => {
+        const orderDate = new Date(order.date).toISOString().split('T')[0];
+        if (dailyData[orderDate]) {
+          dailyData[orderDate].count += 1;
+          dailyData[orderDate].revenue += order.totalAmount;
+        }
+      });
+      
+      // Convert to array with day names
+      chartData = Object.keys(dailyData).sort().map(dayKey => ({
+        date: dailyData[dayKey].dayName,
+        count: dailyData[dayKey].count,
+        revenue: dailyData[dayKey].revenue
+      }));
+      
+    } else if (timeRange === 'month') {
+      // Show weeks in the month
+      const weeklyData = {};
+      
+      orders.forEach(order => {
+        const orderDate = new Date(order.date);
+        const weekStart = new Date(orderDate);
+        weekStart.setDate(orderDate.getDate() - orderDate.getDay());
+        const weekKey = weekStart.toISOString().split('T')[0];
+        
+        if (!weeklyData[weekKey]) {
+          weeklyData[weekKey] = { date: weekKey, count: 0, revenue: 0, weekIndex: 0 };
+        }
+        weeklyData[weekKey].count += 1;
+        weeklyData[weekKey].revenue += order.totalAmount;
+      });
+      
+      // Convert to arrays with week labels
+      const weeks = Object.keys(weeklyData).sort();
+      chartData = weeks.map((weekKey, index) => ({
+        date: `Week ${index + 1}`,
+        count: weeklyData[weekKey].count,
+        revenue: weeklyData[weekKey].revenue
+      }));
+      
+    } else if (timeRange === 'year') {
+      // Show all 12 months
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const monthlyData = {};
+      
+      // Initialize all 12 months
+      for (let i = 0; i < 12; i++) {
+        monthlyData[i] = { date: monthNames[i], count: 0, revenue: 0 };
+      }
+      
+      // Aggregate orders by month
+      orders.forEach(order => {
+        const orderDate = new Date(order.date);
+        const monthIndex = orderDate.getMonth();
+        monthlyData[monthIndex].count += 1;
+        monthlyData[monthIndex].revenue += order.totalAmount;
+      });
+      
+      // Convert to array
+      chartData = Object.values(monthlyData);
+    } else {
+      // Default: group by date
+      const ordersByDate = {};
+      orders.forEach(order => {
+        const date = new Date(order.date).toISOString().split('T')[0];
+        if (!ordersByDate[date]) {
+          ordersByDate[date] = { date, count: 0, revenue: 0 };
+        }
+        ordersByDate[date].count += 1;
+        ordersByDate[date].revenue += order.totalAmount;
+      });
+      
+      chartData = Object.keys(ordersByDate).sort().map(date => ordersByDate[date]);
+    }
     
     res.json({
       chartData,
@@ -1092,7 +1171,8 @@ app.get('/api/admin/analytics/orders', requireAuth, (req, res) => {
       dateRange: {
         start: start.toISOString().split('T')[0],
         end: end.toISOString().split('T')[0]
-      }
+      },
+      timeRange: timeRange
     });
   } catch (error) {
     console.error('Orders analytics error:', error);
