@@ -120,7 +120,7 @@ const Navigation = () => {
               <div className="dropdown-menu profile-menu">
                 <div className="dropdown-header">
                   <div className="profile-greeting">
-                    {isAuthenticated ? `Hello, ${user.fullName.split(' ')[0]}` : 'Hello, Guest'}
+                    {isAuthenticated ? `Hello, ${(user.fullName || user.name || 'User').split(' ')[0]}` : 'Hello, Guest'}
                   </div>
                   <div className="profile-helper">
                     {isAuthenticated ? user.email : 'Sign in to personalize your experience'}
@@ -129,22 +129,22 @@ const Navigation = () => {
                 {isAuthenticated && (
                   <div className="dropdown-section">
                     <div className="dropdown-section-title">Your Account</div>
-                    <button type="button" className="dropdown-item">
+                    <Link to="/profile" className="dropdown-item" onClick={handleProfileNavigate}>
                       <span className="item-icon">👤</span>
                       Your Profile
-                    </button>
-                    <button type="button" className="dropdown-item">
+                    </Link>
+                    <Link to="/orders" className="dropdown-item" onClick={handleProfileNavigate}>
                       <span className="item-icon">📦</span>
                       Your Orders
-                    </button>
-                    <button type="button" className="dropdown-item">
+                    </Link>
+                    <Link to="/wishlist" className="dropdown-item" onClick={handleProfileNavigate}>
                       <span className="item-icon">❤️</span>
                       Your Wishlist
-                    </button>
-                    <button type="button" className="dropdown-item">
+                    </Link>
+                    <Link to="/reviews" className="dropdown-item" onClick={handleProfileNavigate}>
                       <span className="item-icon">⭐</span>
                       Your Reviews
-                    </button>
+                    </Link>
                   </div>
                 )}
                 <div className="dropdown-divider"></div>
@@ -169,18 +169,18 @@ const Navigation = () => {
                   </div>
                   {isAuthenticated && (
                     <>
-                      <button type="button" className="dropdown-item">
+                      <Link to="/settings" className="dropdown-item" onClick={handleProfileNavigate}>
                         <span className="item-icon">⚙️</span>
                         Account Settings
-                      </button>
-                      <button type="button" className="dropdown-item">
+                      </Link>
+                      <Link to="/notifications" className="dropdown-item" onClick={handleProfileNavigate}>
                         <span className="item-icon">🔔</span>
                         Notifications
-                      </button>
-                      <button type="button" className="dropdown-item">
+                      </Link>
+                      <Link to="/preferences" className="dropdown-item" onClick={handleProfileNavigate}>
                         <span className="item-icon">🌍</span>
                         Language & Region
-                      </button>
+                      </Link>
                     </>
                   )}
                 </div>

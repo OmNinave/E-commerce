@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
-  AreaChart, Area, LineChart, Line, BarChart, Bar,
+  AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import '../styles/AdminDashboard.css';
@@ -8,6 +8,53 @@ import '../styles/AdminDashboard.css';
 // API URL - works for both local and production
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
+// ========== DATE UTILITY FUNCTIONS ==========
+// Get current week number (1-4 or 1-5 depending on month)
+const getCurrentWeek = () => {
+  const today = new Date();
+  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+  const days = (today.getDate() - firstDay.getDate()) / 7;
+  return Math.floor(days) + 1;
+};
+
+// Get current month (1-12)
+const getCurrentMonth = () => new Date().getMonth() + 1;
+
+// Get current year
+const getCurrentYear = () => new Date().getFullYear();
+
+// Generate array of years (current year and 2 previous years)
+const generateYears = () => {
+  const currentYear = getCurrentYear();
+  return [currentYear - 2, currentYear - 1, currentYear].filter(y => y > 2000).sort();
+};
+
+// Generate months for a specific year (1-12)
+const generateMonths = () => {
+  return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+};
+
+// Get number of weeks in a specific month
+const getWeeksInMonth = (year, month) => {
+  const firstDay = new Date(year, month - 1, 1);
+  const lastDay = new Date(year, month, 0);
+  const lastDate = lastDay.getDate();
+  return Math.ceil((lastDate - firstDay.getDay()) / 7) + 1;
+};
+
+// Generate weeks for a specific month (1 to N)
+const generateWeeks = (year, month) => {
+  const weeksCount = getWeeksInMonth(year, month);
+  return Array.from({ length: weeksCount }, (_, i) => i + 1);
+};
+
+// Get month name
+const getMonthName = (monthNum) => {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return months[monthNum - 1];
+};
+
+// ========== COMPONENT START ==========
 const AdminDashboard = ({ admin, onLogout }) => {
   const [analytics, setAnalytics] = useState(null);
   const [products, setProducts] = useState([]);
@@ -17,75 +64,66 @@ const AdminDashboard = ({ admin, onLogout }) => {
   const [timeRange, setTimeRange] = useState('month');
   const [productSearch, setProductSearch] = useState('');
   
+  // ========== CASCADING DROPDOWN STATE ==========
+  // Selected year, month, week for dashboard filters
+  const [selectedYear, setSelectedYear] = useState(getCurrentYear());
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
+  const [selectedWeek, setSelectedWeek] = useState(getCurrentWeek());
+  
   // Time range states for each view (using same structure as dashboard)
   const [productsTimeRange, setProductsTimeRange] = useState('month');
   const [productsAnalytics, setProductsAnalytics] = useState(null);
+  const [productsYear, setProductsYear] = useState(getCurrentYear());
+  const [productsMonth, setProductsMonth] = useState(getCurrentMonth());
+  const [productsWeek, setProductsWeek] = useState(getCurrentWeek());
   
   const [usersTimeRange, setUsersTimeRange] = useState('month');
   const [usersAnalytics, setUsersAnalytics] = useState(null);
+  const [usersYear, setUsersYear] = useState(getCurrentYear());
+  const [usersMonth, setUsersMonth] = useState(getCurrentMonth());
+  const [usersWeek, setUsersWeek] = useState(getCurrentWeek());
   
   const [ordersTimeRange, setOrdersTimeRange] = useState('month');
   const [ordersAnalytics, setOrdersAnalytics] = useState(null);
+  const [ordersYear, setOrdersYear] = useState(getCurrentYear());
+  const [ordersMonth, setOrdersMonth] = useState(getCurrentMonth());
+  const [ordersWeek, setOrdersWeek] = useState(getCurrentWeek());
 
-  useEffect(() => {
-    if (activeView === 'dashboard') {
-      fetchAnalytics();
-    } else if (activeView === 'products') {
-      fetchProducts();
-      fetchProductsAnalytics(); // Fetch immediately when switching to products view
-    } else if (activeView === 'users') {
-      fetchUsers();
-      fetchUsersAnalytics(); // Fetch immediately when switching to users view
-    } else if (activeView === 'orders') {
-      fetchOrdersAnalytics(); // Fetch immediately when switching to orders view
+  const handleLogout = useCallback(async () => {
+    const token = localStorage.getItem('adminToken');
+    
+    if (token) {
+      try {
+        // Call backend logout endpoint
+        await fetch(`${API_URL}/api/admin/logout`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+      } catch (err) {
+        console.error('Logout error:', err);
+      }
     }
-  }, [activeView]);
+    
+    // Clear local storage
+    localStorage.removeItem('adminToken');
+    localStorage.removeItem('adminUser');
+    
+    // Call parent logout handler
+    onLogout();
+  }, [onLogout]);
 
-  // Fetch dashboard analytics when timeRange changes
-  useEffect(() => {
-    if (activeView === 'dashboard') {
-      fetchAnalytics();
-    }
-  }, [timeRange]);
-
-  // Fetch analytics for each view when time range changes
-  useEffect(() => {
-    if (activeView === 'products') {
-      console.log('🔄 Fetching products analytics for:', productsTimeRange);
-      fetchProductsAnalytics();
-    }
-  }, [activeView, productsTimeRange]);
-
-  useEffect(() => {
-    if (activeView === 'users') {
-      console.log('🔄 Fetching users analytics for:', usersTimeRange);
-      fetchUsersAnalytics();
-    }
-  }, [activeView, usersTimeRange]);
-
-  useEffect(() => {
-    if (activeView === 'orders') {
-      console.log('🔄 Fetching orders analytics for:', ordersTimeRange);
-      fetchOrdersAnalytics();
-    }
-  }, [activeView, ordersTimeRange]);
-
-  // Auto-refresh products when products view is active
-  useEffect(() => {
-    if (activeView === 'products') {
-      const interval = setInterval(() => {
-        fetchProducts();
-      }, 30000); // Refresh every 30 seconds
-      return () => clearInterval(interval);
-    }
-  }, [activeView]);
-
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('adminToken');
       
-      const response = await fetch(`${API_URL}/api/admin/analytics?timeRange=${timeRange}`, {
+      // Build URL with cascading dropdown selections
+      let url = `${API_URL}/api/admin/analytics?timeRange=${timeRange}&year=${selectedYear}&month=${selectedMonth}&week=${selectedWeek}`;
+      
+      const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -96,6 +134,9 @@ const AdminDashboard = ({ admin, onLogout }) => {
         setAnalytics(data);
         console.log('📊 Analytics Data:', {
           timeRange: data.timeRange,
+          year: selectedYear,
+          month: selectedMonth,
+          week: selectedWeek,
           totalQuantity: data.summary?.totalQuantitySold,
           totalOrders: data.summary?.totalOrders,
           chartDates: data.charts?.dates?.length
@@ -109,7 +150,115 @@ const AdminDashboard = ({ admin, onLogout }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [timeRange, selectedYear, selectedMonth, selectedWeek, handleLogout]);
+
+  const fetchProductsAnalytics = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      // Use the same endpoint as dashboard - it already has all the data we need
+      const url = `${API_URL}/api/admin/analytics?timeRange=${productsTimeRange}`;
+      
+      console.log('📡 Fetching products analytics from:', url);
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Use the same structure as dashboard chart
+        setProductsAnalytics(data);
+        console.log('✅ Products Analytics loaded:', {
+          timeRange: productsTimeRange,
+          dates: data.charts?.dates?.length,
+          quantityData: data.charts?.quantityData?.length,
+          salesData: data.charts?.salesData?.length,
+          hasData: !!(data.charts?.dates && data.charts.dates.length > 0),
+          sampleDates: data.charts?.dates?.slice(0, 3)
+        });
+      } else {
+        const errorText = await response.text();
+        console.error('❌ Failed to fetch products analytics:', response.status, errorText);
+        setProductsAnalytics(null);
+      }
+    } catch (err) {
+      console.error('❌ Failed to fetch products analytics:', err);
+      setProductsAnalytics(null);
+    }
+  }, [productsTimeRange]);
+
+  const fetchUsersAnalytics = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      // Use the same endpoint as dashboard - it has user registration data
+      const url = `${API_URL}/api/admin/analytics?timeRange=${usersTimeRange}`;
+      
+      console.log('📡 Fetching users analytics from:', url);
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUsersAnalytics(data);
+        console.log('✅ Users Analytics loaded:', {
+          timeRange: usersTimeRange,
+          userDates: data.charts?.userDates?.length,
+          userCounts: data.charts?.userCounts?.length,
+          hasData: !!(data.charts?.userDates && data.charts.userDates.length > 0),
+          sampleDates: data.charts?.userDates?.slice(0, 3)
+        });
+      } else {
+        const errorText = await response.text();
+        console.error('❌ Failed to fetch users analytics:', response.status, errorText);
+        setUsersAnalytics(null);
+      }
+    } catch (err) {
+      console.error('❌ Failed to fetch users analytics:', err);
+      setUsersAnalytics(null);
+    }
+  }, [usersTimeRange]);
+
+  const fetchOrdersAnalytics = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      // Use the dedicated orders analytics endpoint
+      const url = `${API_URL}/api/admin/analytics/orders?timeRange=${ordersTimeRange}`;
+      
+      console.log('📡 Fetching orders analytics from:', url);
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setOrdersAnalytics(data);
+        console.log('✅ Orders Analytics loaded:', {
+          timeRange: ordersTimeRange,
+          chartData: data.chartData?.length,
+          orders: data.orders?.length,
+          totalOrders: data.summary?.totalOrders,
+          hasData: !!(data.chartData && data.chartData.length > 0),
+          sampleData: data.chartData?.slice(0, 3)
+        });
+      } else {
+        const errorText = await response.text();
+        console.error('❌ Failed to fetch orders analytics:', response.status, errorText);
+        setOrdersAnalytics(null);
+      }
+    } catch (err) {
+      console.error('❌ Failed to fetch orders analytics:', err);
+      setOrdersAnalytics(null);
+    }
+  }, [ordersTimeRange]);
 
   const fetchProducts = async () => {
     try {
@@ -147,130 +296,70 @@ const AdminDashboard = ({ admin, onLogout }) => {
     }
   };
 
-  const fetchProductsAnalytics = async () => {
-    try {
-      const token = localStorage.getItem('adminToken');
-      // Use the same endpoint as dashboard - it already has all the data we need
-      const url = `${API_URL}/api/admin/analytics?timeRange=${productsTimeRange}`;
-      
-      console.log('📡 Fetching products analytics from:', url);
-      
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        // Use the same structure as dashboard chart
-        setProductsAnalytics(data);
-        console.log('✅ Products Analytics loaded:', {
-          timeRange: productsTimeRange,
-          dates: data.charts?.dates?.length,
-          quantityData: data.charts?.quantityData?.length,
-          salesData: data.charts?.salesData?.length,
-          hasData: !!(data.charts?.dates && data.charts.dates.length > 0),
-          sampleDates: data.charts?.dates?.slice(0, 3)
-        });
-      } else {
-        const errorText = await response.text();
-        console.error('❌ Failed to fetch products analytics:', response.status, errorText);
-        setProductsAnalytics(null);
-      }
-    } catch (err) {
-      console.error('❌ Failed to fetch products analytics:', err);
-      setProductsAnalytics(null);
+  useEffect(() => {
+    if (activeView === 'dashboard') {
+      fetchAnalytics();
+    } else if (activeView === 'products') {
+      fetchProducts();
+      fetchProductsAnalytics();
+    } else if (activeView === 'users') {
+      fetchUsers();
+      fetchUsersAnalytics();
+    } else if (activeView === 'orders') {
+      fetchOrdersAnalytics();
     }
-  };
+  }, [activeView, fetchAnalytics, fetchProductsAnalytics, fetchUsersAnalytics, fetchOrdersAnalytics]);
 
-  const fetchUsersAnalytics = async () => {
-    try {
-      const token = localStorage.getItem('adminToken');
-      // Use the same endpoint as dashboard - it has user registration data
-      const url = `${API_URL}/api/admin/analytics?timeRange=${usersTimeRange}`;
-      
-      console.log('📡 Fetching users analytics from:', url);
-      
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setUsersAnalytics(data);
-        console.log('✅ Users Analytics loaded:', {
-          timeRange: usersTimeRange,
-          userDates: data.charts?.userDates?.length,
-          userCounts: data.charts?.userCounts?.length,
-          hasData: !!(data.charts?.userDates && data.charts.userDates.length > 0),
-          sampleDates: data.charts?.userDates?.slice(0, 3)
-        });
-      } else {
-        const errorText = await response.text();
-        console.error('❌ Failed to fetch users analytics:', response.status, errorText);
-        setUsersAnalytics(null);
-      }
-    } catch (err) {
-      console.error('❌ Failed to fetch users analytics:', err);
-      setUsersAnalytics(null);
+  // Fetch dashboard analytics when timeRange changes
+  useEffect(() => {
+    console.log('🔄 Dashboard timeRange effect triggered:', { activeView, timeRange });
+    if (activeView === 'dashboard') {
+      // Reset dropdown selections to current values when switching filter type
+      setSelectedYear(getCurrentYear());
+      setSelectedMonth(getCurrentMonth());
+      setSelectedWeek(getCurrentWeek());
     }
-  };
+  }, [activeView, timeRange]);
 
-  const fetchOrdersAnalytics = async () => {
-    try {
-      const token = localStorage.getItem('adminToken');
-      // Use the dedicated orders analytics endpoint
-      const url = `${API_URL}/api/admin/analytics/orders?timeRange=${ordersTimeRange}`;
-      
-      console.log('📡 Fetching orders analytics from:', url);
-      
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setOrdersAnalytics(data);
-        console.log('✅ Orders Analytics loaded:', {
-          timeRange: ordersTimeRange,
-          chartData: data.chartData?.length,
-          orders: data.orders?.length,
-          totalOrders: data.summary?.totalOrders,
-          hasData: !!(data.chartData && data.chartData.length > 0),
-          sampleData: data.chartData?.slice(0, 3)
-        });
-      } else {
-        const errorText = await response.text();
-        console.error('❌ Failed to fetch orders analytics:', response.status, errorText);
-        setOrdersAnalytics(null);
-      }
-    } catch (err) {
-      console.error('❌ Failed to fetch orders analytics:', err);
-      setOrdersAnalytics(null);
+  // Fetch analytics when cascading dropdown selections change
+  useEffect(() => {
+    if (activeView === 'dashboard') {
+      console.log('🔄 Cascading dropdown changed:', { timeRange, selectedYear, selectedMonth, selectedWeek });
+      fetchAnalytics();
     }
-  };
+  }, [activeView, selectedYear, selectedMonth, selectedWeek, fetchAnalytics]);
 
-  const handleLogout = async () => {
-    const token = localStorage.getItem('adminToken');
-    try {
-      await fetch(`${API_URL}/api/admin/logout`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-    } catch (err) {
-      console.error('Logout error:', err);
+  // Fetch analytics for each view when time range changes
+  useEffect(() => {
+    if (activeView === 'products') {
+      console.log('🔄 Fetching products analytics for:', productsTimeRange);
+      fetchProductsAnalytics();
     }
-    localStorage.removeItem('adminToken');
-    localStorage.removeItem('adminUser');
-    onLogout();
-  };
+  }, [activeView, productsTimeRange, fetchProductsAnalytics]);
+
+  useEffect(() => {
+    if (activeView === 'users') {
+      console.log('🔄 Fetching users analytics for:', usersTimeRange);
+      fetchUsersAnalytics();
+    }
+  }, [activeView, usersTimeRange, fetchUsersAnalytics]);
+
+  useEffect(() => {
+    if (activeView === 'orders') {
+      console.log('🔄 Fetching orders analytics for:', ordersTimeRange);
+      fetchOrdersAnalytics();
+    }
+  }, [activeView, ordersTimeRange, fetchOrdersAnalytics]);
+
+  // Auto-refresh products when products view is active
+  useEffect(() => {
+    if (activeView === 'products') {
+      const interval = setInterval(() => {
+        fetchProducts();
+      }, 30000); // Refresh every 30 seconds
+      return () => clearInterval(interval);
+    }
+  }, [activeView]);
 
   if (loading) {
     return (
@@ -351,8 +440,22 @@ const AdminDashboard = ({ admin, onLogout }) => {
 
       <main className="admin-content">
         <header className="content-header">
-          <h1>E-Commerce Dashboard</h1>
-          <div className="header-info">
+          <div className="header-left">
+            <h1>E-Commerce Dashboard</h1>
+          </div>
+          
+          {activeView === 'dashboard' && (
+            <div className="header-right">
+              <div className="date-time-section">
+                <div className="date-main">{new Date().toLocaleDateString('en-US', { weekday: 'long' })}</div>
+                <div className="date-sub">{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
+              </div>
+            </div>
+          )}
+        </header>
+
+        {activeView === 'dashboard' && (
+          <div className="filters-section">
             <div className="time-filter">
               <button 
                 className={timeRange === 'week' ? 'active' : ''}
@@ -373,10 +476,57 @@ const AdminDashboard = ({ admin, onLogout }) => {
                 Year
               </button>
             </div>
-            
-            <span className="current-date">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+
+            {/* Cascading Dropdowns */}
+            <div className="cascading-filters">
+              {/* Year Dropdown - Always shown */}
+              <div className="filter-dropdown-group">
+                <label>Year</label>
+                <select 
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                  className="filter-dropdown"
+                >
+                  {generateYears().map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Month Dropdown - Shown for MONTH and WEEK filters */}
+              {(timeRange === 'month' || timeRange === 'week') && (
+                <div className="filter-dropdown-group">
+                  <label>Month</label>
+                  <select 
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                    className="filter-dropdown"
+                  >
+                    {generateMonths().map(month => (
+                      <option key={month} value={month}>{getMonthName(month)}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Week Dropdown - Shown only for WEEK filter */}
+              {timeRange === 'week' && (
+                <div className="filter-dropdown-group">
+                  <label>Week</label>
+                  <select 
+                    value={selectedWeek}
+                    onChange={(e) => setSelectedWeek(parseInt(e.target.value))}
+                    className="filter-dropdown"
+                  >
+                    {generateWeeks(selectedYear, selectedMonth).map(week => (
+                      <option key={week} value={week}>Week {week}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
           </div>
-        </header>
+        )}
 
         {activeView === 'dashboard' && (
           <div className="dashboard-view">
@@ -579,31 +729,29 @@ const AdminDashboard = ({ admin, onLogout }) => {
 
             {/* Products Sales Graph - Same as Dashboard */}
             <div className="chart-box large" style={{ marginBottom: '30px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' }}>
-                <h3 className="chart-title" style={{ margin: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', gap: '15px', width: '100%' }}>
+                <h3 className="chart-title" style={{ margin: 0, flex: '1' }}>
                   📊 Product Sales Trend ({productsTimeRange === 'week' ? 'This Week' : productsTimeRange === 'month' ? 'This Month' : 'This Year'})
                 </h3>
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <div className="time-filter">
-                    <button 
-                      className={productsTimeRange === 'week' ? 'active' : ''}
-                      onClick={() => setProductsTimeRange('week')}
-                    >
-                      Week
-                    </button>
-                    <button 
-                      className={productsTimeRange === 'month' ? 'active' : ''}
-                      onClick={() => setProductsTimeRange('month')}
-                    >
-                      Month
-                    </button>
-                    <button 
-                      className={productsTimeRange === 'year' ? 'active' : ''}
-                      onClick={() => setProductsTimeRange('year')}
-                    >
-                      Year
-                    </button>
-                  </div>
+                <div className="time-filter" style={{ flex: '0 0 auto', marginLeft: 'auto' }}>
+                  <button 
+                    className={productsTimeRange === 'week' ? 'active' : ''}
+                    onClick={() => setProductsTimeRange('week')}
+                  >
+                    Week
+                  </button>
+                  <button 
+                    className={productsTimeRange === 'month' ? 'active' : ''}
+                    onClick={() => setProductsTimeRange('month')}
+                  >
+                    Month
+                  </button>
+                  <button 
+                    className={productsTimeRange === 'year' ? 'active' : ''}
+                    onClick={() => setProductsTimeRange('year')}
+                  >
+                    Year
+                  </button>
                 </div>
               </div>
               {productsAnalytics && productsAnalytics.charts && productsAnalytics.charts.dates && productsAnalytics.charts.dates.length > 0 ? (
@@ -732,31 +880,29 @@ const AdminDashboard = ({ admin, onLogout }) => {
 
             {/* User Registrations Graph - Same as Dashboard */}
             <div className="chart-box large" style={{ marginBottom: '30px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' }}>
-                <h3 className="chart-title" style={{ margin: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', gap: '15px', width: '100%' }}>
+                <h3 className="chart-title" style={{ margin: 0, flex: '1' }}>
                   📈 New User Registrations ({usersTimeRange === 'week' ? 'This Week' : usersTimeRange === 'month' ? 'This Month' : 'This Year'})
                 </h3>
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <div className="time-filter">
-                    <button 
-                      className={usersTimeRange === 'week' ? 'active' : ''}
-                      onClick={() => setUsersTimeRange('week')}
-                    >
-                      Week
-                    </button>
-                    <button 
-                      className={usersTimeRange === 'month' ? 'active' : ''}
-                      onClick={() => setUsersTimeRange('month')}
-                    >
-                      Month
-                    </button>
-                    <button 
-                      className={usersTimeRange === 'year' ? 'active' : ''}
-                      onClick={() => setUsersTimeRange('year')}
-                    >
-                      Year
-                    </button>
-                  </div>
+                <div className="time-filter" style={{ flex: '0 0 auto', marginLeft: 'auto' }}>
+                  <button 
+                    className={usersTimeRange === 'week' ? 'active' : ''}
+                    onClick={() => setUsersTimeRange('week')}
+                  >
+                    Week
+                  </button>
+                  <button 
+                    className={usersTimeRange === 'month' ? 'active' : ''}
+                    onClick={() => setUsersTimeRange('month')}
+                  >
+                    Month
+                  </button>
+                  <button 
+                    className={usersTimeRange === 'year' ? 'active' : ''}
+                    onClick={() => setUsersTimeRange('year')}
+                  >
+                    Year
+                  </button>
                 </div>
               </div>
               {usersAnalytics && usersAnalytics.charts && usersAnalytics.charts.userDates && usersAnalytics.charts.userDates.length > 0 ? (
@@ -834,7 +980,7 @@ const AdminDashboard = ({ admin, onLogout }) => {
                     {users.map((user) => (
                       <tr key={user.id}>
                         <td>{user.id}</td>
-                        <td>{user.name}</td>
+                        <td>{user.fullName || user.name || 'N/A'}</td>
                         <td>{user.email}</td>
                         <td>{new Date(user.registrationDate || user.accountCreatedDate).toLocaleDateString()}</td>
                       </tr>
@@ -859,31 +1005,29 @@ const AdminDashboard = ({ admin, onLogout }) => {
 
             {/* Orders Graph - Same as Dashboard */}
             <div className="chart-box large" style={{ marginBottom: '30px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' }}>
-                <h3 className="chart-title" style={{ margin: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', gap: '15px', width: '100%' }}>
+                <h3 className="chart-title" style={{ margin: 0, flex: '1' }}>
                   📊 Orders Trend ({ordersTimeRange === 'week' ? 'This Week' : ordersTimeRange === 'month' ? 'This Month' : 'This Year'})
                 </h3>
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <div className="time-filter">
-                    <button 
-                      className={ordersTimeRange === 'week' ? 'active' : ''}
-                      onClick={() => setOrdersTimeRange('week')}
-                    >
-                      Week
-                    </button>
-                    <button 
-                      className={ordersTimeRange === 'month' ? 'active' : ''}
-                      onClick={() => setOrdersTimeRange('month')}
-                    >
-                      Month
-                    </button>
-                    <button 
-                      className={ordersTimeRange === 'year' ? 'active' : ''}
-                      onClick={() => setOrdersTimeRange('year')}
-                    >
-                      Year
-                    </button>
-                  </div>
+                <div className="time-filter" style={{ flex: '0 0 auto', marginLeft: 'auto' }}>
+                  <button 
+                    className={ordersTimeRange === 'week' ? 'active' : ''}
+                    onClick={() => setOrdersTimeRange('week')}
+                  >
+                    Week
+                  </button>
+                  <button 
+                    className={ordersTimeRange === 'month' ? 'active' : ''}
+                    onClick={() => setOrdersTimeRange('month')}
+                  >
+                    Month
+                  </button>
+                  <button 
+                    className={ordersTimeRange === 'year' ? 'active' : ''}
+                    onClick={() => setOrdersTimeRange('year')}
+                  >
+                    Year
+                  </button>
                 </div>
               </div>
               {ordersAnalytics && ordersAnalytics.chartData && ordersAnalytics.chartData.length > 0 ? (

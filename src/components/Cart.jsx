@@ -37,6 +37,25 @@ const Cart = () => {
       return;
     }
 
+    // Validate all items have valid prices
+    const invalidItems = cartItems.filter(item => 
+      item.price === undefined || 
+      item.price === null || 
+      item.price <= 0 ||
+      isNaN(item.price)
+    );
+
+    if (invalidItems.length > 0) {
+      setOrderMessage('Error: Some items have invalid prices. Please refresh the cart.');
+      return;
+    }
+
+    // Validate cart is not empty
+    if (cartItems.length === 0) {
+      setOrderMessage('Error: Your cart is empty.');
+      return;
+    }
+
     setIsCreatingOrder(true);
     setOrderMessage('');
 
@@ -44,23 +63,33 @@ const Cart = () => {
       // Prepare order data
       const orderData = {
         userId: user.id,
+        // Only send product id and quantity to server. Server will use authoritative prices.
         items: cartItems.map(item => ({
           id: item.id,
-          name: item.name,
           quantity: item.quantity,
-          price: item.price || 0
+          // Include client price for validation purposes only
+          clientPrice: item.price
         })),
         totalAmount: getCartSubtotal()
       };
 
       // Create order in backend database
-      const order = await apiService.createOrder(orderData);
-      
+      const response = await apiService.createOrder(orderData);
+      // Normalize response to get the order object
+      const order = response && response.order ? response.order : response.data && response.data.order ? response.data.order : response;
+
+      // If server returned a validation error or message, prefer that
+      if (!order || !order.orderId) {
+        const serverMessage = response && response.message ? response.message : null;
+        throw new Error(serverMessage || 'Failed to create order.');
+      }
+
       // Clear cart after successful order
       clearCart();
       
-      // Show success message
-      setOrderMessage(`Order ${order.orderId} created successfully!`);
+      // Show success message and server-computed total if provided
+      const totalMsg = order.totalAmount ? ` Total: ${formatPrice(order.totalAmount)}` : '';
+      setOrderMessage(`Order ${order.orderId} created successfully!${totalMsg}`);
       
       // Navigate to checkout confirmation
       setTimeout(() => {
@@ -128,13 +157,15 @@ const Cart = () => {
                 </div>
 
                 <div className="cart-item-price">
-                  {item.price !== undefined && item.price !== null && (
+                  {item && item.price !== undefined && item.price !== null ? (
                     <>
                       <div className="cart-price-current">{formatPrice(item.price)}</div>
                       {item.originalPrice !== undefined && item.originalPrice !== null && item.originalPrice > item.price && (
                         <div className="cart-price-original">{formatPrice(item.originalPrice)}</div>
                       )}
                     </>
+                  ) : (
+                    <div className="cart-price-error">Price unavailable</div>
                   )}
                 </div>
 
@@ -164,10 +195,12 @@ const Cart = () => {
                 </div>
 
                 <div className="cart-item-total">
-                  {item.price !== undefined && item.price !== null && (
+                  {item && item.price !== undefined && item.price !== null ? (
                     <div className="cart-total-price">
                       {formatPrice(item.price * item.quantity)}
                     </div>
+                  ) : (
+                    <div className="cart-total-error">-</div>
                   )}
                 </div>
 

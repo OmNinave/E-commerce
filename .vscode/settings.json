@@ -1,0 +1,29 @@
+{
+  // ===== Terminal Configuration: Use PowerShell Instead of WSL =====
+  // Set PowerShell as the default terminal on Windows
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
+
+  // Configure available terminal profiles
+  "terminal.integrated.profiles.windows": {
+    "PowerShell": {
+      "source": "PowerShell",
+      "icon": "terminal-powershell",
+      "args": ["-NoExit", "-Command", "Clear-Host"]
+    },
+    "Command Prompt": {
+      "path": "${env:windir}\\System32\\cmd.exe",
+      "icon": "terminal-cmd"
+    }
+  },
+
+  // Explicitly disable WSL to prevent it from being automatically selected
+  "terminal.integrated.env.windows": {
+    "WSL_DISTRO_NAME": ""
+  },
+
+  // Prevent WSL from being available as an option
+  "terminal.integrated.defaultProfile.linux": "",
+  "terminal.integrated.automationProfile.windows": {
+    "path": "${env:windir}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+  }
+}

@@ -4545,6 +4545,66 @@
       "purchaseHistory": [],
       "totalSpent": 0,
       "totalOrders": 0
+    },
+    {
+      "id": "user026",
+      "name": "qwertyuiop",
+      "email": "pakego8931@fermiro.com",
+      "password": "d6871c8b0b71ed97d23341a924d85d6411934c2f73a2f3e2704de5254be2243c",
+      "registrationDate": "2025-11-14",
+      "accountCreatedDate": "2025-11-14",
+      "isNewUser": true,
+      "lastLoginDate": "2025-11-14"
+    },
+    {
+      "id": "user027",
+      "name": "Test User 123",
+      "email": "testuser123@example.com",
+      "password": "7e6e0c3079a08c5cc6036789b57e951f65f82383913ba1a49ae992544f1b4b6e",
+      "registrationDate": "2025-11-14",
+      "accountCreatedDate": "2025-11-14",
+      "isNewUser": true,
+      "lastLoginDate": "2025-11-14"
+    },
+    {
+      "id": "user028",
+      "name": "qwertyuiop",
+      "email": "admin@ecommerce.com",
+      "password": "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9",
+      "registrationDate": "2025-11-15",
+      "accountCreatedDate": "2025-11-15",
+      "isNewUser": true,
+      "lastLoginDate": "2025-11-15"
+    },
+    {
+      "id": "user029",
+      "name": "John Doe",
+      "email": "johndoe@example.com",
+      "password": "ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f",
+      "registrationDate": "2025-11-15",
+      "accountCreatedDate": "2025-11-15",
+      "isNewUser": true,
+      "lastLoginDate": "2025-11-15"
+    },
+    {
+      "id": "user030",
+      "fullName": "Sarah Johnson",
+      "email": "sarahjohnson@example.com",
+      "password": "ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f",
+      "registrationDate": "2025-11-15",
+      "accountCreatedDate": "2025-11-15",
+      "isNewUser": true,
+      "lastLoginDate": "2025-11-15"
+    },
+    {
+      "id": "user031",
+      "fullName": "mecedat816",
+      "email": "mecedat816@etramay.com",
+      "password": "5c80565db6f29da0b01aa12522c37b32f121cbe47a861ef7f006cb22922dffa1",
+      "registrationDate": "2025-11-15",
+      "accountCreatedDate": "2025-11-15",
+      "isNewUser": true,
+      "lastLoginDate": "2025-11-15"
     }
   ],
   "orders": [

@@ -40,6 +40,12 @@ const AdminApp = () => {
         if (response.ok) {
           const data = await response.json();
           console.log('✅ Session valid:', data);
+          
+          // If a new JWT token is provided, store it
+          if (data.jwtToken) {
+            localStorage.setItem('adminToken', data.jwtToken);
+          }
+          
           setAdmin(data.admin);
           setIsAuthenticated(true);
         } else {
@@ -61,7 +67,29 @@ const AdminApp = () => {
     setIsAuthenticated(true);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const token = localStorage.getItem('adminToken');
+    
+    if (token) {
+      try {
+        // Call backend logout endpoint
+        await fetch(`${API_URL}/api/admin/logout`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+      } catch (err) {
+        console.error('Logout error:', err);
+      }
+    }
+    
+    // Clear local storage
+    localStorage.removeItem('adminToken');
+    localStorage.removeItem('adminUser');
+    
+    // Update state
     setAdmin(null);
     setIsAuthenticated(false);
   };

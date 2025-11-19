@@ -12,8 +12,31 @@ const Register = () => {
   });
   const [status, setStatus] = useState({ type: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState({ score: 0, text: '', color: '' });
   const navigate = useNavigate();
   const { registerUser, isAuthenticated, isInitializing } = useAuth();
+
+  // Calculate password strength
+  const calculatePasswordStrength = (password) => {
+    if (!password) return { score: 0, text: '', color: '' };
+    let score = 0;
+    if (password.length >= 6) score++;
+    if (password.length >= 10) score++;
+    if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score++;
+    if (/\d/.test(password)) score++;
+    if (/[^a-zA-Z\d]/.test(password)) score++;
+    
+    const strengths = [
+      { text: '', color: '' },
+      { text: 'Weak', color: '#ff4444' },
+      { text: 'Fair', color: '#ffaa00' },
+      { text: 'Good', color: '#88cc00' },
+      { text: 'Strong', color: '#00aa00' },
+      { text: 'Very Strong', color: '#008800' }
+    ];
+    
+    return { score, ...strengths[score] };
+  };
 
   useEffect(() => {
     if (!isInitializing && isAuthenticated) {
@@ -24,6 +47,11 @@ const Register = () => {
   const handleChange = (event) => {
     const { name, value } = event.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    
+    // Update password strength when password changes
+    if (name === 'password') {
+      setPasswordStrength(calculatePasswordStrength(value));
+    }
   };
 
   const handleSubmit = async (event) => {
@@ -112,6 +140,11 @@ const Register = () => {
               required
               minLength={6}
             />
+            {passwordStrength.text && (
+              <div className="password-strength" style={{ color: passwordStrength.color, fontSize: '0.85rem', marginTop: '4px' }}>
+                Password Strength: <strong>{passwordStrength.text}</strong>
+              </div>
+            )}
           </div>
           <div className="form-group">
             <label htmlFor="confirmPassword" className="form-label">Confirm Password</label>

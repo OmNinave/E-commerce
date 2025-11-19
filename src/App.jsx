@@ -14,6 +14,10 @@ import Login from './components/Login';
 import Register from './components/Register';
 import AdminApp from './admin/AdminApp';
 import ScrollToTop from './components/ScrollToTop';
+import MyOrders from './pages/MyOrders';
+import Wishlist from './pages/Wishlist';
+import EditProfile from './pages/EditProfile';
+import ManageAddresses from './pages/ManageAddresses';
 import './styles/App.css';
 
 function AppContent() {
@@ -23,7 +27,9 @@ function AppContent() {
 
   // If admin route, show admin dashboard
   if (location.pathname === '/admin') {
-    console.log('🔐 Admin route detected');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔐 Admin route detected');
+    }
     return <AdminApp />;
   }
 
@@ -41,6 +47,14 @@ function AppContent() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/admin" element={<AdminApp />} />
+          <Route path="/profile" element={<EditProfile />} />
+          <Route path="/orders" element={<MyOrders />} />
+          <Route path="/wishlist" element={<Wishlist />} />
+          <Route path="/settings" element={<EditProfile />} />
+          <Route path="/notifications" element={<MyOrders />} />
+          <Route path="/preferences" element={<EditProfile />} />
+          <Route path="/reviews" element={<Wishlist />} />
+          <Route path="/addresses" element={<ManageAddresses />} />
         </Routes>
       </main>
       {!hideFooter && <Footer />}

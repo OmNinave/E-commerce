@@ -9,6 +9,14 @@ const ProductCard = ({ product }) => {
   const { formatPrice, convertPrice } = useCurrency();
   const navigate = useNavigate();
   const [isWishlisted, setIsWishlisted] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
+  // Fallback placeholder image
+  const placeholderImage = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2VlZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTgiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
+
+  const handleImageError = () => {
+    setImageError(true);
+  };
 
   // Generate consistent rating based on product ID (seed-based)
   const generateConsistentRating = (id) => {
@@ -70,9 +78,10 @@ const ProductCard = ({ product }) => {
           </button>
 
           <img 
-            src={product.image} 
+            src={imageError ? placeholderImage : (product.image || placeholderImage)}
             alt={product.name}
             className="product-image"
+            onError={handleImageError}
           />
         </div>
 

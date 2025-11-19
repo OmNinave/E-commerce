@@ -1,0 +1,40 @@
+{
+  "startTime": "2025-11-16T08:21:43.801Z",
+  "status": "in-progress",
+  "summary": {},
+  "errors": [],
+  "warnings": [],
+  "details": {
+    "users": {
+      "migrated": 0,
+      "failed": 0,
+      "skipped": 0
+    },
+    "products": {
+      "migrated": 0,
+      "failed": 0,
+      "skipped": 0
+    },
+    "orders": {
+      "migrated": 0,
+      "failed": 0,
+      "skipped": 0
+    },
+    "orderItems": {
+      "migrated": 0,
+      "failed": 0,
+      "skipped": 0
+    },
+    "purchaseHistory": {
+      "migrated": 0,
+      "failed": 0,
+      "skipped": 0
+    },
+    "adminUsers": {
+      "migrated": 0,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "endTime": "2025-11-16T08:21:43.816Z"
+}

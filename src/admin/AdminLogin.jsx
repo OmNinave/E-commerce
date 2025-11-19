@@ -27,7 +27,12 @@ const AdminLogin = ({ onLogin }) => {
       const data = await response.json();
 
       if (response.ok) {
-        localStorage.setItem('adminToken', data.token);
+        // Store both tokens if available
+        if (data.jwtToken) {
+          localStorage.setItem('adminToken', data.jwtToken); // Prefer JWT
+        } else {
+          localStorage.setItem('adminToken', data.token); // Fallback to legacy
+        }
         localStorage.setItem('adminUser', JSON.stringify(data.admin));
         onLogin(data.admin);
       } else {

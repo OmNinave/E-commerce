@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Backend Server",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/db/admin_server.js",
+      "restart": true,
+      "console": "integratedTerminal",
+      "preLaunchTask": "backend-setup"
+    },
+    {
+      "name": "Frontend App",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}/src"
+    }
+  ]
+}

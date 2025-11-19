@@ -3,13 +3,48 @@ const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const helmet = require('helmet');
+const morgan = require('morgan');
+const jwt = require('jsonwebtoken');
+require('dotenv').config(); // Load environment variables
+const { rateLimit, initializeRateLimitCleanup } = require('../middleware/rateLimiter');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// JWT Configuration
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback_jwt_secret_for_development_only';
+const JWT_EXPIRES_IN = '24h'; // 24 hours
+
 // Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  },
+  hsts: {
+    maxAge: 31536000, // 1 year
+    includeSubDomains: true,
+    preload: true
+  },
+  frameguard: { action: 'deny' },
+  noSniff: true,
+  xssFilter: true
+}));
+
+// Middleware
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+// HTTP request logging (combined format). Install `morgan` in dependencies.
+app.use(morgan('combined'));
+
+// Rate limiting middleware for auth endpoints
+app.use(rateLimit.middleware());
 
 // CORS middleware - Allow both local and production origins
 app.use((req, res, next) => {
@@ -23,11 +58,12 @@ app.use((req, res, next) => {
   ].filter(Boolean);
   
   const origin = req.headers.origin;
-  // Allow all origins in development, or specific ones in production
+  // Allow only configured origins in production; development allows all for convenience
   if (process.env.NODE_ENV === 'production') {
-    if (allowedOrigins.includes(origin) || !origin) {
-      res.header('Access-Control-Allow-Origin', origin || '*');
+    if (origin && allowedOrigins.includes(origin)) {
+      res.header('Access-Control-Allow-Origin', origin);
     }
+    // If origin is not allowed, do not set Access-Control-Allow-Origin header
   } else {
     // Development: allow all origins
     res.header('Access-Control-Allow-Origin', origin || '*');
@@ -43,20 +79,62 @@ app.use((req, res, next) => {
   next();
 });
 
+// Health check endpoint - useful for uptime monitoring and load balancers
+app.get('/health', (req, res) => {
+  try {
+    // Basic checks: file system and JSON DB readability
+    const db = loadUnifiedDb();
+    const admin = loadAdminDb();
+    res.json({ status: 'ok', users: (db.users || []).length, products: (db.products || []).length, admins: (admin.admin_users || []).length });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
 // Load databases - Single source of truth: unified_database.json
 const adminDbPath = path.join(__dirname, 'admin_database.json');
 const unifiedDbPath = path.join(__dirname, 'unified_database.json');
 
 function loadAdminDb() {
-  return JSON.parse(fs.readFileSync(adminDbPath, 'utf8'));
+  try {
+    return JSON.parse(fs.readFileSync(adminDbPath, 'utf8'));
+  } catch (err) {
+    console.warn('⚠️ admin_database.json not found or unreadable - creating default admin DB');
+    const defaultAdminDb = { admin_users: [] };
+    try {
+      fs.writeFileSync(adminDbPath, JSON.stringify(defaultAdminDb, null, 2));
+    } catch (writeErr) {
+      console.error('Failed to create default admin database file:', writeErr);
+    }
+    return defaultAdminDb;
+  }
 }
 
 function loadUnifiedDb() {
   try {
-    return JSON.parse(fs.readFileSync(unifiedDbPath, 'utf8'));
+    const data = fs.readFileSync(unifiedDbPath, 'utf8');
+    return JSON.parse(data);
   } catch (error) {
-    console.error('❌ Unified database not found! Please run: node db/generate_unified_db.js');
-    throw new Error('Database file not found');
+    if (error.code === 'ENOENT') {
+      console.warn('⚠️ unified_database.json not found - creating default unified DB');
+      const defaultUnifiedDb = {
+        products: [],
+        users: [],
+        orders: [],
+        purchaseHistory: []
+      };
+      try {
+        fs.writeFileSync(unifiedDbPath, JSON.stringify(defaultUnifiedDb, null, 2));
+        console.log('✓ Created default unified_database.json');
+        return defaultUnifiedDb;
+      } catch (writeErr) {
+        console.error('Failed to create default unified database file:', writeErr);
+        throw new Error('Database file not found and could not be created');
+      }
+    } else {
+      console.error('❌ Failed to read unified_database.json:', error.message);
+      throw new Error('Database file could not be read: ' + error.message);
+    }
   }
 }
 
@@ -76,6 +154,31 @@ function saveAdminDb(data) {
 const sessions = new Map();
 const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
 
+// Clean up expired sessions every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [token, session] of sessions.entries()) {
+    if (now > session.expiresAt) {
+      sessions.delete(token);
+    }
+  }
+}, 5 * 60 * 1000);
+
+// JWT Helper Functions
+function generateJWT(adminId) {
+  const payload = { adminId, iat: Math.floor(Date.now() / 1000) };
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+}
+
+function verifyJWT(token) {
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    return { valid: true, adminId: decoded.adminId };
+  } catch (error) {
+    return { valid: false, error: error.message };
+  }
+}
+
 function generateSessionToken() {
   return crypto.randomBytes(32).toString('hex');
 }
@@ -84,7 +187,7 @@ function createSession(adminId) {
   const token = generateSessionToken();
   const expiresAt = Date.now() + SESSION_TIMEOUT;
   sessions.set(token, { adminId, expiresAt });
-  return token;
+  return { sessionToken: token, jwtToken: generateJWT(adminId) };
 }
 
 function validateSession(token) {
@@ -101,21 +204,59 @@ function validateSession(token) {
   return session;
 }
 
-// Middleware to verify session
+// Middleware to verify session (supports both legacy sessions and JWT)
 function requireAuth(req, res, next) {
-  const token = req.headers.authorization?.replace('Bearer ', '');
+  const authHeader = req.headers.authorization;
   
-  if (!token) {
-    return res.status(401).json({ error: 'Unauthorized' });
+  if (!authHeader) {
+    return res.status(401).json({ error: 'Unauthorized: No authorization header' });
   }
   
-  const session = validateSession(token);
-  if (!session) {
-    return res.status(401).json({ error: 'Session expired' });
+  // Check if it's a Bearer token (JWT) or legacy token
+  if (authHeader.startsWith('Bearer ')) {
+    // JWT token
+    const token = authHeader.substring(7); // Remove 'Bearer '
+    const result = verifyJWT(token);
+    
+    if (!result.valid) {
+      return res.status(401).json({ error: 'Unauthorized: Invalid JWT token' });
+    }
+    
+    req.adminId = result.adminId;
+    next();
+  } else {
+    // Legacy session token
+    const session = validateSession(authHeader);
+    if (!session) {
+      return res.status(401).json({ error: 'Session expired' });
+    }
+    
+    req.adminId = session.adminId;
+    next();
   }
-  
-  req.adminId = session.adminId;
-  next();
+}
+
+// Middleware to verify admin role
+function requireAdminRole(req, res, next) {
+  try {
+    const adminDb = loadAdminDb();
+    const admin = adminDb.admin_users.find(u => u.admin_id === req.adminId);
+    
+    if (!admin) {
+      return res.status(403).json({ error: 'Forbidden: Admin access required' });
+    }
+    
+    // Optionally check role field if it exists
+    if (admin.role && admin.role !== 'admin' && admin.role !== 'superadmin') {
+      return res.status(403).json({ error: 'Forbidden: Insufficient permissions' });
+    }
+    
+    req.admin = admin;
+    next();
+  } catch (error) {
+    console.error('Admin role verification error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 }
 
 // Routes
@@ -178,17 +319,16 @@ app.post('/api/auth/register', async (req, res) => {
       return res.status(400).json({ error: 'An account already exists with this email' });
     }
     
-    // Hash password (simple hash for demo - use bcrypt in production)
-    const crypto = require('crypto');
-    const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
+    // Hash password using bcrypt
+    const hashedPassword = await bcrypt.hash(password, 10);
     
     // Create new user
     const now = new Date();
     const newUser = {
       id: `user${String((db.users || []).length + 1).padStart(3, '0')}`,
-      name: fullName.trim(),
+      fullName: fullName.trim(),
       email: normalizedEmail,
-      password: hashedPassword, // In production, use bcrypt
+      password: hashedPassword,
       registrationDate: now.toISOString().split('T')[0],
       accountCreatedDate: now.toISOString().split('T')[0],
       isNewUser: true,
@@ -226,16 +366,43 @@ app.post('/api/auth/login', async (req, res) => {
     const db = loadUnifiedDb();
     const normalizedEmail = email.trim().toLowerCase();
     
-    // Hash password to compare
-    const crypto = require('crypto');
-    const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
-    
     // Find user
     const user = (db.users || []).find(u => u.email === normalizedEmail);
-    if (!user || user.password !== hashedPassword) {
+    if (!user) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
-    
+
+    // Compare password using bcrypt. Support legacy SHA256 hashes by falling
+    // back to SHA256 and re-hashing to bcrypt on successful match.
+    let passwordMatches = false;
+    try {
+      passwordMatches = await bcrypt.compare(password, user.password);
+    } catch (e) {
+      passwordMatches = false;
+    }
+
+    if (!passwordMatches) {
+      // Legacy SHA256 fallback
+      const crypto = require('crypto');
+      const legacyHash = crypto.createHash('sha256').update(password).digest('hex');
+      if (user.password === legacyHash) {
+        // Re-hash with bcrypt and save
+        try {
+          const newHash = await bcrypt.hash(password, 10);
+          user.password = newHash;
+          saveUnifiedDb(db);
+          passwordMatches = true;
+        } catch (e) {
+          // If rehash/save fails, still allow login for legacy match
+          passwordMatches = true;
+        }
+      }
+    }
+
+    if (!passwordMatches) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
     // Update last login
     const now = new Date();
     user.lastLoginDate = now.toISOString().split('T')[0];
@@ -264,38 +431,95 @@ app.post('/api/orders', (req, res) => {
     }
     
     const db = loadUnifiedDb();
-    
+
     // Verify user exists
     const user = (db.users || []).find(u => u.id === userId);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-    
+
+    // Validate items against product catalog and stock, and compute authoritative totals
+    let computedTotal = 0;
+    const validatedItems = [];
+
+    for (const item of items) {
+      if (!item || !item.id || !item.quantity) {
+        return res.status(400).json({ error: 'Each item must include id and quantity' });
+      }
+
+      const product = (db.products || []).find(p => p.id === item.id || p.productId === item.id);
+      if (!product) {
+        return res.status(400).json({ error: `Product not found: ${item.id}` });
+      }
+
+      // Determine authoritative price from product record
+      const productPrice = Number(product.price ?? product.currentPrice ?? item.price ?? 0);
+      if (isNaN(productPrice) || productPrice <= 0) {
+        return res.status(400).json({ error: `Invalid price for product ${product.id}` });
+      }
+
+      const qty = Number(item.quantity);
+      if (!Number.isInteger(qty) || qty <= 0) {
+        return res.status(400).json({ error: `Invalid quantity for product ${product.id}` });
+      }
+
+      // Stock check - ensure currentQuantity field exists and is valid
+      const currentStock = product.currentQuantity !== undefined && product.currentQuantity !== null 
+        ? Number(product.currentQuantity) 
+        : 0;
+      
+      if (isNaN(currentStock) || currentStock < 0) {
+        return res.status(500).json({ error: `Invalid stock data for product ${product.id}` });
+      }
+      
+      if (currentStock < qty) {
+        return res.status(400).json({ 
+          error: `Insufficient stock for ${product.name}. Available: ${currentStock}, Requested: ${qty}` 
+        });
+      }
+
+      const subtotal = Math.round((productPrice * qty) * 100) / 100;
+      computedTotal += subtotal;
+
+      validatedItems.push({
+        productId: product.productId || product.id,
+        productName: product.name || item.name || product.productName || 'Unknown Product',
+        quantity: qty,
+        price: productPrice,
+        subtotal
+      });
+    }
+
+    // Round computed total to 2 decimals
+    computedTotal = Math.round(computedTotal * 100) / 100;
+
+    // If client supplied a totalAmount, ensure it matches authoritative computedTotal (allow tiny rounding differences)
+    if (totalAmount !== undefined && totalAmount !== null) {
+      const supplied = Math.round(Number(totalAmount) * 100) / 100;
+      if (isNaN(supplied) || Math.abs(supplied - computedTotal) > 0.5) {
+        return res.status(400).json({ error: 'Total amount mismatch. Please refresh your cart.' });
+      }
+    }
+
     // Generate order ID
     const orderId = `ORD${String((db.orders || []).length + 1).padStart(6, '0')}`;
     const now = new Date();
     const orderDate = now.toISOString().split('T')[0];
-    
+
     // Determine order status (start as pending, can be updated by admin)
     const orderStatus = 'pending'; // New orders start as pending
-    
-    // Create order with enhanced fields
+
+    // Create order with authoritative totals
     const order = {
       orderId: orderId,
       userId: userId,
-      userName: user.name,
+      userName: user.fullName || user.name || user.email || 'Customer',
       userEmail: user.email,
       orderDate: orderDate,
       status: orderStatus, // pending -> processing -> shipped -> completed
-      totalAmount: totalAmount || items.reduce((sum, item) => sum + (item.price * item.quantity), 0),
+      totalAmount: computedTotal,
       shippingInfo: null, // Will be added when order is shipped
-      items: items.map(item => ({
-        productId: item.id,
-        productName: item.name,
-        quantity: item.quantity,
-        price: item.price,
-        subtotal: item.price * item.quantity
-      }))
+      items: validatedItems
     };
     
     // Add order to database
@@ -309,29 +533,29 @@ app.post('/api/orders', (req, res) => {
     twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
     const purchaseDateObj = new Date(orderDate);
     
-    items.forEach(item => {
+    validatedItems.forEach(item => {
       // Add to purchase history
       db.purchaseHistory.push({
         orderId: orderId,
         userId: userId,
-        productId: item.id,
-        productName: item.name,
+        productId: item.productId,
+        productName: item.productName,
         purchaseDate: orderDate,
         quantity: item.quantity,
         price: item.price
       });
       
       // Update product: sales, stock, and history
-      const product = (db.products || []).find(p => p.id === item.id || p.productId === item.id);
+      const product = (db.products || []).find(p => p.id === item.productId || p.productId === item.productId);
       if (product) {
         // Update totals
         product.totalSold = (product.totalSold || 0) + item.quantity;
-        
+
         // Update stock
         if (product.currentQuantity !== undefined) {
           product.currentQuantity = Math.max(0, product.currentQuantity - item.quantity);
         }
-        
+
         // Add individual unit sales to salesHistory (last 2 months only)
         if (purchaseDateObj >= twoMonthsAgo) {
           if (!product.salesHistory) product.salesHistory = [];
@@ -344,7 +568,7 @@ app.post('/api/orders', (req, res) => {
             });
           }
         }
-        
+
         // Add to in-process orders if status is processing/pending
         if (order.status === 'processing' || order.status === 'pending') {
           if (!product.inProcessOrders) product.inProcessOrders = [];
@@ -361,14 +585,14 @@ app.post('/api/orders', (req, res) => {
       if (!user.purchaseHistory) user.purchaseHistory = [];
       user.purchaseHistory.push({
         orderId: orderId,
-        productId: item.id,
-        productName: item.name,
+        productId: item.productId,
+        productName: item.productName,
         purchaseDate: orderDate,
         quantity: item.quantity,
         price: item.price,
-        subtotal: item.price * item.quantity
+        subtotal: item.subtotal
       });
-      user.totalSpent = (user.totalSpent || 0) + (item.price * item.quantity);
+      user.totalSpent = (user.totalSpent || 0) + item.subtotal;
       user.totalOrders = (user.totalOrders || 0) + 1;
     });
     
@@ -404,19 +628,62 @@ app.post('/api/admin/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
     
-    // For demo purposes, accept "admin123" as password for all accounts
-    // In production, use: await bcrypt.compare(password, admin.password_hash)
-    const isValidPassword = password === 'admin123';
-    
+    // Validate admin password. Prefer bcrypt stored hash. If not present,
+    // allow a configured environment admin password as a temporary fallback.
+    let isValidPassword = false;
+    try {
+      // admin.password_hash or admin.password may be present depending on legacy data
+      const stored = admin.password_hash || admin.password;
+      if (stored) {
+        isValidPassword = await bcrypt.compare(password, stored);
+      }
+    } catch (e) {
+      isValidPassword = false;
+    }
+
+    // Fallback to environment variable (temporary).
+    // Only allow this in development to avoid accidental backdoors in production.
+    if (!isValidPassword && process.env.ADMIN_PASSWORD && process.env.NODE_ENV === 'development' && password === process.env.ADMIN_PASSWORD) {
+      console.warn('⚠️ Admin login using environment fallback password (development only)');
+      isValidPassword = true;
+    } else if (!isValidPassword && process.env.ADMIN_PASSWORD && password === process.env.ADMIN_PASSWORD) {
+      // Attempted use of ADMIN_PASSWORD in non-development environment — reject for security.
+      console.warn('⚠️ ADMIN_PASSWORD was provided but will not be accepted in non-development environments');
+    }
+
+    if (!isValidPassword) {
+      // Legacy plaintext or SHA256 check as a last resort: try SHA256 compare
+      try {
+        const crypto = require('crypto');
+        const legacyHash = crypto.createHash('sha256').update(password).digest('hex');
+        if (admin.password === legacyHash || admin.password === password) {
+          // Re-hash admin password and store in admin DB
+          try {
+            const newHash = await bcrypt.hash(password, 10);
+            admin.password_hash = newHash;
+            // Remove legacy plain password if present
+            delete admin.password;
+            saveAdminDb(adminDb);
+            isValidPassword = true;
+          } catch (e) {
+            isValidPassword = true; // allow login despite rehash failure
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
     if (!isValidPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
     
-    const token = createSession(admin.admin_id);
+    const tokens = createSession(admin.admin_id);
     
     res.json({
       success: true,
-      token,
+      token: tokens.sessionToken, // For backward compatibility
+      jwtToken: tokens.jwtToken,   // New JWT token
       admin: {
         admin_id: admin.admin_id,
         email: admin.email,
@@ -431,8 +698,15 @@ app.post('/api/admin/login', async (req, res) => {
 
 // Admin logout
 app.post('/api/admin/logout', requireAuth, (req, res) => {
-  const token = req.headers.authorization?.replace('Bearer ', '');
-  sessions.delete(token);
+  const authHeader = req.headers.authorization;
+  
+  if (authHeader && !authHeader.startsWith('Bearer ')) {
+    // Legacy session token
+    sessions.delete(authHeader);
+  }
+  // For JWT, we don't need to do anything as it's stateless
+  // In a production system, you might want to maintain a blacklist
+  
   res.json({ success: true });
 });
 
@@ -441,13 +715,21 @@ app.get('/api/admin/verify', requireAuth, (req, res) => {
   const adminDb = loadAdminDb();
   const admin = adminDb.admin_users.find(u => u.admin_id === req.adminId);
   
+  if (!admin) {
+    return res.status(404).json({ error: 'Admin not found' });
+  }
+  
+  // Generate new JWT for continued use
+  const newJwtToken = generateJWT(req.adminId);
+  
   res.json({
     valid: true,
     admin: {
       admin_id: admin.admin_id,
       email: admin.email,
       full_name: admin.full_name
-    }
+    },
+    jwtToken: newJwtToken // Provide fresh JWT
   });
 });
 
@@ -455,32 +737,44 @@ app.get('/api/admin/verify', requireAuth, (req, res) => {
 app.get('/api/admin/analytics', requireAuth, (req, res) => {
   try {
     const mainDb = loadMainDb();
-    const { timeRange = 'month' } = req.query;
+    const { timeRange = 'month', year, month, week } = req.query;
     
-    // Calculate date range based on filter (always current period)
+    // Use provided year/month/week or default to current
     const now = new Date();
+    const selectedYear = year ? parseInt(year, 10) : now.getFullYear();
+    const selectedMonth = month ? parseInt(month, 10) : now.getMonth() + 1;
+    const selectedWeek = week ? parseInt(week, 10) : Math.floor((now.getDate() - 1) / 7) + 1;
+    
+    // Calculate date range based on filter
     let startDate = new Date();
     let endDate = new Date();
     
     if (timeRange === 'week') {
-      // Current week (Sunday to Saturday)
-      const currentDay = now.getDay();
-      startDate = new Date(now);
-      startDate.setDate(now.getDate() - currentDay);
+      // Calculate specific week in specific month
+      const firstDayOfMonth = new Date(selectedYear, selectedMonth - 1, 1);
+      const dayOfWeekOffset = firstDayOfMonth.getDay(); // 0 = Sunday, 1 = Monday, etc.
+      const firstSundayOffset = (7 - dayOfWeekOffset) % 7;
+      
+      // Start of the selected week
+      const weekStartDate = selectedWeek === 1 
+        ? firstDayOfMonth
+        : new Date(selectedYear, selectedMonth - 1, 1 + firstSundayOffset + (selectedWeek - 2) * 7);
+      
+      startDate = new Date(weekStartDate);
       startDate.setHours(0, 0, 0, 0);
       
-      endDate = new Date(startDate);
-      endDate.setDate(startDate.getDate() + 6);
+      // End of week (Saturday)
+      endDate = new Date(weekStartDate);
+      endDate.setDate(weekStartDate.getDate() + 6);
       endDate.setHours(23, 59, 59, 999);
     } else if (timeRange === 'month') {
-      // Current month
-      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-      endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      // Specific month in specific year
+      startDate = new Date(selectedYear, selectedMonth - 1, 1);
+      endDate = new Date(selectedYear, selectedMonth, 0, 23, 59, 59, 999);
     } else if (timeRange === 'year') {
-      // Current year
-      const currentYear = now.getFullYear();
-      startDate = new Date(currentYear, 0, 1);
-      endDate = new Date(currentYear, 11, 31, 23, 59, 59, 999);
+      // Specific year
+      startDate = new Date(selectedYear, 0, 1);
+      endDate = new Date(selectedYear, 11, 31, 23, 59, 59, 999);
     }
     
     // Filter purchases by date range
@@ -535,7 +829,7 @@ app.get('/api/admin/analytics', requireAuth, (req, res) => {
       
       // Aggregate purchases by day
       filteredPurchases.forEach(purchase => {
-        const dayKey = purchase.purchaseDate;
+        const dayKey = new Date(purchase.purchaseDate).toISOString().split('T')[0];
         if (dailyData[dayKey]) {
           dailyData[dayKey].quantity += purchase.quantity;
           dailyData[dayKey].sales += purchase.price * purchase.quantity;
@@ -827,7 +1121,7 @@ app.get('/api/admin/products', requireAuth, (req, res) => {
 });
 
 // Get users
-app.get('/api/admin/users', requireAuth, (req, res) => {
+app.get('/api/admin/users', requireAuth, requireAdminRole, (req, res) => {
   try {
     const mainDb = loadMainDb();
     res.json({ users: mainDb.users });
@@ -838,7 +1132,7 @@ app.get('/api/admin/users', requireAuth, (req, res) => {
 });
 
 // Get purchase history
-app.get('/api/admin/purchases', requireAuth, (req, res) => {
+app.get('/api/admin/purchases', requireAuth, requireAdminRole, (req, res) => {
   try {
     const mainDb = loadMainDb();
     res.json({ purchases: mainDb.purchaseHistory });
@@ -1189,6 +1483,9 @@ setInterval(() => {
     }
   }
 }, 5 * 60 * 1000);
+
+// Initialize rate limit cleanup (runs every 30 minutes)
+initializeRateLimitCleanup();
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Admin API server running on port ${PORT}`);
