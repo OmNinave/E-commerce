@@ -1,22 +1,87 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
+const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
-const jwt = require('jsonwebtoken');
-require('dotenv').config(); // Load environment variables
-const { rateLimit, initializeRateLimitCleanup } = require('../middleware/rateLimiter');
+const crypto = require('crypto');
+require('dotenv').config();
+const { migrateToProfessionalWorkflow } = require('./migration_professional_workflow');
+const { sendTransactionalEmail, sendOrderStatusEmail } = require('./emailService');
+
+// Import SQLite Database API
+const dbAPI = require('./api');
+const { db } = require('./database');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+// Use fixed port for consistency
+const PORT = 5000; // process.env.PORT || 5000;
+console.log('Using port:', PORT);
+
+try {
+  migrateToProfessionalWorkflow();
+  console.log('✅ Professional workflow tables verified');
+} catch (migrationError) {
+  console.error('⚠️ Failed to run professional workflow migration:', migrationError);
+}
+
+function ensureUserProfileColumns() {
+  try {
+    const columns = db.prepare("PRAGMA table_info('users')").all();
+    const columnNames = columns.map((col) => col.name);
+
+    if (!columnNames.includes('company')) {
+      db.prepare('ALTER TABLE users ADD COLUMN company TEXT').run();
+    }
+    if (!columnNames.includes('bio')) {
+      db.prepare('ALTER TABLE users ADD COLUMN bio TEXT').run();
+    }
+  } catch (error) {
+    console.error('Failed to ensure user profile columns:', error);
+  }
+}
+
+ensureUserProfileColumns();
 
 // JWT Configuration
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback_jwt_secret_for_development_only';
-const JWT_EXPIRES_IN = '24h'; // 24 hours
+const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key_change_in_production';
+const JWT_EXPIRES_IN = '24h';
 
-// Middleware
+// ==================== MIDDLEWARE ====================
+
+const rateLimit = require('express-rate-limit');
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // Limit each IP to 10 requests per windowMs
+  message: { error: 'Too many login attempts, please try again after 15 minutes' }
+});
+
+// CORS
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:5173', // Vite default
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('Blocked by CORS:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
+
+// Security
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -26,251 +91,483 @@ app.use(helmet({
       imgSrc: ["'self'", "data:", "https:"],
     },
   },
-  hsts: {
-    maxAge: 31536000, // 1 year
-    includeSubDomains: true,
-    preload: true
-  },
-  frameguard: { action: 'deny' },
-  noSniff: true,
-  xssFilter: true
 }));
 
-// Middleware
-app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+// Body parsing
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// HTTP request logging (combined format). Install `morgan` in dependencies.
+// Logging
 app.use(morgan('combined'));
 
-// Rate limiting middleware for auth endpoints
-app.use(rateLimit.middleware());
+// ==================== AUTH HELPERS ====================
 
-// CORS middleware - Allow both local and production origins
-app.use((req, res, next) => {
-  const allowedOrigins = [
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'http://localhost:5000',
-    'https://ecom-update-dzhp.onrender.com',
-    'https://ecommerceadminweb.netlify.app',
-    process.env.FRONTEND_URL
-  ].filter(Boolean);
-  
-  const origin = req.headers.origin;
-  // Allow only configured origins in production; development allows all for convenience
-  if (process.env.NODE_ENV === 'production') {
-    if (origin && allowedOrigins.includes(origin)) {
-      res.header('Access-Control-Allow-Origin', origin);
-    }
-    // If origin is not allowed, do not set Access-Control-Allow-Origin header
-  } else {
-    // Development: allow all origins
-    res.header('Access-Control-Allow-Origin', origin || '*');
-  }
-  
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
-  next();
-});
-
-// Health check endpoint - useful for uptime monitoring and load balancers
-app.get('/health', (req, res) => {
-  try {
-    // Basic checks: file system and JSON DB readability
-    const db = loadUnifiedDb();
-    const admin = loadAdminDb();
-    res.json({ status: 'ok', users: (db.users || []).length, products: (db.products || []).length, admins: (admin.admin_users || []).length });
-  } catch (err) {
-    res.status(500).json({ status: 'error', message: err.message });
-  }
-});
-
-// Load databases - Single source of truth: unified_database.json
-const adminDbPath = path.join(__dirname, 'admin_database.json');
-const unifiedDbPath = path.join(__dirname, 'unified_database.json');
-
-function loadAdminDb() {
-  try {
-    return JSON.parse(fs.readFileSync(adminDbPath, 'utf8'));
-  } catch (err) {
-    console.warn('⚠️ admin_database.json not found or unreadable - creating default admin DB');
-    const defaultAdminDb = { admin_users: [] };
-    try {
-      fs.writeFileSync(adminDbPath, JSON.stringify(defaultAdminDb, null, 2));
-    } catch (writeErr) {
-      console.error('Failed to create default admin database file:', writeErr);
-    }
-    return defaultAdminDb;
-  }
-}
-
-function loadUnifiedDb() {
-  try {
-    const data = fs.readFileSync(unifiedDbPath, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    if (error.code === 'ENOENT') {
-      console.warn('⚠️ unified_database.json not found - creating default unified DB');
-      const defaultUnifiedDb = {
-        products: [],
-        users: [],
-        orders: [],
-        purchaseHistory: []
-      };
-      try {
-        fs.writeFileSync(unifiedDbPath, JSON.stringify(defaultUnifiedDb, null, 2));
-        console.log('✓ Created default unified_database.json');
-        return defaultUnifiedDb;
-      } catch (writeErr) {
-        console.error('Failed to create default unified database file:', writeErr);
-        throw new Error('Database file not found and could not be created');
-      }
-    } else {
-      console.error('❌ Failed to read unified_database.json:', error.message);
-      throw new Error('Database file could not be read: ' + error.message);
-    }
-  }
-}
-
-function saveUnifiedDb(data) {
-  fs.writeFileSync(unifiedDbPath, JSON.stringify(data, null, 2));
-}
-
-function loadMainDb() {
-  return loadUnifiedDb(); // Use unified database
-}
-
-function saveAdminDb(data) {
-  fs.writeFileSync(adminDbPath, JSON.stringify(data, null, 2));
-}
-
-// Session management
-const sessions = new Map();
-const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
-
-// Clean up expired sessions every 5 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [token, session] of sessions.entries()) {
-    if (now > session.expiresAt) {
-      sessions.delete(token);
-    }
-  }
-}, 5 * 60 * 1000);
-
-// JWT Helper Functions
-function generateJWT(adminId) {
-  const payload = { adminId, iat: Math.floor(Date.now() / 1000) };
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+function generateJWT(userId, isAdmin = false) {
+  return jwt.sign({ userId, isAdmin }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 }
 
 function verifyJWT(token) {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    return { valid: true, adminId: decoded.adminId };
+    return jwt.verify(token, JWT_SECRET);
   } catch (error) {
-    return { valid: false, error: error.message };
-  }
-}
-
-function generateSessionToken() {
-  return crypto.randomBytes(32).toString('hex');
-}
-
-function createSession(adminId) {
-  const token = generateSessionToken();
-  const expiresAt = Date.now() + SESSION_TIMEOUT;
-  sessions.set(token, { adminId, expiresAt });
-  return { sessionToken: token, jwtToken: generateJWT(adminId) };
-}
-
-function validateSession(token) {
-  const session = sessions.get(token);
-  if (!session) return null;
-  
-  if (Date.now() > session.expiresAt) {
-    sessions.delete(token);
     return null;
   }
-  
-  // Refresh session timeout
-  session.expiresAt = Date.now() + SESSION_TIMEOUT;
-  return session;
 }
 
-// Middleware to verify session (supports both legacy sessions and JWT)
+// Auth Middleware
 function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization;
-  
-  if (!authHeader) {
-    return res.status(401).json({ error: 'Unauthorized: No authorization header' });
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Unauthorized' });
   }
-  
-  // Check if it's a Bearer token (JWT) or legacy token
-  if (authHeader.startsWith('Bearer ')) {
-    // JWT token
-    const token = authHeader.substring(7); // Remove 'Bearer '
-    const result = verifyJWT(token);
-    
-    if (!result.valid) {
-      return res.status(401).json({ error: 'Unauthorized: Invalid JWT token' });
-    }
-    
-    req.adminId = result.adminId;
-    next();
-  } else {
-    // Legacy session token
-    const session = validateSession(authHeader);
-    if (!session) {
-      return res.status(401).json({ error: 'Session expired' });
-    }
-    
-    req.adminId = session.adminId;
-    next();
+
+  const token = authHeader.substring(7);
+  const decoded = verifyJWT(token);
+
+  if (!decoded) {
+    return res.status(401).json({ error: 'Invalid token' });
   }
+
+  req.userId = decoded.userId;
+  req.isAdmin = decoded.isAdmin;
+  next();
 }
 
-// Middleware to verify admin role
-function requireAdminRole(req, res, next) {
+// Admin Middleware
+function requireAdmin(req, res, next) {
+  if (!req.isAdmin) {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  next();
+}
+
+// ==================== DATABASE COMPATIBILITY LAYER ====================
+
+/**
+ * Load main database in JSON format (compatibility layer for analytics)
+ * Converts SQLite data to JSON structure expected by analytics endpoint
+ */
+function loadMainDb() {
   try {
-    const adminDb = loadAdminDb();
-    const admin = adminDb.admin_users.find(u => u.admin_id === req.adminId);
-    
-    if (!admin) {
-      return res.status(403).json({ error: 'Forbidden: Admin access required' });
-    }
-    
-    // Optionally check role field if it exists
-    if (admin.role && admin.role !== 'admin' && admin.role !== 'superadmin') {
-      return res.status(403).json({ error: 'Forbidden: Insufficient permissions' });
-    }
-    
-    req.admin = admin;
-    next();
+    // Get all data from SQLite and convert to JSON format
+    const products = dbAPI.getAllProducts();
+    const orders = dbAPI.getAllOrders();
+    const users = db.prepare('SELECT * FROM users').all();
+
+    // Get purchase history from order_items joined with orders
+    const purchaseHistory = db.prepare(`
+      SELECT 
+        oi.order_id as orderId,
+        o.user_id as userId,
+        oi.product_id as productId,
+        COALESCE(oi.product_name, p.name, 'Unknown Product') as productName,
+        DATE(o.created_at) as purchaseDate,
+        oi.quantity,
+        oi.unit_price as price
+      FROM order_items oi
+      JOIN orders o ON oi.order_id = o.id
+      LEFT JOIN products p ON oi.product_id = p.id
+      ORDER BY o.created_at DESC
+    `).all();
+
+    return {
+      products: products || [],
+      orders: orders.map(order => ({
+        ...order,
+        orderId: order.id,
+        orderDate: order.created_at ? order.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+        status: order.status || 'pending'
+      })) || [],
+      users: users.map(user => ({
+        ...user,
+        accountCreatedDate: user.created_at ? user.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+        registrationDate: user.created_at ? user.created_at.split('T')[0] : new Date().toISOString().split('T')[0]
+      })) || [],
+      purchaseHistory: purchaseHistory || []
+    };
   } catch (error) {
-    console.error('Admin role verification error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    console.error('Error loading main database:', error);
+    return {
+      products: [],
+      orders: [],
+      users: [],
+      purchaseHistory: []
+    };
   }
 }
 
-// Routes
+const MAX_ITEM_QUANTITY = 25;
 
-// ========== PUBLIC API ENDPOINTS ==========
+function sanitizeTextField(value, maxLength = 255) {
+  if (value === undefined || value === null) {
+    return '';
+  }
+  return String(value).trim().replace(/\s+/g, ' ').slice(0, maxLength);
+}
 
-// Get all products (public endpoint for frontend)
+function sanitizePhoneField(value) {
+  if (!value) {
+    return '';
+  }
+  return String(value).replace(/[^0-9+]/g, '').slice(0, 20);
+}
+
+function sanitizePostalCode(value) {
+  if (!value) {
+    return '';
+  }
+  return String(value).replace(/[^0-9A-Za-z]/g, '').slice(0, 12).toUpperCase();
+}
+
+const SHIPPING_METHODS = {
+  standard: {
+    key: 'standard',
+    label: 'Standard Shipping (3-5 days)',
+    eta: 'Arrives in 3-5 business days',
+    cost: 499,
+    freeThreshold: 50000
+  },
+  express: {
+    key: 'express',
+    label: 'Express Shipping (1-2 days)',
+    eta: 'Arrives in 1-2 business days',
+    cost: 999,
+    freeThreshold: 100000
+  }
+};
+
+function resolveShippingMethod(method = 'standard') {
+  const normalized = String(method || '').toLowerCase();
+  return SHIPPING_METHODS[normalized] || SHIPPING_METHODS.standard;
+}
+
+function calculateShippingCost(methodConfig, subtotal) {
+  if (subtotal >= methodConfig.freeThreshold) {
+    return 0;
+  }
+  return methodConfig.cost;
+}
+
+const ORDER_STATUS_EMAILS = {
+  shipped: {
+    label: 'Shipped',
+    message: 'Your package is on the way. You will receive it soon.'
+  },
+  delivered: {
+    label: 'Delivered',
+    message: 'We hope you enjoy your purchase! Let us know if you need any assistance.'
+  },
+  cancelled: {
+    label: 'Cancelled',
+    message: 'This order has been cancelled. If this was unexpected, please contact support.'
+  }
+};
+
+function queueOrderStatusEmail(orderId, status) {
+  const meta = ORDER_STATUS_EMAILS[status];
+  if (!meta) {
+    return;
+  }
+
+  setImmediate(() => {
+    try {
+      const order = dbAPI.getOrderById(orderId);
+      if (!order) {
+        return;
+      }
+      const user = dbAPI.getUserById(order.user_id);
+      if (!user?.email) {
+        return;
+      }
+
+      const shippingDetails = resolveShippingMethod(order.shipping_method);
+      const recipientName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email;
+
+      sendOrderStatusEmail({
+        to: user.email,
+        name: recipientName,
+        order: {
+          ...order,
+          shipping_details: shippingDetails
+        },
+        statusLabel: meta.label,
+        message: meta.message
+      }).catch((error) => {
+        console.error('Failed to send order status email:', error);
+      });
+    } catch (error) {
+      console.error('Error preparing status email:', error);
+    }
+  });
+}
+
+function normalizeCartPayloadItems(items = []) {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return items
+    .map((item) => ({
+      product_id: Number(item.product_id || item.productId || item.id),
+      quantity: Number(item.quantity)
+    }))
+    .filter(
+      (item) =>
+        Number.isInteger(item.product_id) &&
+        item.product_id > 0 &&
+        Number.isFinite(item.quantity) &&
+        item.quantity > 0
+    )
+    .map((item) => ({
+      product_id: item.product_id,
+      quantity: Math.floor(item.quantity)
+    }));
+}
+
+function calculateFinalPrice(product, discount) {
+  const basePrice = Number(product?.selling_price);
+
+  if (!Number.isFinite(basePrice) || basePrice < 0) {
+    throw new Error(`Invalid price configuration for ${product?.name || 'product'}`);
+  }
+
+  let finalPrice = basePrice;
+
+  if (discount) {
+    const discountValue = Number(discount.discount_value);
+
+    if (!Number.isFinite(discountValue)) {
+      throw new Error(`Invalid discount configuration for ${product?.name || 'product'}`);
+    }
+
+    if (discount.discount_type === 'percentage') {
+      finalPrice = finalPrice * (1 - discountValue / 100);
+    } else {
+      finalPrice = finalPrice - discountValue;
+    }
+  }
+
+  return Number(Math.max(0, finalPrice).toFixed(2));
+}
+
+function validateCartItems(items = []) {
+  const sanitizedItems = [];
+  const errors = [];
+  let subtotal = 0;
+
+  const normalizedItems = normalizeCartPayloadItems(items);
+
+  for (const item of normalizedItems) {
+    if (item.quantity > MAX_ITEM_QUANTITY) {
+      errors.push(`Maximum ${MAX_ITEM_QUANTITY} units allowed per product. Quantity adjusted for ${item.product_id}.`);
+    }
+
+    const product = dbAPI.getProductById(item.product_id);
+
+    if (!product) {
+      errors.push(`Product not found: ${item.product_id}`);
+      continue;
+    }
+
+    const availableStock = Number.isInteger(product.stock_quantity)
+      ? product.stock_quantity
+      : Number(product.current_quantity || 0);
+
+    if (availableStock <= 0) {
+      errors.push(`${product.name} is out of stock`);
+      continue;
+    }
+
+    if (item.quantity > availableStock) {
+      errors.push(
+        `${product.name} has only ${availableStock} unit(s) available`
+      );
+    }
+
+    const safeQuantity = Math.min(item.quantity, availableStock, MAX_ITEM_QUANTITY);
+    const discount = dbAPI.getActiveDiscount(product.id);
+    let finalPrice;
+
+    try {
+      finalPrice = calculateFinalPrice(product, discount);
+    } catch (priceError) {
+      errors.push(priceError.message);
+      continue;
+    }
+    const lineTotal = Number((finalPrice * safeQuantity).toFixed(2));
+    subtotal += lineTotal;
+
+    sanitizedItems.push({
+      product_id: product.id,
+      product_name: product.name,
+      product_sku: product.sku,
+      quantity: safeQuantity,
+      available_stock: availableStock,
+      unit_price: finalPrice,
+      base_price: product.base_price,
+      discount,
+      line_total: lineTotal,
+      image: product.primary_image
+    });
+  }
+
+  return {
+    sanitizedItems,
+    subtotal: Number(subtotal.toFixed(2)),
+    errors
+  };
+}
+
+function createOrderNumber() {
+  return `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+}
+
+function createOrUpdateAddress(userId, addressPayload = {}) {
+  if (!addressPayload) return null;
+
+  if (addressPayload.id) {
+    const existing = db
+      .prepare('SELECT id FROM addresses WHERE id = ? AND user_id = ?')
+      .get(addressPayload.id, userId);
+    if (existing) {
+      return existing.id;
+    }
+  }
+
+  const safeAddress = {
+    addressType: sanitizeTextField(addressPayload.addressType, 50) || 'Shipping',
+    fullName: sanitizeTextField(addressPayload.fullName, 120),
+    phone: sanitizePhoneField(addressPayload.phone),
+    addressLine1: sanitizeTextField(addressPayload.addressLine1, 255),
+    addressLine2: sanitizeTextField(addressPayload.addressLine2, 255),
+    city: sanitizeTextField(addressPayload.city, 120),
+    state: sanitizeTextField(addressPayload.state, 120),
+    pincode: sanitizePostalCode(addressPayload.pincode),
+    landmark: sanitizeTextField(addressPayload.landmark, 255),
+    isDefault: Boolean(addressPayload.isDefault)
+  };
+
+  const stmt = db.prepare(`
+    INSERT INTO addresses (
+      user_id, address_type, full_name, phone,
+      address_line1, address_line2, city, state,
+      pincode, landmark, is_default
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  const result = stmt.run(
+    userId,
+    safeAddress.addressType,
+    safeAddress.fullName,
+    safeAddress.phone,
+    safeAddress.addressLine1,
+    safeAddress.addressLine2,
+    safeAddress.city,
+    safeAddress.state,
+    safeAddress.pincode,
+    safeAddress.landmark,
+    safeAddress.isDefault ? 1 : 0
+  );
+
+  return result.lastInsertRowid;
+}
+
+function sendOrderEmails(user, order) {
+  if (!user?.email) {
+    return;
+  }
+
+  const shippingDetails = resolveShippingMethod(order.shipping_method);
+
+  sendTransactionalEmail({
+    to: user.email,
+    subject: `Order Confirmation - ${order.order_number}`,
+    template: 'orderConfirmation',
+    data: {
+      name: user.first_name || user.last_name || user.email,
+      order,
+      shippingDetails
+    }
+  }).catch((error) => {
+    console.error('Failed to queue order confirmation email:', error);
+  });
+
+  if (process.env.NOTIFICATION_EMAIL) {
+    sendTransactionalEmail({
+      to: process.env.NOTIFICATION_EMAIL,
+      subject: `New Order Received - ${order.order_number}`,
+      html: `<p>Order <strong>${order.order_number}</strong> placed by ${user.email}</p><p>Total: ₹${order.total_amount}</p>`
+    }).catch((error) => {
+      console.error('Failed to notify admin about order:', error);
+    });
+  }
+}
+
+// ==================== PUBLIC API ROUTES ====================
+
+// User Registration (moved to auth routes section below)
+// User Login (moved to auth routes section below)
+
+// Get all products
 app.get('/api/products', (req, res) => {
   try {
-    const db = loadUnifiedDb();
-    res.json({ 
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 12;
+    const offset = (page - 1) * limit;
+
+    const filters = {
+      category_id: req.query.category_id,
+      category: req.query.category,
+      search: req.query.search,
+      min_price: req.query.min_price,
+      max_price: req.query.max_price,
+      sort: req.query.sort,
+      limit: limit,
+      offset: offset
+    };
+
+    // Get total count for pagination
+    const totalProducts = dbAPI.getProductsCount(filters);
+    const totalPages = Math.ceil(totalProducts / limit);
+
+    const products = dbAPI.getAllProducts(filters);
+
+    // Add active discounts to products
+    const productsWithDiscounts = products.map(product => {
+      const discount = dbAPI.getActiveDiscount(product.id);
+
+      // Add price field for frontend compatibility
+      const baseProduct = {
+        ...product,
+        price: product.selling_price,
+        originalPrice: product.base_price
+      };
+
+      if (discount) {
+        const discountedPrice = discount.discount_type === 'percentage'
+          ? product.selling_price * (1 - discount.discount_value / 100)
+          : product.selling_price - discount.discount_value;
+
+        return {
+          ...baseProduct,
+          discount,
+          price: Math.max(0, discountedPrice).toFixed(2),
+          discounted_price: Math.max(0, discountedPrice).toFixed(2)
+        };
+      }
+      return baseProduct;
+    });
+
+    res.json({
       success: true,
-      products: db.products || [],
-      total: (db.products || []).length
+      products: productsWithDiscounts,
+      pagination: {
+        currentPage: page,
+        totalPages: totalPages,
+        totalProducts: totalProducts,
+        limit: limit
+      }
     });
   } catch (error) {
     console.error('Error fetching products:', error);
@@ -278,16 +575,15 @@ app.get('/api/products', (req, res) => {
   }
 });
 
-// Get single product by ID (public endpoint)
+// Get single product
 app.get('/api/products/:id', (req, res) => {
   try {
-    const db = loadUnifiedDb();
-    const product = (db.products || []).find(p => p.id === req.params.id);
-    
+    const product = dbAPI.getProductById(req.params.id);
+
     if (!product) {
       return res.status(404).json({ error: 'Product not found' });
     }
-    
+
     res.json({ success: true, product });
   } catch (error) {
     console.error('Error fetching product:', error);
@@ -295,474 +591,870 @@ app.get('/api/products/:id', (req, res) => {
   }
 });
 
-// ========== USER AUTHENTICATION ENDPOINTS ==========
-
-// User Registration
-app.post('/api/auth/register', async (req, res) => {
+// Get categories
+app.get('/api/categories', (req, res) => {
   try {
-    const { fullName, email, password } = req.body;
-    
-    if (!fullName || !email || !password) {
-      return res.status(400).json({ error: 'Full name, email, and password are required' });
-    }
-    
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
-    }
-    
-    const db = loadUnifiedDb();
-    const normalizedEmail = email.trim().toLowerCase();
-    
-    // Check if user already exists
-    const existingUser = (db.users || []).find(u => u.email === normalizedEmail);
-    if (existingUser) {
-      return res.status(400).json({ error: 'An account already exists with this email' });
-    }
-    
-    // Hash password using bcrypt
-    const hashedPassword = await bcrypt.hash(password, 10);
-    
-    // Create new user
-    const now = new Date();
-    const newUser = {
-      id: `user${String((db.users || []).length + 1).padStart(3, '0')}`,
-      fullName: fullName.trim(),
-      email: normalizedEmail,
-      password: hashedPassword,
-      registrationDate: now.toISOString().split('T')[0],
-      accountCreatedDate: now.toISOString().split('T')[0],
-      isNewUser: true,
-      lastLoginDate: now.toISOString().split('T')[0]
-    };
-    
-    // Add user to database
-    if (!db.users) db.users = [];
-    db.users.push(newUser);
-    saveUnifiedDb(db);
-    
-    // Return user without password
-    const { password: _, ...userResponse } = newUser;
-    
-    res.status(201).json({
-      success: true,
-      user: userResponse,
-      message: 'Account created successfully'
-    });
+    const categories = dbAPI.getAllCategories();
+    res.json({ success: true, categories });
   } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ error: 'Failed to create account' });
+    console.error('Error fetching categories:', error);
+    res.status(500).json({ error: 'Failed to fetch categories' });
   }
 });
 
-// User Login
-app.post('/api/auth/login', async (req, res) => {
+// Chat Assistant API
+app.post('/api/chat/messages', (req, res) => {
   try {
-    const { email, password } = req.body;
-    
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
-    }
-    
-    const db = loadUnifiedDb();
-    const normalizedEmail = email.trim().toLowerCase();
-    
-    // Find user
-    const user = (db.users || []).find(u => u.email === normalizedEmail);
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid email or password' });
-    }
+    const { message } = req.body;
+    let responseText = "I'm here to help! Please contact support@ecommerce.com for further assistance.";
 
-    // Compare password using bcrypt. Support legacy SHA256 hashes by falling
-    // back to SHA256 and re-hashing to bcrypt on successful match.
-    let passwordMatches = false;
-    try {
-      passwordMatches = await bcrypt.compare(password, user.password);
-    } catch (e) {
-      passwordMatches = false;
-    }
-
-    if (!passwordMatches) {
-      // Legacy SHA256 fallback
-      const crypto = require('crypto');
-      const legacyHash = crypto.createHash('sha256').update(password).digest('hex');
-      if (user.password === legacyHash) {
-        // Re-hash with bcrypt and save
-        try {
-          const newHash = await bcrypt.hash(password, 10);
-          user.password = newHash;
-          saveUnifiedDb(db);
-          passwordMatches = true;
-        } catch (e) {
-          // If rehash/save fails, still allow login for legacy match
-          passwordMatches = true;
-        }
+    if (message) {
+      const lowerMsg = message.toLowerCase();
+      if (lowerMsg.includes('order')) {
+        responseText = "You can view your orders in the 'My Orders' section of your profile.";
+      } else if (lowerMsg.includes('product') || lowerMsg.includes('buy')) {
+        responseText = "Check out our latest products on the Products page!";
+      } else if (lowerMsg.includes('shipping') || lowerMsg.includes('delivery')) {
+        responseText = "We offer free shipping on orders over ₹500. Standard delivery takes 3-5 business days.";
+      } else if (lowerMsg.includes('return') || lowerMsg.includes('refund')) {
+        responseText = "You can request a return within 7 days of delivery from your order history.";
+      } else if (lowerMsg.includes('hello') || lowerMsg.includes('hi')) {
+        responseText = "Hello! How can I assist you with your shopping today?";
       }
     }
 
-    if (!passwordMatches) {
-      return res.status(401).json({ error: 'Invalid email or password' });
-    }
+    // Simulate delay for realism
+    setTimeout(() => {
+      res.json({
+        id: Date.now(),
+        type: 'bot',
+        text: responseText,
+        timestamp: new Date()
+      });
+    }, 500);
 
-    // Update last login
-    const now = new Date();
-    user.lastLoginDate = now.toISOString().split('T')[0];
-    saveUnifiedDb(db);
-    
-    // Return user without password
-    const { password: _, ...userResponse } = user;
-    
-    res.json({
-      success: true,
-      user: userResponse
-    });
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Failed to login' });
+    console.error('Chat API error:', error);
+    res.status(500).json({ error: 'Failed to process message' });
   }
 });
 
-// Create Order (from cart)
-app.post('/api/orders', (req, res) => {
-  try {
-    const { userId, items, totalAmount } = req.body;
-    
-    if (!userId || !items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ error: 'User ID and items are required' });
-    }
-    
-    const db = loadUnifiedDb();
+// User Login (duplicate removed - using the one with better logging below)
 
-    // Verify user exists
-    const user = (db.users || []).find(u => u.id === userId);
+// ==================== ADMIN AUTH ROUTES ====================
+
+// ==================== ADDRESS ROUTES ====================
+
+// Get user addresses
+app.get('/api/users/:userId/addresses', requireAuth, (req, res) => {
+  try {
+    // Ensure user is accessing their own addresses or is admin
+    if (req.userId !== parseInt(req.params.userId) && !req.isAdmin) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const addresses = db.prepare('SELECT * FROM addresses WHERE user_id = ? ORDER BY is_default DESC, created_at DESC').all(req.params.userId);
+    res.json({ success: true, addresses });
+  } catch (error) {
+    console.error('Error fetching addresses:', error);
+    res.status(500).json({ error: 'Failed to fetch addresses' });
+  }
+});
+
+// Add new address
+app.post('/api/users/:userId/addresses', requireAuth, (req, res) => {
+  try {
+    if (req.userId !== parseInt(req.params.userId) && !req.isAdmin) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const {
+      fullName, phone, addressLine1, addressLine2,
+      city, state, pincode, landmark, isDefault, addressType
+    } = req.body;
+
+    if (!fullName || !phone || !addressLine1 || !city || !state || !pincode) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // If setting as default, unset other defaults
+    if (isDefault) {
+      db.prepare('UPDATE addresses SET is_default = 0 WHERE user_id = ?').run(req.params.userId);
+    }
+
+    const result = db.prepare(`
+      INSERT INTO addresses (
+        user_id, full_name, phone, address_line1, address_line2,
+        city, state, pincode, landmark, is_default, address_type
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      req.params.userId, fullName, phone, addressLine1, addressLine2 || '',
+      city, state, pincode, landmark || '', isDefault ? 1 : 0, addressType || 'Home'
+    );
+
+    const newAddress = db.prepare('SELECT * FROM addresses WHERE id = ?').get(result.lastInsertRowid);
+    res.status(201).json({ success: true, address: newAddress });
+  } catch (error) {
+    console.error('Error adding address:', error);
+    res.status(500).json({ error: 'Failed to add address' });
+  }
+});
+
+// Update address
+app.put('/api/users/:userId/addresses/:addressId', requireAuth, (req, res) => {
+  try {
+    if (req.userId !== parseInt(req.params.userId) && !req.isAdmin) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const {
+      fullName, phone, addressLine1, addressLine2,
+      city, state, pincode, landmark, isDefault, addressType
+    } = req.body;
+
+    // Check if address belongs to user
+    const address = db.prepare('SELECT * FROM addresses WHERE id = ? AND user_id = ?').get(req.params.addressId, req.params.userId);
+    if (!address) {
+      return res.status(404).json({ error: 'Address not found' });
+    }
+
+    // If setting as default, unset other defaults
+    if (isDefault) {
+      db.prepare('UPDATE addresses SET is_default = 0 WHERE user_id = ?').run(req.params.userId);
+    }
+
+    db.prepare(`
+      UPDATE addresses SET
+        full_name = ?, phone = ?, address_line1 = ?, address_line2 = ?,
+        city = ?, state = ?, pincode = ?, landmark = ?, is_default = ?, address_type = ?
+      WHERE id = ?
+    `).run(
+      fullName, phone, addressLine1, addressLine2 || '',
+      city, state, pincode, landmark || '', isDefault ? 1 : 0, addressType || 'Home',
+      req.params.addressId
+    );
+
+    const updatedAddress = db.prepare('SELECT * FROM addresses WHERE id = ?').get(req.params.addressId);
+    res.json({ success: true, address: updatedAddress });
+  } catch (error) {
+    console.error('Error updating address:', error);
+    res.status(500).json({ error: 'Failed to update address' });
+  }
+});
+
+// Delete address
+app.delete('/api/users/:userId/addresses/:addressId', requireAuth, (req, res) => {
+  try {
+    if (req.userId !== parseInt(req.params.userId) && !req.isAdmin) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const result = db.prepare('DELETE FROM addresses WHERE id = ? AND user_id = ?').run(req.params.addressId, req.params.userId);
+
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Address not found' });
+    }
+
+    res.json({ success: true, message: 'Address deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting address:', error);
+    res.status(500).json({ error: 'Failed to delete address' });
+  }
+});
+
+// User profile
+app.get('/api/users/:userId/profile', requireAuth, (req, res) => {
+  try {
+    if (req.userId !== parseInt(req.params.userId) && !req.isAdmin) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const user = dbAPI.getUserById(req.params.userId);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Validate items against product catalog and stock, and compute authoritative totals
-    let computedTotal = 0;
-    const validatedItems = [];
-
-    for (const item of items) {
-      if (!item || !item.id || !item.quantity) {
-        return res.status(400).json({ error: 'Each item must include id and quantity' });
-      }
-
-      const product = (db.products || []).find(p => p.id === item.id || p.productId === item.id);
-      if (!product) {
-        return res.status(400).json({ error: `Product not found: ${item.id}` });
-      }
-
-      // Determine authoritative price from product record
-      const productPrice = Number(product.price ?? product.currentPrice ?? item.price ?? 0);
-      if (isNaN(productPrice) || productPrice <= 0) {
-        return res.status(400).json({ error: `Invalid price for product ${product.id}` });
-      }
-
-      const qty = Number(item.quantity);
-      if (!Number.isInteger(qty) || qty <= 0) {
-        return res.status(400).json({ error: `Invalid quantity for product ${product.id}` });
-      }
-
-      // Stock check - ensure currentQuantity field exists and is valid
-      const currentStock = product.currentQuantity !== undefined && product.currentQuantity !== null 
-        ? Number(product.currentQuantity) 
-        : 0;
-      
-      if (isNaN(currentStock) || currentStock < 0) {
-        return res.status(500).json({ error: `Invalid stock data for product ${product.id}` });
-      }
-      
-      if (currentStock < qty) {
-        return res.status(400).json({ 
-          error: `Insufficient stock for ${product.name}. Available: ${currentStock}, Requested: ${qty}` 
-        });
-      }
-
-      const subtotal = Math.round((productPrice * qty) * 100) / 100;
-      computedTotal += subtotal;
-
-      validatedItems.push({
-        productId: product.productId || product.id,
-        productName: product.name || item.name || product.productName || 'Unknown Product',
-        quantity: qty,
-        price: productPrice,
-        subtotal
-      });
-    }
-
-    // Round computed total to 2 decimals
-    computedTotal = Math.round(computedTotal * 100) / 100;
-
-    // If client supplied a totalAmount, ensure it matches authoritative computedTotal (allow tiny rounding differences)
-    if (totalAmount !== undefined && totalAmount !== null) {
-      const supplied = Math.round(Number(totalAmount) * 100) / 100;
-      if (isNaN(supplied) || Math.abs(supplied - computedTotal) > 0.5) {
-        return res.status(400).json({ error: 'Total amount mismatch. Please refresh your cart.' });
-      }
-    }
-
-    // Generate order ID
-    const orderId = `ORD${String((db.orders || []).length + 1).padStart(6, '0')}`;
-    const now = new Date();
-    const orderDate = now.toISOString().split('T')[0];
-
-    // Determine order status (start as pending, can be updated by admin)
-    const orderStatus = 'pending'; // New orders start as pending
-
-    // Create order with authoritative totals
-    const order = {
-      orderId: orderId,
-      userId: userId,
-      userName: user.fullName || user.name || user.email || 'Customer',
-      userEmail: user.email,
-      orderDate: orderDate,
-      status: orderStatus, // pending -> processing -> shipped -> completed
-      totalAmount: computedTotal,
-      shippingInfo: null, // Will be added when order is shipped
-      items: validatedItems
-    };
-    
-    // Add order to database
-    if (!db.orders) db.orders = [];
-    db.orders.push(order);
-    
-    // Add to purchase history and update product/user data
-    if (!db.purchaseHistory) db.purchaseHistory = [];
-    
-    const twoMonthsAgo = new Date();
-    twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
-    const purchaseDateObj = new Date(orderDate);
-    
-    validatedItems.forEach(item => {
-      // Add to purchase history
-      db.purchaseHistory.push({
-        orderId: orderId,
-        userId: userId,
-        productId: item.productId,
-        productName: item.productName,
-        purchaseDate: orderDate,
-        quantity: item.quantity,
-        price: item.price
-      });
-      
-      // Update product: sales, stock, and history
-      const product = (db.products || []).find(p => p.id === item.productId || p.productId === item.productId);
-      if (product) {
-        // Update totals
-        product.totalSold = (product.totalSold || 0) + item.quantity;
-
-        // Update stock
-        if (product.currentQuantity !== undefined) {
-          product.currentQuantity = Math.max(0, product.currentQuantity - item.quantity);
-        }
-
-        // Add individual unit sales to salesHistory (last 2 months only)
-        if (purchaseDateObj >= twoMonthsAgo) {
-          if (!product.salesHistory) product.salesHistory = [];
-          for (let u = 0; u < item.quantity; u++) {
-            product.salesHistory.push({
-              unitSaleDate: orderDate,
-              orderId: orderId,
-              userId: userId,
-              price: item.price
-            });
-          }
-        }
-
-        // Add to in-process orders if status is processing/pending
-        if (order.status === 'processing' || order.status === 'pending') {
-          if (!product.inProcessOrders) product.inProcessOrders = [];
-          product.inProcessOrders.push({
-            orderId: orderId,
-            userId: userId,
-            quantity: item.quantity,
-            orderDate: orderDate
-          });
-        }
-      }
-      
-      // Update user purchase history
-      if (!user.purchaseHistory) user.purchaseHistory = [];
-      user.purchaseHistory.push({
-        orderId: orderId,
-        productId: item.productId,
-        productName: item.productName,
-        purchaseDate: orderDate,
-        quantity: item.quantity,
-        price: item.price,
-        subtotal: item.subtotal
-      });
-      user.totalSpent = (user.totalSpent || 0) + item.subtotal;
-      user.totalOrders = (user.totalOrders || 0) + 1;
-    });
-    
-    // Save database
-    saveUnifiedDb(db);
-    
-    res.status(201).json({
-      success: true,
-      order: order,
-      message: 'Order created successfully'
-    });
+    delete user.password_hash;
+    res.json({ success: true, user });
   } catch (error) {
-    console.error('Order creation error:', error);
-    res.status(500).json({ error: 'Failed to create order' });
+    console.error('Error fetching profile:', error);
+    res.status(500).json({ error: 'Failed to fetch profile' });
   }
 });
 
-// ========== ADMIN API ENDPOINTS ==========
+app.put('/api/users/:userId/profile', requireAuth, (req, res) => {
+  try {
+    if (req.userId !== parseInt(req.params.userId) && !req.isAdmin) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
 
-// Admin login
+    const { fullName, email, phone, company, bio } = req.body;
+    const nameParts = (fullName || '').trim().split(' ');
+    const firstName = nameParts.shift() || '';
+    const lastName = nameParts.join(' ');
+
+    db.prepare(`
+      UPDATE users SET
+        first_name = ?, last_name = ?, email = ?, phone = ?, company = ?, bio = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(
+      firstName,
+      lastName,
+      email || '',
+      phone || '',
+      company || '',
+      bio || '',
+      req.params.userId
+    );
+
+    const updatedUser = dbAPI.getUserById(req.params.userId);
+    delete updatedUser.password_hash;
+
+    res.json({ success: true, user: updatedUser });
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+app.put('/api/users/:userId/password', requireAuth, async (req, res) => {
+  try {
+    if (req.userId !== parseInt(req.params.userId) && !req.isAdmin) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Both current and new passwords are required' });
+    }
+
+    const user = dbAPI.getUserById(req.params.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const isValid = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!isValid) {
+      return res.status(400).json({ error: 'Current password is incorrect' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    db.prepare('UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+      .run(hashedPassword, req.params.userId);
+
+    res.json({ success: true, message: 'Password updated successfully' });
+  } catch (error) {
+    console.error('Error updating password:', error);
+    res.status(500).json({ error: 'Failed to update password' });
+  }
+});
+
+// ==================== AUTH ROUTES ====================
+
+
+
+// Email availability check
+app.get('/api/auth/check-email', (req, res) => {
+  try {
+    const email = (req.query.email || '').toLowerCase().trim();
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ error: 'Valid email required' });
+    }
+
+    const existingUser = dbAPI.getUserByEmail(email);
+    res.json({
+      email,
+      available: !existingUser
+    });
+  } catch (error) {
+    console.error('Email availability check error:', error);
+    res.status(500).json({ error: 'Failed to check email availability' });
+  }
+});
+
+// Register
+app.post('/api/auth/register', authLimiter, async (req, res) => {
+  try {
+    const { email, password, firstName, lastName, phone } = req.body;
+    console.log('Registration request received:', { email, firstName, lastName });
+
+    if (!email || !password) {
+      console.log('Missing email or password');
+      return res.status(400).json({ error: 'Email and password required' });
+    }
+
+    // Check if user exists
+    console.log('Checking if user exists:', email.toLowerCase());
+    const existingUser = dbAPI.getUserByEmail(email.toLowerCase());
+    console.log('Existing user check result:', existingUser);
+    if (existingUser) {
+      console.log('Email already registered:', email);
+      return res.status(400).json({ error: 'Email already registered' });
+    }
+
+    // Hash password
+    console.log('Hashing password for:', email);
+    const passwordHash = await bcrypt.hash(password, 10);
+    console.log('Password hashed successfully');
+
+    // Create user
+    console.log('Creating user with data:', {
+      email: email.toLowerCase(),
+      first_name: firstName || '',
+      last_name: lastName || '',
+      phone: phone || '',
+      email_verified: 0,
+      is_admin: 0
+    });
+    const result = dbAPI.createUser({
+      email: email.toLowerCase(),
+      password_hash: passwordHash,
+      first_name: firstName || '',
+      last_name: lastName || '',
+      phone: phone || '',
+      email_verified: 0,
+      is_admin: 0
+    });
+    console.log('User creation result:', result);
+
+    const user = dbAPI.getUserById(result.lastInsertRowid);
+    console.log('Retrieved created user:', user);
+    const token = generateJWT(user.id, false);
+    console.log('Generated JWT token');
+
+    // Remove password from response
+    delete user.password_hash;
+
+    setImmediate(() => {
+      sendTransactionalEmail({
+        to: user.email,
+        subject: 'Welcome to ProLab Equipment',
+        template: 'welcome',
+        data: {
+          name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email
+        }
+      }).catch((error) => {
+        console.error('Failed to send welcome email:', error);
+      });
+    });
+
+    res.status(201).json({
+      success: true,
+      user,
+      token,
+      message: 'Registration successful'
+    });
+  } catch (error) {
+    console.error('Registration error:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ error: 'Registration failed', details: error.message });
+  }
+});
+
+// User Login
+app.post('/api/auth/login', authLimiter, async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password required' });
+    }
+
+    console.log('User Login Attempt:', email.toLowerCase());
+    const user = dbAPI.getUserByEmail(email.toLowerCase());
+
+    if (!user) {
+      console.log('User not found:', email);
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    // Verify password with bcrypt
+    const isValid = await bcrypt.compare(password, user.password_hash);
+    console.log('Password valid:', isValid);
+
+    if (!isValid) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    const token = generateJWT(user.id, false);
+
+    // Remove password from response
+    delete user.password_hash;
+
+    res.json({
+      success: true,
+      user,
+      token,
+      message: 'Login successful'
+    });
+  } catch (error) {
+    console.error('User login error:', error);
+    res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+// Forgot Password
+app.post('/api/auth/forgot-password', (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+
+    if (user) {
+      // Generate reset token
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const resetTokenExpiry = Date.now() + 3600000; // 1 hour
+
+      db.prepare('UPDATE users SET reset_token = ?, reset_token_expiry = ? WHERE id = ?')
+        .run(resetToken, resetTokenExpiry, user.id);
+
+      // In a real app, send email here. For now, log to console.
+      const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
+      console.log(`\n🔐 PASSWORD RESET LINK for ${email}:`);
+      console.log(resetLink);
+      console.log('---------------------------------------------------\n');
+    }
+
+    // Always return success to prevent email enumeration
+    res.json({ success: true, message: 'If an account exists, a reset link has been sent.' });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ error: 'Failed to process request' });
+  }
+});
+
+// Reset Password
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    const user = db.prepare('SELECT * FROM users WHERE reset_token = ? AND reset_token_expiry > ?')
+      .get(token, Date.now());
+
+    if (!user) {
+      return res.status(400).json({ error: 'Invalid or expired reset token' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    db.prepare('UPDATE users SET password_hash = ?, reset_token = NULL, reset_token_expiry = NULL WHERE id = ?')
+      .run(hashedPassword, user.id);
+
+    res.json({ success: true, message: 'Password reset successfully' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ error: 'Failed to reset password' });
+  }
+});
+
+// Admin Login
 app.post('/api/admin/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    
+
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
-    }
-    
-    const adminDb = loadAdminDb();
-    const admin = adminDb.admin_users.find(u => u.email === email);
-    
-    if (!admin) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-    
-    // Validate admin password. Prefer bcrypt stored hash. If not present,
-    // allow a configured environment admin password as a temporary fallback.
-    let isValidPassword = false;
-    try {
-      // admin.password_hash or admin.password may be present depending on legacy data
-      const stored = admin.password_hash || admin.password;
-      if (stored) {
-        isValidPassword = await bcrypt.compare(password, stored);
-      }
-    } catch (e) {
-      isValidPassword = false;
+      return res.status(400).json({ error: 'Email and password required' });
     }
 
-    // Fallback to environment variable (temporary).
-    // Only allow this in development to avoid accidental backdoors in production.
-    if (!isValidPassword && process.env.ADMIN_PASSWORD && process.env.NODE_ENV === 'development' && password === process.env.ADMIN_PASSWORD) {
-      console.warn('⚠️ Admin login using environment fallback password (development only)');
-      isValidPassword = true;
-    } else if (!isValidPassword && process.env.ADMIN_PASSWORD && password === process.env.ADMIN_PASSWORD) {
-      // Attempted use of ADMIN_PASSWORD in non-development environment — reject for security.
-      console.warn('⚠️ ADMIN_PASSWORD was provided but will not be accepted in non-development environments');
+    console.log('Admin Login Attempt:', email);
+    const user = dbAPI.getUserByEmail(email.toLowerCase());
+
+    if (!user) {
+      console.log('User not found');
+      return res.status(401).json({ error: 'Invalid admin credentials' });
     }
 
-    if (!isValidPassword) {
-      // Legacy plaintext or SHA256 check as a last resort: try SHA256 compare
-      try {
-        const crypto = require('crypto');
-        const legacyHash = crypto.createHash('sha256').update(password).digest('hex');
-        if (admin.password === legacyHash || admin.password === password) {
-          // Re-hash admin password and store in admin DB
-          try {
-            const newHash = await bcrypt.hash(password, 10);
-            admin.password_hash = newHash;
-            // Remove legacy plain password if present
-            delete admin.password;
-            saveAdminDb(adminDb);
-            isValidPassword = true;
-          } catch (e) {
-            isValidPassword = true; // allow login despite rehash failure
-          }
-        }
-      } catch (e) {
-        // ignore
-      }
+    if (user.is_admin !== 1) {
+      console.log('User is not admin:', user.is_admin);
+      return res.status(401).json({ error: 'Invalid admin credentials' });
     }
 
-    if (!isValidPassword) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+    // Verify password
+    const isValid = await bcrypt.compare(password, user.password_hash);
+    console.log('Password valid:', isValid);
+
+    if (!isValid) {
+      return res.status(401).json({ error: 'Invalid admin credentials' });
     }
-    
-    const tokens = createSession(admin.admin_id);
-    
+
+    const token = generateJWT(user.id, true);
+
+    // Remove password from response
+    delete user.password_hash;
+
     res.json({
       success: true,
-      token: tokens.sessionToken, // For backward compatibility
-      jwtToken: tokens.jwtToken,   // New JWT token
-      admin: {
-        admin_id: admin.admin_id,
-        email: admin.email,
-        full_name: admin.full_name
-      }
+      admin: user,
+      token,
+      jwtToken: token // For compatibility
     });
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Admin login error:', error);
+    res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+// Verify Admin Token
+app.get('/api/admin/verify', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const user = dbAPI.getUserById(req.userId);
+    delete user.password_hash;
+
+    res.json({
+      valid: true,
+      admin: user
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Verification failed' });
+  }
+});
+
+// ==================== ADMIN PRODUCT ROUTES ====================
+
+// Get all products (admin)
+app.get('/api/admin/products', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const filters = {
+      search: req.query.search,
+      category_id: req.query.category,
+      limit: req.query.limit ? parseInt(req.query.limit) : null
+    };
+
+    const products = dbAPI.getAllProducts(filters);
+
+    res.json({
+      success: true,
+      products,
+      total: products.length
+    });
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    res.status(500).json({ error: 'Failed to fetch products' });
+  }
+});
+
+// Create product
+app.post('/api/admin/products', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const productData = req.body;
+
+    // Validate required fields
+    if (!productData.name || !productData.selling_price) {
+      return res.status(400).json({ error: 'Name and price required' });
+    }
+
+    // Generate slug if not provided
+    if (!productData.slug) {
+      productData.slug = productData.name.toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+    }
+
+    // Generate SKU if not provided
+    if (!productData.sku) {
+      const timestamp = Date.now();
+      productData.sku = `PRD-${timestamp}`;
+    }
+
+    const productId = dbAPI.createProduct(productData);
+
+    // Add images if provided
+    if (productData.images && Array.isArray(productData.images)) {
+      productData.images.forEach((img, index) => {
+        dbAPI.addProductImage(productId, {
+          image_url: img.url || img.image_url,
+          alt_text: img.alt_text || productData.name,
+          is_primary: index === 0 ? 1 : 0,
+          display_order: index
+        });
+      });
+    }
+
+    const product = dbAPI.getProductById(productId);
+
+    res.status(201).json({
+      success: true,
+      product,
+      message: 'Product created successfully'
+    });
+  } catch (error) {
+    console.error('Error creating product:', error);
+    res.status(500).json({ error: 'Failed to create product' });
+  }
+});
+
+// Update product
+app.put('/api/admin/products/:id', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const productId = req.params.id;
+    const updates = req.body;
+
+    dbAPI.updateProduct(productId, updates);
+
+    const product = dbAPI.getProductById(productId);
+
+    res.json({
+      success: true,
+      product,
+      message: 'Product updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating product:', error);
+    res.status(500).json({ error: 'Failed to update product' });
+  }
+});
+
+// Delete product
+app.delete('/api/admin/products/:id', requireAuth, requireAdmin, (req, res) => {
+  try {
+    dbAPI.deleteProduct(req.params.id);
+
+    res.json({
+      success: true,
+      message: 'Product deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting product:', error);
+    res.status(500).json({ error: 'Failed to delete product' });
+  }
+});
+
+// ==================== ADMIN DISCOUNT ROUTES ====================
+
+// Create discount
+app.post('/api/admin/discounts', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const discountData = {
+      ...req.body,
+      created_by: req.userId
+    };
+
+    const result = dbAPI.createDiscount(discountData);
+
+    res.status(201).json({
+      success: true,
+      discount_id: result.lastInsertRowid,
+      message: 'Discount created successfully'
+    });
+  } catch (error) {
+    console.error('Error creating discount:', error);
+    res.status(500).json({ error: 'Failed to create discount' });
+  }
+});
+
+// Delete discount
+app.delete('/api/admin/discounts/:id', requireAuth, requireAdmin, (req, res) => {
+  try {
+    dbAPI.deleteDiscount(req.params.id);
+
+    res.json({
+      success: true,
+      message: 'Discount removed successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting discount:', error);
+    res.status(500).json({ error: 'Failed to delete discount' });
   }
 });
 
 // Admin logout
 app.post('/api/admin/logout', requireAuth, (req, res) => {
   const authHeader = req.headers.authorization;
-  
+
   if (authHeader && !authHeader.startsWith('Bearer ')) {
     // Legacy session token
     sessions.delete(authHeader);
   }
   // For JWT, we don't need to do anything as it's stateless
   // In a production system, you might want to maintain a blacklist
-  
+
   res.json({ success: true });
 });
 
-// Verify session
-app.get('/api/admin/verify', requireAuth, (req, res) => {
-  const adminDb = loadAdminDb();
-  const admin = adminDb.admin_users.find(u => u.admin_id === req.adminId);
-  
-  if (!admin) {
-    return res.status(404).json({ error: 'Admin not found' });
+// ==================== ADMIN USER ROUTES ====================
+
+// Get all users
+app.get('/api/admin/users', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const users = db.prepare(`
+      SELECT 
+        id,
+        email,
+        first_name,
+        last_name,
+        phone,
+        created_at,
+        updated_at
+      FROM users
+      ORDER BY created_at DESC
+    `).all();
+
+    console.log(`📊 Fetched ${users.length} users`);
+
+    res.json({
+      success: true,
+      users,
+      total: users.length
+    });
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
   }
-  
-  // Generate new JWT for continued use
-  const newJwtToken = generateJWT(req.adminId);
-  
-  res.json({
-    valid: true,
-    admin: {
-      admin_id: admin.admin_id,
-      email: admin.email,
-      full_name: admin.full_name
-    },
-    jwtToken: newJwtToken // Provide fresh JWT
-  });
 });
 
+// Get single user
+app.get('/api/admin/users/:id', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const user = db.prepare(`
+      SELECT
+        id,
+        email,
+        first_name,
+        last_name,
+        phone,
+        created_at,
+        updated_at
+      FROM users
+      WHERE id = ?
+    `).get(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Get user's orders
+    const orders = db.prepare(`
+      SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC
+      `).all(req.params.id);
+
+    res.json({
+      success: true,
+      user: {
+        ...user,
+        orders
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching user:', error);
+    res.status(500).json({ error: 'Failed to fetch user' });
+  }
+});
+
+// Featured products endpoint removed (duplicate) - see line 1674
+
+
+// ==================== ADMIN ORDER ROUTES ====================
+
+// Get all orders
+app.get('/api/admin/orders', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const filters = {
+      status: req.query.status,
+      limit: req.query.limit ? parseInt(req.query.limit) : null
+    };
+
+    const orders = dbAPI.getAllOrders(filters);
+
+    res.json({
+      success: true,
+      orders,
+      total: orders.length
+    });
+  } catch (error) {
+    console.error('Error fetching orders:', error);
+    res.status(500).json({ error: 'Failed to fetch orders' });
+  }
+});
+
+// Get single order
+app.get('/api/admin/orders/:id', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const order = dbAPI.getOrderById(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    res.json({ success: true, order });
+  } catch (error) {
+    console.error('Error fetching order:', error);
+    res.status(500).json({ error: 'Failed to fetch order' });
+  }
+});
+
+// Update order status
+app.put('/api/admin/orders/:id/status', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const { status, notes } = req.body;
+
+    if (!status) {
+      return res.status(400).json({ error: 'Status required' });
+    }
+
+    dbAPI.updateOrderStatus(req.params.id, status, notes, req.userId);
+
+    // Create notification for user
+    const order = dbAPI.getOrderById(req.params.id);
+    if (order) {
+      dbAPI.createNotification({
+        user_id: order.user_id,
+        type: 'order_status_update',
+        title: `Order ${status} `,
+        message: `Your order #${order.order_number} is now ${status} `,
+        link: `/ orders / ${order.id} `
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Order status updated successfully'
+    });
+
+    if (ORDER_STATUS_EMAILS[status]) {
+      queueOrderStatusEmail(req.params.id, status);
+    }
+  } catch (error) {
+    console.error('Error updating order status:', error);
+    res.status(500).json({ error: 'Failed to update order status' });
+  }
+});
+
+// ==================== ADMIN ANALYTICS ROUTES ====================
+
 // Get dashboard analytics with time filtering
-app.get('/api/admin/analytics', requireAuth, (req, res) => {
+app.get('/api/admin/analytics', requireAuth, requireAdmin, (req, res) => {
   try {
     const mainDb = loadMainDb();
     const { timeRange = 'month', year, month, week } = req.query;
-    
+
     // Use provided year/month/week or default to current
     const now = new Date();
     const selectedYear = year ? parseInt(year, 10) : now.getFullYear();
     const selectedMonth = month ? parseInt(month, 10) : now.getMonth() + 1;
     const selectedWeek = week ? parseInt(week, 10) : Math.floor((now.getDate() - 1) / 7) + 1;
-    
+
     // Calculate date range based on filter
     let startDate = new Date();
     let endDate = new Date();
-    
+
     if (timeRange === 'week') {
       // Calculate specific week in specific month
       const firstDayOfMonth = new Date(selectedYear, selectedMonth - 1, 1);
       const dayOfWeekOffset = firstDayOfMonth.getDay(); // 0 = Sunday, 1 = Monday, etc.
       const firstSundayOffset = (7 - dayOfWeekOffset) % 7;
-      
+
       // Start of the selected week
-      const weekStartDate = selectedWeek === 1 
+      const weekStartDate = selectedWeek === 1
         ? firstDayOfMonth
         : new Date(selectedYear, selectedMonth - 1, 1 + firstSundayOffset + (selectedWeek - 2) * 7);
-      
+
       startDate = new Date(weekStartDate);
       startDate.setHours(0, 0, 0, 0);
-      
+
       // End of week (Saturday)
       endDate = new Date(weekStartDate);
       endDate.setDate(weekStartDate.getDate() + 6);
@@ -776,49 +1468,49 @@ app.get('/api/admin/analytics', requireAuth, (req, res) => {
       startDate = new Date(selectedYear, 0, 1);
       endDate = new Date(selectedYear, 11, 31, 23, 59, 59, 999);
     }
-    
+
     // Filter purchases by date range
     const filteredPurchases = mainDb.purchaseHistory.filter(p => {
       const purchaseDate = new Date(p.purchaseDate);
       return purchaseDate >= startDate && purchaseDate <= endDate;
     });
-    
+
     // Calculate summary statistics with actual prices
     const totalSales = filteredPurchases.reduce((sum, p) => sum + (p.price * p.quantity), 0);
     const totalQuantitySold = filteredPurchases.reduce((sum, p) => sum + p.quantity, 0);
     const uniqueUsers = new Set(filteredPurchases.map(p => p.userId)).size;
-    
+
     // New vs Old Users Analysis
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(now.getDate() - 30);
-    
+
     const newUsers = mainDb.users.filter(u => {
       const createdDate = new Date(u.accountCreatedDate || u.registrationDate);
       return createdDate >= thirtyDaysAgo;
     });
-    
+
     const oldUsers = mainDb.users.filter(u => {
       const createdDate = new Date(u.accountCreatedDate || u.registrationDate);
       return createdDate < thirtyDaysAgo;
     });
-    
+
     // New users in current period
     const newUsersInPeriod = mainDb.users.filter(u => {
       const regDate = new Date(u.accountCreatedDate || u.registrationDate);
       return regDate >= startDate && regDate <= endDate;
     });
-    
+
     // Aggregate data based on time range
     let dates = [];
     let quantityData = [];
     let salesData = [];
     let trafficData = [];
-    
+
     if (timeRange === 'week') {
       // Show 7 days (Sunday to Saturday)
       const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       const dailyData = {};
-      
+
       // Initialize all 7 days
       for (let i = 0; i < 7; i++) {
         const day = new Date(startDate);
@@ -826,7 +1518,7 @@ app.get('/api/admin/analytics', requireAuth, (req, res) => {
         const dayKey = day.toISOString().split('T')[0];
         dailyData[dayKey] = { quantity: 0, sales: 0, users: new Set(), dayName: dayNames[day.getDay()] };
       }
-      
+
       // Aggregate purchases by day
       filteredPurchases.forEach(purchase => {
         const dayKey = new Date(purchase.purchaseDate).toISOString().split('T')[0];
@@ -836,7 +1528,7 @@ app.get('/api/admin/analytics', requireAuth, (req, res) => {
           dailyData[dayKey].users.add(purchase.userId);
         }
       });
-      
+
       // Convert to arrays
       Object.keys(dailyData).sort().forEach(dayKey => {
         dates.push(dailyData[dayKey].dayName);
@@ -844,17 +1536,17 @@ app.get('/api/admin/analytics', requireAuth, (req, res) => {
         salesData.push(dailyData[dayKey].sales);
         trafficData.push(dailyData[dayKey].users.size);
       });
-      
+
     } else if (timeRange === 'month') {
       // Show weeks in the month
       const weeklyData = {};
-      
+
       filteredPurchases.forEach(purchase => {
         const pDate = new Date(purchase.purchaseDate);
         const weekStart = new Date(pDate);
         weekStart.setDate(pDate.getDate() - pDate.getDay());
         const weekKey = weekStart.toISOString().split('T')[0];
-        
+
         if (!weeklyData[weekKey]) {
           weeklyData[weekKey] = { quantity: 0, sales: 0, users: new Set() };
         }
@@ -862,27 +1554,27 @@ app.get('/api/admin/analytics', requireAuth, (req, res) => {
         weeklyData[weekKey].sales += purchase.price * purchase.quantity;
         weeklyData[weekKey].users.add(purchase.userId);
       });
-      
+
       // Convert to arrays with week labels
       const weeks = Object.keys(weeklyData).sort();
       weeks.forEach((weekKey, index) => {
         const weekDate = new Date(weekKey);
-        dates.push(`Week ${index + 1}`);
+        dates.push(`Week ${index + 1} `);
         quantityData.push(weeklyData[weekKey].quantity);
         salesData.push(weeklyData[weekKey].sales);
         trafficData.push(weeklyData[weekKey].users.size);
       });
-      
+
     } else if (timeRange === 'year') {
       // Show all 12 months
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       const monthlyData = {};
-      
+
       // Initialize all 12 months
       for (let i = 0; i < 12; i++) {
         monthlyData[i] = { quantity: 0, sales: 0, users: new Set(), monthName: monthNames[i] };
       }
-      
+
       // Aggregate purchases by month
       filteredPurchases.forEach(purchase => {
         const pDate = new Date(purchase.purchaseDate);
@@ -891,7 +1583,7 @@ app.get('/api/admin/analytics', requireAuth, (req, res) => {
         monthlyData[monthIndex].sales += purchase.price * purchase.quantity;
         monthlyData[monthIndex].users.add(purchase.userId);
       });
-      
+
       // Convert to arrays
       for (let i = 0; i < 12; i++) {
         dates.push(monthlyData[i].monthName);
@@ -900,24 +1592,24 @@ app.get('/api/admin/analytics', requireAuth, (req, res) => {
         trafficData.push(monthlyData[i].users.size);
       }
     }
-    
+
     // Week-wise aggregation for last 2 months
     const weeklyData = {};
     const twoMonthsAgo = new Date();
     twoMonthsAgo.setMonth(now.getMonth() - 2);
-    
+
     const last2MonthsPurchases = mainDb.purchaseHistory.filter(p => {
       const pDate = new Date(p.purchaseDate);
       return pDate >= twoMonthsAgo;
     });
-    
+
     // Group by week
     last2MonthsPurchases.forEach(purchase => {
       const pDate = new Date(purchase.purchaseDate);
       const weekStart = new Date(pDate);
       weekStart.setDate(pDate.getDate() - pDate.getDay());
       const weekKey = weekStart.toISOString().split('T')[0];
-      
+
       if (!weeklyData[weekKey]) {
         weeklyData[weekKey] = { sales: 0, quantity: 0, orders: 0 };
       }
@@ -925,13 +1617,13 @@ app.get('/api/admin/analytics', requireAuth, (req, res) => {
       weeklyData[weekKey].sales += purchase.price * purchase.quantity;
       weeklyData[weekKey].orders += 1;
     });
-    
+
     const weeklyDates = Object.keys(weeklyData).sort();
     const weeklySales = weeklyDates.map(date => weeklyData[date].sales);
     const weeklyQuantity = weeklyDates.map(date => weeklyData[date].quantity);
     const weeklyOrders = weeklyDates.map(date => weeklyData[date].orders);
-    
-    console.log(`📊 Analytics Response:`, {
+
+    console.log(`📊 Analytics Response: `, {
       timeRange,
       startDate: startDate.toISOString().split('T')[0],
       endDate: endDate.toISOString().split('T')[0],
@@ -940,24 +1632,24 @@ app.get('/api/admin/analytics', requireAuth, (req, res) => {
       chartDataPoints: dates.length,
       chartLabels: dates
     });
-    
+
     // User registrations by date
     const userRegistrations = {};
     newUsersInPeriod.forEach(user => {
       const date = user.accountCreatedDate || user.registrationDate;
       userRegistrations[date] = (userRegistrations[date] || 0) + 1;
     });
-    
+
     const userDates = Object.keys(userRegistrations).sort();
     const userCounts = userDates.map(date => userRegistrations[date]);
-    
+
     // Top selling products
     const productSales = {};
     filteredPurchases.forEach(purchase => {
       const productId = purchase.productId;
       if (!productSales[productId]) {
         // Find product to get name
-        const product = mainDb.products.find(p => 
+        const product = mainDb.products.find(p =>
           p.id === productId || p.productId === productId
         );
         productSales[productId] = {
@@ -972,16 +1664,16 @@ app.get('/api/admin/analytics', requireAuth, (req, res) => {
       productSales[productId].quantitySold += purchase.quantity;
       productSales[productId].revenue += purchase.price * purchase.quantity;
     });
-    
+
     const topProducts = Object.values(productSales)
       .sort((a, b) => b.quantitySold - a.quantitySold)
       .slice(0, 10);
-    
+
     // Category-wise sales
     const categoryData = {};
     filteredPurchases.forEach(purchase => {
       // Match by both id and productId
-      const product = mainDb.products.find(p => 
+      const product = mainDb.products.find(p =>
         p.id === purchase.productId || p.productId === purchase.productId
       );
       if (product) {
@@ -993,13 +1685,13 @@ app.get('/api/admin/analytics', requireAuth, (req, res) => {
         categoryData[category].orders += 1;
       }
     });
-    
+
     // Get orders for the selected time range with status breakdown
     const filteredOrders = (mainDb.orders || []).filter(order => {
       const orderDate = new Date(order.orderDate);
       return orderDate >= startDate && orderDate <= endDate;
     }).sort((a, b) => new Date(b.orderDate) - new Date(a.orderDate)).slice(0, 100); // Limit to 100 most recent
-    
+
     // Categorize orders by status
     const ordersByStatus = {
       pending: filteredOrders.filter(o => o.status === 'pending'),
@@ -1007,7 +1699,7 @@ app.get('/api/admin/analytics', requireAuth, (req, res) => {
       shipped: filteredOrders.filter(o => o.status === 'shipped'),
       completed: filteredOrders.filter(o => o.status === 'completed')
     };
-    
+
     const totalPending = ordersByStatus.pending.length;
     const totalProcessing = ordersByStatus.processing.length;
     const totalShipped = ordersByStatus.shipped.length;
@@ -1068,405 +1760,82 @@ app.get('/api/admin/analytics', requireAuth, (req, res) => {
   }
 });
 
-// Get products with sales data (admin endpoint - returns all product details)
-app.get('/api/admin/products', requireAuth, (req, res) => {
+// Orders Analytics Endpoint (for Orders tab)
+app.get('/api/admin/analytics/orders', requireAuth, requireAdmin, (req, res) => {
   try {
+    const timeRange = req.query.timeRange || 'month';
     const mainDb = loadMainDb();
-    
-    // Merge product data with sales information
-    // Include ALL product fields (overview, features, specifications, etc.)
-    const productsWithSales = (mainDb.products || []).map(product => {
-      // Find purchase history for this product (match by id or productId)
-      const productPurchases = (mainDb.purchaseHistory || []).filter(
-        p => p.productId === product.id || p.productId === product.productId
-      );
-      
-      const totalRevenue = productPurchases.reduce(
-        (sum, p) => sum + (p.price * p.quantity), 0
-      );
-      
-      // Get in-process orders count
-      const inProcessCount = (product.inProcessOrders || []).length;
-      
-      // Return complete product data with sales info
-      return {
-        ...product, // Include all fields: overview, features, specifications, applications, etc.
-        productId: product.productId || product.id, // Ensure productId exists
-        totalRevenue,
-        orderCount: productPurchases.length,
-        inProcessOrdersCount: inProcessCount,
-        // Enhanced analytics fields
-        salesHistory: product.salesHistory || [], // Individual unit sales (last 2 months)
-        restockHistory: product.restockHistory || [], // Restock dates and quantities
-        inProcessOrders: product.inProcessOrders || [], // Currently processing orders
-        // Ensure all detail fields are included
-        overview: product.overview || '',
-        features: product.features || [],
-        specifications: product.specifications || {},
-        applications: product.applications || [],
-        operation: product.operation || '',
-        advantages: product.advantages || [],
-        considerations: product.considerations || [],
-        compliance: product.compliance || '',
-        commitment: product.commitment || ''
-      };
-    });
-    
-    console.log(`📦 Admin Products: Returning ${productsWithSales.length} products with full details`);
-    res.json({ products: productsWithSales });
-  } catch (error) {
-    console.error('Products error:', error);
-    res.status(500).json({ error: 'Failed to fetch products' });
-  }
-});
 
-// Get users
-app.get('/api/admin/users', requireAuth, requireAdminRole, (req, res) => {
-  try {
-    const mainDb = loadMainDb();
-    res.json({ users: mainDb.users });
-  } catch (error) {
-    console.error('Users error:', error);
-    res.status(500).json({ error: 'Failed to fetch users' });
-  }
-});
+    // Get date range
+    const now = new Date();
+    let startDate;
 
-// Get purchase history
-app.get('/api/admin/purchases', requireAuth, requireAdminRole, (req, res) => {
-  try {
-    const mainDb = loadMainDb();
-    res.json({ purchases: mainDb.purchaseHistory });
-  } catch (error) {
-    console.error('Purchases error:', error);
-    res.status(500).json({ error: 'Failed to fetch purchases' });
-  }
-});
-
-// Get products sales analytics with date range
-app.get('/api/admin/analytics/products', requireAuth, (req, res) => {
-  try {
-    const mainDb = loadMainDb();
-    const { startDate, endDate, timeRange = 'month' } = req.query;
-    
-    let start, end;
-    
-    if (startDate && endDate) {
-      // Custom date range
-      start = new Date(startDate);
-      end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
+    if (timeRange === 'week') {
+      startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    } else if (timeRange === 'month') {
+      startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     } else {
-      // Default to timeRange
-      const now = new Date();
-      if (timeRange === 'week') {
-        const currentDay = now.getDay();
-        start = new Date(now);
-        start.setDate(now.getDate() - currentDay);
-        start.setHours(0, 0, 0, 0);
-        end = new Date(start);
-        end.setDate(start.getDate() + 6);
-        end.setHours(23, 59, 59, 999);
-      } else if (timeRange === 'month') {
-        start = new Date(now.getFullYear(), now.getMonth(), 1);
-        end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-      } else if (timeRange === 'year') {
-        start = new Date(now.getFullYear(), 0, 1);
-        end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
-      } else {
-        start = new Date(now.getFullYear(), now.getMonth(), 1);
-        end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-      }
+      startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
     }
-    
-    // Filter purchases by date range
-    const filteredPurchases = (mainDb.purchaseHistory || []).filter(p => {
-      const purchaseDate = new Date(p.purchaseDate);
-      return purchaseDate >= start && purchaseDate <= end;
+
+    // Filter orders by date range
+    const filteredOrders = mainDb.orders.filter(order => {
+      const orderDate = new Date(order.created_at || order.orderDate);
+      return orderDate >= startDate && orderDate <= now;
     });
-    
-    // Group by date for chart
-    const salesByDate = {};
-    filteredPurchases.forEach(purchase => {
-      const date = new Date(purchase.purchaseDate).toISOString().split('T')[0];
-      if (!salesByDate[date]) {
-        salesByDate[date] = { date, quantity: 0, revenue: 0, orders: 0 };
-      }
-      salesByDate[date].quantity += purchase.quantity;
-      salesByDate[date].revenue += purchase.price * purchase.quantity;
-      salesByDate[date].orders += 1;
-    });
-    
-    const chartData = Object.keys(salesByDate).sort().map(date => salesByDate[date]);
-    
-    // Group by product
-    const productSales = {};
-    filteredPurchases.forEach(purchase => {
-      const productId = purchase.productId;
-      if (!productSales[productId]) {
-        const product = mainDb.products.find(p => p.id === productId || p.productId === productId);
-        productSales[productId] = {
-          productId,
-          name: product?.name || purchase.productName || 'Unknown',
-          quantity: 0,
-          revenue: 0,
-          orders: 0
+
+    // Group orders by date for chart
+    const ordersByDate = {};
+    filteredOrders.forEach(order => {
+      const date = (order.created_at || order.orderDate || '').split('T')[0];
+      if (!ordersByDate[date]) {
+        ordersByDate[date] = {
+          count: 0,
+          revenue: 0
         };
       }
-      productSales[productId].quantity += purchase.quantity;
-      productSales[productId].revenue += purchase.price * purchase.quantity;
-      productSales[productId].orders += 1;
+      ordersByDate[date].count++;
+      ordersByDate[date].revenue += parseFloat(order.total_amount || order.totalAmount || 0);
     });
-    
-    res.json({
-      chartData,
-      productSales: Object.values(productSales),
-      summary: {
-        totalQuantity: filteredPurchases.reduce((sum, p) => sum + p.quantity, 0),
-        totalRevenue: filteredPurchases.reduce((sum, p) => sum + (p.price * p.quantity), 0),
-        totalOrders: new Set(filteredPurchases.map(p => p.orderId || p.purchaseDate)).size
-      },
-      dateRange: {
-        start: start.toISOString().split('T')[0],
-        end: end.toISOString().split('T')[0]
-      }
-    });
-  } catch (error) {
-    console.error('Products analytics error:', error);
-    res.status(500).json({ error: 'Failed to fetch products analytics' });
-  }
-});
 
-// Get user registrations analytics with date range
-app.get('/api/admin/analytics/users', requireAuth, (req, res) => {
-  try {
-    const mainDb = loadMainDb();
-    const { startDate, endDate, timeRange = 'month' } = req.query;
-    
-    let start, end;
-    
-    if (startDate && endDate) {
-      start = new Date(startDate);
-      end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
-    } else {
-      const now = new Date();
-      if (timeRange === 'week') {
-        const currentDay = now.getDay();
-        start = new Date(now);
-        start.setDate(now.getDate() - currentDay);
-        start.setHours(0, 0, 0, 0);
-        end = new Date(start);
-        end.setDate(start.getDate() + 6);
-        end.setHours(23, 59, 59, 999);
-      } else if (timeRange === 'month') {
-        start = new Date(now.getFullYear(), now.getMonth(), 1);
-        end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-      } else if (timeRange === 'year') {
-        start = new Date(now.getFullYear(), 0, 1);
-        end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
-      } else {
-        start = new Date(now.getFullYear(), now.getMonth(), 1);
-        end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-      }
-    }
-    
-    // Filter users by registration date
-    const filteredUsers = (mainDb.users || []).filter(user => {
-      const regDate = new Date(user.registrationDate || user.accountCreatedDate);
-      return regDate >= start && regDate <= end;
-    });
-    
-    // Group by date for chart
-    const registrationsByDate = {};
-    filteredUsers.forEach(user => {
-      const date = new Date(user.registrationDate || user.accountCreatedDate).toISOString().split('T')[0];
-      registrationsByDate[date] = (registrationsByDate[date] || 0) + 1;
-    });
-    
-    const chartData = Object.keys(registrationsByDate).sort().map(date => ({
-      date,
-      registrations: registrationsByDate[date]
-    }));
-    
-    res.json({
-      chartData,
-      summary: {
-        totalUsers: filteredUsers.length,
-        newUsers: filteredUsers.filter(u => u.isNewUser).length
-      },
-      dateRange: {
-        start: start.toISOString().split('T')[0],
-        end: end.toISOString().split('T')[0]
-      }
-    });
-  } catch (error) {
-    console.error('Users analytics error:', error);
-    res.status(500).json({ error: 'Failed to fetch users analytics' });
-  }
-});
+    // Convert to chart data
+    const chartData = Object.keys(ordersByDate)
+      .sort()
+      .map(date => ({
+        date,
+        count: ordersByDate[date].count,
+        revenue: ordersByDate[date].revenue
+      }));
 
-// Get orders analytics with date range
-app.get('/api/admin/analytics/orders', requireAuth, (req, res) => {
-  try {
-    const mainDb = loadMainDb();
-    const { startDate, endDate, timeRange = 'month' } = req.query;
-    
-    let start, end;
-    
-    if (startDate && endDate) {
-      start = new Date(startDate);
-      end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
-    } else {
-      const now = new Date();
-      if (timeRange === 'week') {
-        const currentDay = now.getDay();
-        start = new Date(now);
-        start.setDate(now.getDate() - currentDay);
-        start.setHours(0, 0, 0, 0);
-        end = new Date(start);
-        end.setDate(start.getDate() + 6);
-        end.setHours(23, 59, 59, 999);
-      } else if (timeRange === 'month') {
-        start = new Date(now.getFullYear(), now.getMonth(), 1);
-        end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-      } else if (timeRange === 'year') {
-        start = new Date(now.getFullYear(), 0, 1);
-        end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
-      } else {
-        start = new Date(now.getFullYear(), now.getMonth(), 1);
-        end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-      }
-    }
-    
-    // Get orders from purchase history grouped by orderId or date
-    const ordersMap = {};
-    (mainDb.purchaseHistory || []).forEach(purchase => {
-      const orderDate = new Date(purchase.purchaseDate);
-      if (orderDate >= start && orderDate <= end) {
-        const orderId = purchase.orderId || purchase.purchaseDate;
-        if (!ordersMap[orderId]) {
-          ordersMap[orderId] = {
-            orderId,
-            date: purchase.purchaseDate,
-            items: [],
-            totalAmount: 0,
-            userId: purchase.userId,
-            userName: purchase.userName || 'Unknown'
-          };
-        }
-        ordersMap[orderId].items.push(purchase);
-        ordersMap[orderId].totalAmount += purchase.price * purchase.quantity;
-      }
-    });
-    
-    const orders = Object.values(ordersMap);
-    
-    // Group by date for chart based on timeRange
-    let chartData = [];
-    
-    if (timeRange === 'week') {
-      // Show 7 days (Sunday to Saturday)
-      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      const dailyData = {};
-      
-      // Initialize all 7 days
-      for (let i = 0; i < 7; i++) {
-        const day = new Date(start);
-        day.setDate(start.getDate() + i);
-        const dayKey = day.toISOString().split('T')[0];
-        dailyData[dayKey] = { date: dayKey, count: 0, revenue: 0, dayName: dayNames[day.getDay()] };
-      }
-      
-      // Aggregate orders by day
-      orders.forEach(order => {
-        const orderDate = new Date(order.date).toISOString().split('T')[0];
-        if (dailyData[orderDate]) {
-          dailyData[orderDate].count += 1;
-          dailyData[orderDate].revenue += order.totalAmount;
-        }
-      });
-      
-      // Convert to array with day names
-      chartData = Object.keys(dailyData).sort().map(dayKey => ({
-        date: dailyData[dayKey].dayName,
-        count: dailyData[dayKey].count,
-        revenue: dailyData[dayKey].revenue
-      }));
-      
-    } else if (timeRange === 'month') {
-      // Show weeks in the month
-      const weeklyData = {};
-      
-      orders.forEach(order => {
-        const orderDate = new Date(order.date);
-        const weekStart = new Date(orderDate);
-        weekStart.setDate(orderDate.getDate() - orderDate.getDay());
-        const weekKey = weekStart.toISOString().split('T')[0];
-        
-        if (!weeklyData[weekKey]) {
-          weeklyData[weekKey] = { date: weekKey, count: 0, revenue: 0, weekIndex: 0 };
-        }
-        weeklyData[weekKey].count += 1;
-        weeklyData[weekKey].revenue += order.totalAmount;
-      });
-      
-      // Convert to arrays with week labels
-      const weeks = Object.keys(weeklyData).sort();
-      chartData = weeks.map((weekKey, index) => ({
-        date: `Week ${index + 1}`,
-        count: weeklyData[weekKey].count,
-        revenue: weeklyData[weekKey].revenue
-      }));
-      
-    } else if (timeRange === 'year') {
-      // Show all 12 months
-      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const monthlyData = {};
-      
-      // Initialize all 12 months
-      for (let i = 0; i < 12; i++) {
-        monthlyData[i] = { date: monthNames[i], count: 0, revenue: 0 };
-      }
-      
-      // Aggregate orders by month
-      orders.forEach(order => {
-        const orderDate = new Date(order.date);
-        const monthIndex = orderDate.getMonth();
-        monthlyData[monthIndex].count += 1;
-        monthlyData[monthIndex].revenue += order.totalAmount;
-      });
-      
-      // Convert to array
-      chartData = Object.values(monthlyData);
-    } else {
-      // Default: group by date
-      const ordersByDate = {};
-      orders.forEach(order => {
-        const date = new Date(order.date).toISOString().split('T')[0];
-        if (!ordersByDate[date]) {
-          ordersByDate[date] = { date, count: 0, revenue: 0 };
-        }
-        ordersByDate[date].count += 1;
-        ordersByDate[date].revenue += order.totalAmount;
-      });
-      
-      chartData = Object.keys(ordersByDate).sort().map(date => ordersByDate[date]);
-    }
-    
+    // Calculate summary stats
+    const totalOrders = filteredOrders.length;
+    const totalRevenue = filteredOrders.reduce((sum, order) =>
+      sum + parseFloat(order.total_amount || order.totalAmount || 0), 0
+    );
+    const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+    // Orders by status
+    const ordersByStatus = {
+      pending: filteredOrders.filter(o => o.status === 'pending').length,
+      processing: filteredOrders.filter(o => o.status === 'processing').length,
+      shipped: filteredOrders.filter(o => o.status === 'shipped').length,
+      delivered: filteredOrders.filter(o => o.status === 'delivered').length,
+      cancelled: filteredOrders.filter(o => o.status === 'cancelled').length
+    };
+
+    console.log(`📊 Orders Analytics: ${totalOrders} orders in ${timeRange} `);
+
     res.json({
-      chartData,
-      orders: orders.sort((a, b) => new Date(b.date) - new Date(a.date)),
+      success: true,
+      timeRange,
       summary: {
-        totalOrders: orders.length,
-        totalRevenue: orders.reduce((sum, o) => sum + o.totalAmount, 0),
-        averageOrderValue: orders.length > 0 ? orders.reduce((sum, o) => sum + o.totalAmount, 0) / orders.length : 0
+        totalOrders,
+        totalRevenue,
+        averageOrderValue
       },
-      dateRange: {
-        start: start.toISOString().split('T')[0],
-        end: end.toISOString().split('T')[0]
-      },
-      timeRange: timeRange
+      chartData,
+      ordersByStatus,
+      orders: filteredOrders.slice(0, 50) // Return latest 50 orders
     });
   } catch (error) {
     console.error('Orders analytics error:', error);
@@ -1474,21 +1843,826 @@ app.get('/api/admin/analytics/orders', requireAuth, (req, res) => {
   }
 });
 
-// Clean up expired sessions every 5 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [token, session] of sessions.entries()) {
-    if (now > session.expiresAt) {
-      sessions.delete(token);
-    }
+
+// ==================== ADMIN NOTIFICATION ROUTES ====================
+
+// Get unread notifications
+app.get('/api/admin/notifications', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const notifications = dbAPI.getUnreadNotifications(null); // null = admin notifications
+
+    res.json({
+      success: true,
+      notifications
+    });
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    res.status(500).json({ error: 'Failed to fetch notifications' });
   }
-}, 5 * 60 * 1000);
-
-// Initialize rate limit cleanup (runs every 30 minutes)
-initializeRateLimitCleanup();
-
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`✅ Admin API server running on port ${PORT}`);
-  console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 Access at: http://localhost:${PORT}`);
 });
+
+// Mark notification as read
+app.put('/api/admin/notifications/:id/read', requireAuth, requireAdmin, (req, res) => {
+  try {
+    dbAPI.markNotificationAsRead(req.params.id);
+
+    res.json({
+      success: true,
+      message: 'Notification marked as read'
+    });
+  } catch (error) {
+    console.error('Error marking notification:', error);
+    res.status(500).json({ error: 'Failed to mark notification' });
+  }
+});
+
+// ==================== PAYMENT ROUTES (RAZORPAY) ====================
+
+const Razorpay = require('razorpay');
+
+
+// Initialize Razorpay (or use mock for testing)
+// Set RAZORPAY_MODE=mock in .env to use mock implementation
+const RAZORPAY_MODE = process.env.RAZORPAY_MODE || 'mock';
+
+let razorpay;
+
+if (RAZORPAY_MODE === 'mock') {
+  console.log('💳 Using MOCK Razorpay for testing (no real API calls)');
+  // Mock Razorpay for testing without real credentials
+  razorpay = {
+    orders: {
+      create: async (options) => {
+        console.log('🎭 Mock: Creating Razorpay order', options);
+        return {
+          id: `order_mock_${Date.now()} `,
+          entity: 'order',
+          amount: options.amount,
+          amount_paid: 0,
+          amount_due: options.amount,
+          currency: options.currency,
+          receipt: options.receipt,
+          status: 'created',
+          attempts: 0,
+          created_at: Math.floor(Date.now() / 1000)
+        };
+      }
+    }
+  };
+} else {
+  console.log('💳 Using REAL Razorpay with credentials');
+  razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET
+  });
+}
+
+// Create Payment Order
+app.post('/api/payment/create-order', requireAuth, async (req, res) => {
+  try {
+    const { amount, currency = 'INR', receipt } = req.body;
+
+    console.log('💰 Creating payment order:', { amount, currency, receipt, mode: RAZORPAY_MODE });
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: 'Invalid amount' });
+    }
+
+    const options = {
+      amount: Math.round(amount * 100), // amount in smallest currency unit (paise)
+      currency,
+      receipt: receipt || `order_${Date.now()} `,
+      payment_capture: 1
+    };
+
+    console.log('📦 Razorpay order options:', options);
+
+    const order = await razorpay.orders.create(options);
+
+    console.log('✅ Razorpay order created:', order.id);
+
+    res.json(order);
+  } catch (error) {
+    console.error('❌ Error creating Razorpay order:', error);
+    console.error('Error details:', error.error || error.message);
+    res.status(500).json({
+      error: 'Failed to create payment order',
+      details: error.error?.description || error.message
+    });
+  }
+});
+
+// Verify Payment
+app.post('/api/payment/verify-payment', requireAuth, async (req, res) => {
+  try {
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      order_id // Internal order ID
+    } = req.body;
+
+    const body = razorpay_order_id + "|" + razorpay_payment_id;
+
+    const expectedSignature = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+      .update(body.toString())
+      .digest('hex');
+
+    const isAuthentic = expectedSignature === razorpay_signature;
+
+    if (isAuthentic) {
+      // Update order status in database
+      if (order_id) {
+        try {
+          dbAPI.updateOrderStatus(order_id, 'paid', `Payment ID: ${razorpay_payment_id} `);
+
+          // Create notification for admin
+          dbAPI.createNotification({
+            user_id: null,
+            type: 'new_order', // or 'payment_received'
+            title: 'Payment Received',
+            message: `Payment received for Order #${order_id}`,
+            link: `/ admin / orders / ${order_id} `
+          });
+        } catch (dbError) {
+          console.error('Error updating order status:', dbError);
+        }
+      }
+
+      res.json({
+        success: true,
+        message: 'Payment verified successfully',
+        payment_id: razorpay_payment_id
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        error: 'Invalid signature'
+      });
+    }
+  } catch (error) {
+    console.error('Error verifying payment:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ==================== ORDER ROUTES ====================
+
+app.post('/api/cart/validate', requireAuth, (req, res) => {
+  try {
+    const { items, shippingMethod } = req.body;
+    const { sanitizedItems, subtotal, errors } = validateCartItems(items);
+
+    if (sanitizedItems.length === 0) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.length ? errors : ['Cart is empty'],
+        items: []
+      });
+    }
+
+    const methodConfig = resolveShippingMethod(shippingMethod);
+    const taxAmount = Number((subtotal * 0.18).toFixed(2));
+    const shippingCost = calculateShippingCost(methodConfig, subtotal);
+    const total = Number((subtotal + taxAmount + shippingCost).toFixed(2));
+
+    res.json({
+      success: errors.length === 0,
+      errors,
+      items: sanitizedItems,
+      subtotal,
+      taxAmount,
+      shippingCost,
+      total,
+      shippingDetails: {
+        method: methodConfig.key,
+        label: methodConfig.label,
+        eta: methodConfig.eta,
+        freeThreshold: methodConfig.freeThreshold
+      }
+    });
+  } catch (error) {
+    console.error('Cart validation error:', error);
+    res.status(500).json({ error: 'Failed to validate cart' });
+  }
+});
+
+// Create new order
+app.post('/api/orders', requireAuth, async (req, res) => {
+  try {
+    const { items, shippingAddress, notes, shippingMethod } = req.body;
+    const userId = req.userId;
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'No items in order' });
+    }
+
+    const { sanitizedItems, subtotal, errors } = validateCartItems(items);
+
+    if (!sanitizedItems.length) {
+      return res.status(400).json({ error: 'Unable to build order from cart items', details: errors });
+    }
+
+    if (errors.length > 0) {
+      return res.status(400).json({ error: 'Cart validation failed', details: errors });
+    }
+
+    const methodConfig = resolveShippingMethod(shippingMethod);
+    const taxAmount = Number((subtotal * 0.18).toFixed(2));
+    const shippingCost = calculateShippingCost(methodConfig, subtotal);
+    const totalAmount = Number((subtotal + taxAmount + shippingCost).toFixed(2));
+    const shippingAddressId = createOrUpdateAddress(userId, shippingAddress);
+    const orderNumber = createOrderNumber();
+
+    const runTransaction = db.transaction(() => {
+      for (const item of sanitizedItems) {
+        const stockRow = db
+          .prepare('SELECT stock_quantity FROM products WHERE id = ?')
+          .get(item.product_id);
+
+        if (!stockRow || stockRow.stock_quantity < item.quantity) {
+          throw new Error(`Insufficient stock for ${item.product_name}`);
+        }
+
+        db.prepare('UPDATE products SET stock_quantity = stock_quantity - ? WHERE id = ?')
+          .run(item.quantity, item.product_id);
+      }
+
+      const orderResult = db.prepare(`
+        INSERT INTO orders (
+          order_number, user_id, status, payment_status, payment_method,
+          subtotal, discount_amount, shipping_cost, tax_amount, total_amount,
+          shipping_address_id, billing_address_id, notes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        orderNumber,
+        userId,
+        'pending',
+        'pending',
+        req.body.payment_method || 'razorpay',
+        subtotal,
+        0,
+        shippingCost,
+        taxAmount,
+        totalAmount,
+        shippingAddressId,
+        shippingAddressId,
+        notes || null
+      );
+
+      const insertItem = db.prepare(`
+        INSERT INTO order_items (
+          order_id, product_id, product_name, product_sku, quantity, unit_price, total_price
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      `);
+
+      sanitizedItems.forEach((item) => {
+        insertItem.run(
+          orderResult.lastInsertRowid,
+          item.product_id,
+          item.product_name,
+          item.product_sku,
+          item.quantity,
+          item.unit_price,
+          item.line_total
+        );
+      });
+
+      db.prepare(`
+        INSERT INTO order_status_history (order_id, status, notes, created_by)
+        VALUES (?, ?, ?, ?)
+      `).run(orderResult.lastInsertRowid, 'pending', 'Order created', userId);
+
+      return orderResult.lastInsertRowid;
+    });
+
+    const newOrderId = runTransaction();
+    const newOrder = dbAPI.getOrderById(newOrderId);
+    const user = dbAPI.getUserById(userId);
+    if (user) {
+      delete user.password_hash;
+    }
+    const shippingDetails = resolveShippingMethod(newOrder.shipping_method);
+
+    dbAPI.createNotification({
+      user_id: null,
+      type: 'new_order',
+      title: 'New Order Placed',
+      message: `Order ${newOrder.order_number} placed by ${user?.email || 'customer'}`,
+      link: `/admin/orders/${newOrderId}`
+    });
+
+    sendOrderEmails(user, newOrder);
+
+    res.status(201).json({
+      success: true,
+      message: 'Order created successfully',
+      order: {
+        ...newOrder,
+        items: newOrder.items || sanitizedItems,
+        shipping_details: shippingDetails
+      }
+    });
+  } catch (error) {
+    console.error('Create order error:', error);
+    res.status(400).json({ error: error.message || 'Failed to create order' });
+  }
+});
+
+// Get user orders
+app.get('/api/orders', requireAuth, (req, res) => {
+  try {
+    const orders = dbAPI.getAllOrders({ user_id: req.userId });
+
+    res.json({
+      success: true,
+      orders
+    });
+  } catch (error) {
+    console.error('Error fetching orders:', error);
+    res.status(500).json({ error: 'Failed to fetch orders' });
+  }
+});
+
+// Get user orders (alias for frontend compatibility)
+app.get('/api/users/:userId/orders', requireAuth, (req, res) => {
+  try {
+    // Ensure user is accessing their own orders
+    if (req.userId !== parseInt(req.params.userId) && !req.isAdmin) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const orders = dbAPI.getAllOrders({ user_id: req.params.userId });
+
+    res.json({
+      success: true,
+      orders
+    });
+  } catch (error) {
+    console.error('Error fetching user orders:', error);
+    res.status(500).json({ error: 'Failed to fetch orders' });
+  }
+});
+
+// ==================== REVIEWS & FEATURED ROUTES ====================
+
+// Get featured products
+app.get('/api/products/featured', (req, res) => {
+  try {
+    // Get 4 random active products with images
+    const products = db.prepare(`
+      SELECT p.*,
+  (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = 1 LIMIT 1) as primary_image
+      FROM products p
+      WHERE p.is_active = 1
+      ORDER BY RANDOM()
+      LIMIT 4
+  `).all();
+
+    res.json({ success: true, products });
+  } catch (error) {
+    console.error('Get featured products error:', error);
+    res.status(500).json({ error: 'Failed to fetch featured products' });
+  }
+});
+
+// Get product reviews
+app.get('/api/products/:productId/reviews', (req, res) => {
+  try {
+    const { productId } = req.params;
+    const reviews = db.prepare(`
+      SELECT r.*, u.first_name || ' ' || u.last_name as author, r.created_at as date
+      FROM reviews r
+      JOIN users u ON r.user_id = u.id
+      WHERE r.product_id = ?
+  ORDER BY r.created_at DESC
+    `).all(productId);
+
+    // Format for frontend
+    const formattedReviews = reviews.map(r => ({
+      id: r.id,
+      author: r.author,
+      rating: r.rating,
+      date: r.date,
+      comment: r.comment,
+      verified: !!r.is_verified_purchase
+    }));
+
+    res.json({ success: true, reviews: formattedReviews });
+  } catch (error) {
+    console.error('Get reviews error:', error);
+    res.status(500).json({ error: 'Failed to fetch reviews' });
+  }
+});
+
+// Add review
+app.post('/api/products/:productId/reviews', requireAuth, (req, res) => {
+  try {
+    const { productId } = req.params;
+    const { rating, comment } = req.body;
+    const userId = req.userId;
+
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ error: 'Invalid rating' });
+    }
+
+    // Check if user bought the product (for verified badge)
+    const orderItem = db.prepare(`
+      SELECT oi.id 
+      FROM order_items oi
+      JOIN orders o ON oi.order_id = o.id
+      WHERE o.user_id = ? AND oi.product_id = ? AND o.status = 'delivered'
+  `).get(userId, productId);
+
+    const isVerified = !!orderItem;
+
+    const result = db.prepare(`
+      INSERT INTO reviews(product_id, user_id, rating, comment, is_verified_purchase)
+VALUES(?, ?, ?, ?, ?)
+    `).run(productId, userId, rating, comment, isVerified ? 1 : 0);
+
+    const user = db.prepare('SELECT first_name, last_name FROM users WHERE id = ?').get(userId);
+
+    const newReview = {
+      id: result.lastInsertRowid,
+      author: `${user.first_name} ${user.last_name} `,
+      rating,
+      comment,
+      date: new Date().toISOString(),
+      verified: isVerified
+    };
+
+    res.json({ success: true, review: newReview });
+  } catch (error) {
+    console.error('Add review error:', error);
+    res.status(500).json({ error: 'Failed to add review' });
+  }
+});
+
+// ==================== ERROR HANDLING ====================
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ error: 'Route not found' });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('Global error:', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
+// ==================== SERVER START ====================
+
+const server = app.listen(PORT, () => {
+  const actualPort = server.address().port;
+  console.log(`\n🚀 Enterprise E - commerce Server Started!`);
+  console.log(`📡 Server running on port ${actualPort} `);
+  console.log(`🗄️  Database: SQLite(ecommerce.db)`);
+  console.log(`🔒 JWT Authentication enabled`);
+  console.log(`\n✅ All routes integrated with SQLite database`);
+  console.log(`\nAvailable routes: `);
+  console.log(`  - GET / api / products`);
+  console.log(`  - GET / api / products /: id`);
+  console.log(`  - POST / api / auth / register`);
+  console.log(`  - POST / api / auth / login`);
+  console.log(`  - POST / api / auth / forgot - password`);
+  console.log(`  - POST / api / auth / reset - password`);
+  console.log(`  - POST / api / admin / login`);
+  console.log(`  - GET / api / admin / products`);
+  console.log(`  - POST / api / admin / products`);
+  console.log(`  - PUT / api / admin / products /: id`);
+  console.log(`  - DELETE / api / admin / products /: id`);
+  console.log(`  - GET / api / admin / orders`);
+  console.log(`  - PUT / api / admin / orders /: id / status`);
+  console.log(`  - GET / api / admin / analytics`);
+  console.log(`  - GET / api / admin / warehouses`);
+  console.log(`  - POST / api / admin / warehouses`);
+  console.log(`  - PUT / api / admin / warehouses /: id`);
+  console.log(`  - GET / api / admin / warehouse - inventory`);
+  console.log(`  - PUT / api / admin / warehouse - inventory /: warehouseId /: productId`);
+  console.log(`  - GET / api / admin / courier - partners`);
+  console.log(`  - POST / api / admin / courier - partners`);
+  console.log(`  - GET / api / admin /return -requests`);
+  console.log(`  - PUT / api / admin /return -requests /: id`);
+  console.log(`  - GET / api / admin / support - tickets`);
+  console.log(`  - PUT / api / admin / support - tickets /: id`);
+  console.log(`  - GET / api / admin / loyalty - points`);
+  console.log(`  - GET / api / admin / payment - settlements`);
+  console.log(`\n`);
+});
+
+// ==================== PROFESSIONAL WORKFLOW API ROUTES ====================
+
+// Warehouse Management
+app.get('/api/admin/warehouses', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const warehouses = dbAPI.getAllWarehouses();
+    res.json({ success: true, warehouses });
+  } catch (error) {
+    console.error('Get warehouses error:', error);
+    res.status(500).json({ error: 'Failed to fetch warehouses' });
+  }
+});
+
+app.post('/api/admin/warehouses', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const warehouseData = req.body;
+    const warehouse = dbAPI.createWarehouse(warehouseData);
+    res.json({ success: true, warehouse });
+  } catch (error) {
+    console.error('Create warehouse error:', error);
+    res.status(500).json({ error: 'Failed to create warehouse' });
+  }
+});
+
+app.put('/api/admin/warehouses/:id', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const warehouseId = req.params.id;
+    const warehouseData = req.body;
+    const warehouse = dbAPI.updateWarehouse(warehouseId, warehouseData);
+    res.json({ success: true, warehouse });
+  } catch (error) {
+    console.error('Update warehouse error:', error);
+    res.status(500).json({ error: 'Failed to update warehouse' });
+  }
+});
+
+// Warehouse Inventory Management
+app.get('/api/admin/warehouse-inventory', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const { warehouseId, productId } = req.query;
+    let inventory;
+
+    if (warehouseId && productId) {
+      inventory = dbAPI.getWarehouseInventory(warehouseId, productId);
+    } else if (warehouseId) {
+      inventory = dbAPI.getWarehouseInventoryByWarehouse(warehouseId);
+    } else {
+      inventory = dbAPI.getAllWarehouseInventory();
+    }
+
+    res.json({ success: true, inventory });
+  } catch (error) {
+    console.error('Get warehouse inventory error:', error);
+    res.status(500).json({ error: 'Failed to fetch warehouse inventory' });
+  }
+});
+
+app.put('/api/admin/warehouse-inventory/:warehouseId/:productId', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const { warehouseId, productId } = req.params;
+    const { stockQuantity, reservedQuantity } = req.body;
+
+    const inventory = dbAPI.updateWarehouseInventory(warehouseId, productId, {
+      stock_quantity: stockQuantity,
+      reserved_quantity: reservedQuantity
+    });
+
+    res.json({ success: true, inventory });
+  } catch (error) {
+    console.error('Update warehouse inventory error:', error);
+    res.status(500).json({ error: 'Failed to update warehouse inventory' });
+  }
+});
+
+// Courier Partners Management
+app.get('/api/admin/courier-partners', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const couriers = dbAPI.getAllCourierPartners();
+    res.json({ success: true, couriers });
+  } catch (error) {
+    console.error('Get courier partners error:', error);
+    res.status(500).json({ error: 'Failed to fetch courier partners' });
+  }
+});
+
+app.post('/api/admin/courier-partners', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const courierData = req.body;
+    const courier = dbAPI.createCourierPartner(courierData);
+    res.json({ success: true, courier });
+  } catch (error) {
+    console.error('Create courier partner error:', error);
+    res.status(500).json({ error: 'Failed to create courier partner' });
+  }
+});
+
+// Return Requests Management
+app.get('/api/admin/return-requests', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const { status, page = 1, limit = 20 } = req.query;
+    const returnRequests = dbAPI.getReturnRequests({ status, page, limit });
+    res.json({ success: true, returnRequests });
+  } catch (error) {
+    console.error('Get return requests error:', error);
+    res.status(500).json({ error: 'Failed to fetch return requests' });
+  }
+});
+
+app.put('/api/admin/return-requests/:id', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const returnRequestId = req.params.id;
+    const updateData = req.body;
+    const returnRequest = dbAPI.updateReturnRequest(returnRequestId, updateData);
+    res.json({ success: true, returnRequest });
+  } catch (error) {
+    console.error('Update return request error:', error);
+    res.status(500).json({ error: 'Failed to update return request' });
+  }
+});
+
+// Customer Support Tickets
+app.get('/api/admin/support-tickets', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const { status, priority, page = 1, limit = 20 } = req.query;
+    const tickets = dbAPI.getSupportTickets({ status, priority, page, limit });
+    res.json({ success: true, tickets });
+  } catch (error) {
+    console.error('Get support tickets error:', error);
+    res.status(500).json({ error: 'Failed to fetch support tickets' });
+  }
+});
+
+app.put('/api/admin/support-tickets/:id', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const ticketId = req.params.id;
+    const updateData = req.body;
+    const ticket = dbAPI.updateSupportTicket(ticketId, updateData);
+    res.json({ success: true, ticket });
+  } catch (error) {
+    console.error('Update support ticket error:', error);
+    res.status(500).json({ error: 'Failed to update support ticket' });
+  }
+});
+
+// Loyalty Points Management
+app.get('/api/admin/loyalty-points', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const { userId, page = 1, limit = 20 } = req.query;
+    const loyaltyData = dbAPI.getLoyaltyPoints({ userId, page, limit });
+    res.json({ success: true, loyaltyData });
+  } catch (error) {
+    console.error('Get loyalty points error:', error);
+    res.status(500).json({ error: 'Failed to fetch loyalty points' });
+  }
+});
+
+// Payment Settlements
+app.get('/api/admin/payment-settlements', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const { status, page = 1, limit = 20 } = req.query;
+    const settlements = dbAPI.getPaymentSettlements({ status, page, limit });
+    res.json({ success: true, settlements });
+  } catch (error) {
+    console.error('Get payment settlements error:', error);
+    res.status(500).json({ error: 'Failed to fetch payment settlements' });
+  }
+});
+
+// Enhanced Order Management with Warehouse Assignment
+app.put('/api/admin/orders/:id/assign-warehouse', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const { warehouseId } = req.body;
+
+    const order = dbAPI.assignWarehouseToOrder(orderId, warehouseId);
+    res.json({ success: true, order });
+  } catch (error) {
+    console.error('Assign warehouse to order error:', error);
+    res.status(500).json({ error: 'Failed to assign warehouse to order' });
+  }
+});
+
+// Enhanced Order Status Updates with Detailed Status
+app.put('/api/admin/orders/:id/detailed-status', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const { detailedStatus, notes } = req.body;
+
+    const order = dbAPI.updateOrderDetailedStatus(orderId, detailedStatus, notes);
+    res.json({ success: true, order });
+  } catch (error) {
+    console.error('Update order detailed status error:', error);
+    res.status(500).json({ error: 'Failed to update order detailed status' });
+  }
+});
+
+// User-facing Return Request Creation
+app.post('/api/returns', requireAuth, (req, res) => {
+  try {
+    const userId = req.userId;
+    const returnData = { ...req.body, user_id: userId };
+    const returnRequest = dbAPI.createReturnRequest(returnData);
+    res.json({ success: true, returnRequest });
+  } catch (error) {
+    console.error('Create return request error:', error);
+    res.status(500).json({ error: 'Failed to create return request' });
+  }
+});
+
+// User Support Ticket Creation
+app.post('/api/support/tickets', requireAuth, (req, res) => {
+  try {
+    const userId = req.userId;
+    const ticketData = { ...req.body, user_id: userId };
+    const ticket = dbAPI.createSupportTicket(ticketData);
+    res.json({ success: true, ticket });
+  } catch (error) {
+    console.error('Create support ticket error:', error);
+    res.status(500).json({ error: 'Failed to create support ticket' });
+  }
+});
+
+// User Loyalty Points
+app.get('/api/user/loyalty', requireAuth, (req, res) => {
+  try {
+    const userId = req.userId;
+    const loyaltyData = dbAPI.getUserLoyaltyPoints(userId);
+    res.json({ success: true, loyaltyData });
+  } catch (error) {
+    console.error('Get user loyalty error:', error);
+    res.status(500).json({ error: 'Failed to fetch loyalty data' });
+  }
+});
+
+// ==================== WISHLIST ROUTES ====================
+
+// Get user wishlist
+app.get('/api/users/:userId/wishlist', requireAuth, (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Ensure user is accessing their own wishlist
+    if (req.userId !== parseInt(userId) && !req.isAdmin) {
+      return res.status(403).json({ error: 'Unauthorized access to wishlist' });
+    }
+
+    const wishlist = db.prepare(`
+      SELECT w.*, p.name as product_name, p.selling_price, p.slug,
+  (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = 1 LIMIT 1) as image_url
+      FROM wishlist w
+      JOIN products p ON w.product_id = p.id
+      WHERE w.user_id = ?
+  ORDER BY w.created_at DESC
+    `).all(userId);
+
+    res.json({ success: true, wishlist });
+  } catch (error) {
+    console.error('Get wishlist error:', error);
+    res.status(500).json({ error: 'Failed to fetch wishlist' });
+  }
+});
+
+// Add to wishlist
+app.post('/api/users/:userId/wishlist', requireAuth, (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { productId } = req.body;
+
+    if (req.userId !== parseInt(userId)) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    // Check if already in wishlist
+    const existing = db.prepare('SELECT id FROM wishlist WHERE user_id = ? AND product_id = ?').get(userId, productId);
+    if (existing) {
+      return res.status(400).json({ error: 'Product already in wishlist' });
+    }
+
+    const result = db.prepare('INSERT INTO wishlist (user_id, product_id) VALUES (?, ?)').run(userId, productId);
+
+    res.json({ success: true, id: result.lastInsertRowid });
+  } catch (error) {
+    console.error('Add to wishlist error:', error);
+    res.status(500).json({ error: 'Failed to add to wishlist' });
+  }
+});
+
+// Remove from wishlist
+app.delete('/api/users/:userId/wishlist/:productId', requireAuth, (req, res) => {
+  try {
+    const { userId, productId } = req.params;
+
+    if (req.userId !== parseInt(userId)) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    db.prepare('DELETE FROM wishlist WHERE user_id = ? AND product_id = ?').run(userId, productId);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Remove from wishlist error:', error);
+    res.status(500).json({ error: 'Failed to remove from wishlist' });
+  }
+});
+
+// ==================== REVIEWS & FEATURED ROUTES ====================
+// NOTE: These endpoints are already defined earlier in the file (lines 873, 1730, 1759)
+// Duplicates removed to avoid conflicts
+
+// Duplicate server start removed
+
+
+module.exports = app;

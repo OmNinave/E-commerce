@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
+import {
   AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import '../styles/AdminDashboard.css';
+import ProductsManagement from './ProductsManagement';
 
 // API URL - works for both local and production
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
@@ -63,26 +64,35 @@ const AdminDashboard = ({ admin, onLogout }) => {
   const [activeView, setActiveView] = useState('dashboard');
   const [timeRange, setTimeRange] = useState('month');
   const [productSearch, setProductSearch] = useState('');
-  
+
+  // Professional Workflow States
+  const [warehouses, setWarehouses] = useState([]);
+  const [warehouseInventory, setWarehouseInventory] = useState([]);
+  const [courierPartners, setCourierPartners] = useState([]);
+  const [returnRequests, setReturnRequests] = useState([]);
+  const [supportTickets, setSupportTickets] = useState([]);
+  const [loyaltyPoints, setLoyaltyPoints] = useState([]);
+  const [paymentSettlements, setPaymentSettlements] = useState([]);
+
   // ========== CASCADING DROPDOWN STATE ==========
   // Selected year, month, week for dashboard filters
   const [selectedYear, setSelectedYear] = useState(getCurrentYear());
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
   const [selectedWeek, setSelectedWeek] = useState(getCurrentWeek());
-  
+
   // Time range states for each view (using same structure as dashboard)
   const [productsTimeRange, setProductsTimeRange] = useState('month');
   const [productsAnalytics, setProductsAnalytics] = useState(null);
   const [productsYear, setProductsYear] = useState(getCurrentYear());
   const [productsMonth, setProductsMonth] = useState(getCurrentMonth());
   const [productsWeek, setProductsWeek] = useState(getCurrentWeek());
-  
+
   const [usersTimeRange, setUsersTimeRange] = useState('month');
   const [usersAnalytics, setUsersAnalytics] = useState(null);
   const [usersYear, setUsersYear] = useState(getCurrentYear());
   const [usersMonth, setUsersMonth] = useState(getCurrentMonth());
   const [usersWeek, setUsersWeek] = useState(getCurrentWeek());
-  
+
   const [ordersTimeRange, setOrdersTimeRange] = useState('month');
   const [ordersAnalytics, setOrdersAnalytics] = useState(null);
   const [ordersYear, setOrdersYear] = useState(getCurrentYear());
@@ -91,7 +101,7 @@ const AdminDashboard = ({ admin, onLogout }) => {
 
   const handleLogout = useCallback(async () => {
     const token = localStorage.getItem('adminToken');
-    
+
     if (token) {
       try {
         // Call backend logout endpoint
@@ -106,11 +116,11 @@ const AdminDashboard = ({ admin, onLogout }) => {
         console.error('Logout error:', err);
       }
     }
-    
+
     // Clear local storage
     localStorage.removeItem('adminToken');
     localStorage.removeItem('adminUser');
-    
+
     // Call parent logout handler
     onLogout();
   }, [onLogout]);
@@ -119,10 +129,10 @@ const AdminDashboard = ({ admin, onLogout }) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('adminToken');
-      
+
       // Build URL with cascading dropdown selections
       let url = `${API_URL}/api/admin/analytics?timeRange=${timeRange}&year=${selectedYear}&month=${selectedMonth}&week=${selectedWeek}`;
-      
+
       const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -157,9 +167,9 @@ const AdminDashboard = ({ admin, onLogout }) => {
       const token = localStorage.getItem('adminToken');
       // Use the same endpoint as dashboard - it already has all the data we need
       const url = `${API_URL}/api/admin/analytics?timeRange=${productsTimeRange}`;
-      
+
       console.log('📡 Fetching products analytics from:', url);
-      
+
       const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -194,9 +204,9 @@ const AdminDashboard = ({ admin, onLogout }) => {
       const token = localStorage.getItem('adminToken');
       // Use the same endpoint as dashboard - it has user registration data
       const url = `${API_URL}/api/admin/analytics?timeRange=${usersTimeRange}`;
-      
+
       console.log('📡 Fetching users analytics from:', url);
-      
+
       const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -229,9 +239,9 @@ const AdminDashboard = ({ admin, onLogout }) => {
       const token = localStorage.getItem('adminToken');
       // Use the dedicated orders analytics endpoint
       const url = `${API_URL}/api/admin/analytics/orders?timeRange=${ordersTimeRange}`;
-      
+
       console.log('📡 Fetching orders analytics from:', url);
-      
+
       const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -296,57 +306,157 @@ const AdminDashboard = ({ admin, onLogout }) => {
     }
   };
 
+  // Professional Workflow Data Fetching
+  const fetchWarehouses = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_URL}/api/admin/warehouses`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      setWarehouses(data.warehouses || []);
+    } catch (err) {
+      console.error('Failed to fetch warehouses:', err);
+    }
+  }, []);
+
+  const fetchWarehouseInventory = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_URL}/api/admin/warehouse-inventory`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      setWarehouseInventory(data.inventory || []);
+    } catch (err) {
+      console.error('Failed to fetch warehouse inventory:', err);
+    }
+  }, []);
+
+  const fetchCourierPartners = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_URL}/api/admin/courier-partners`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      setCourierPartners(data.couriers || []);
+    } catch (err) {
+      console.error('Failed to fetch courier partners:', err);
+    }
+  }, []);
+
+  const fetchReturnRequests = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_URL}/api/admin/return-requests`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      setReturnRequests(data.returnRequests || []);
+    } catch (err) {
+      console.error('Failed to fetch return requests:', err);
+    }
+  }, []);
+
+  const fetchSupportTickets = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_URL}/api/admin/support-tickets`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      setSupportTickets(data.tickets || []);
+    } catch (err) {
+      console.error('Failed to fetch support tickets:', err);
+    }
+  }, []);
+
+  const fetchLoyaltyPoints = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_URL}/api/admin/loyalty-points`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      setLoyaltyPoints(data.loyaltyData || []);
+    } catch (err) {
+      console.error('Failed to fetch loyalty points:', err);
+    }
+  }, []);
+
+  const fetchPaymentSettlements = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_URL}/api/admin/payment-settlements`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      setPaymentSettlements(data.settlements || []);
+    } catch (err) {
+      console.error('Failed to fetch payment settlements:', err);
+    }
+  }, []);
+
+  // Main Data Fetching Effect - Handles View Changes
   useEffect(() => {
+    console.log('🔄 View changed:', activeView);
+
     if (activeView === 'dashboard') {
-      fetchAnalytics();
+      // Dashboard analytics are handled by the cascading dropdown effect
     } else if (activeView === 'products') {
       fetchProducts();
-      fetchProductsAnalytics();
+      // Analytics handled by dedicated effect
     } else if (activeView === 'users') {
       fetchUsers();
-      fetchUsersAnalytics();
+      // Analytics handled by dedicated effect
     } else if (activeView === 'orders') {
-      fetchOrdersAnalytics();
+      // Analytics handled by dedicated effect
+    } else if (activeView === 'warehouses') {
+      fetchWarehouses();
+    } else if (activeView === 'inventory') {
+      fetchWarehouseInventory();
+    } else if (activeView === 'couriers') {
+      fetchCourierPartners();
+    } else if (activeView === 'returns') {
+      fetchReturnRequests();
+    } else if (activeView === 'support') {
+      fetchSupportTickets();
+    } else if (activeView === 'loyalty') {
+      fetchLoyaltyPoints();
+    } else if (activeView === 'settlements') {
+      fetchPaymentSettlements();
     }
-  }, [activeView, fetchAnalytics, fetchProductsAnalytics, fetchUsersAnalytics, fetchOrdersAnalytics]);
+  }, [activeView, fetchProducts, fetchUsers, fetchWarehouses, fetchWarehouseInventory, fetchCourierPartners, fetchReturnRequests, fetchSupportTickets, fetchLoyaltyPoints, fetchPaymentSettlements]);
 
-  // Fetch dashboard analytics when timeRange changes
-  useEffect(() => {
-    console.log('🔄 Dashboard timeRange effect triggered:', { activeView, timeRange });
-    if (activeView === 'dashboard') {
-      // Reset dropdown selections to current values when switching filter type
-      setSelectedYear(getCurrentYear());
-      setSelectedMonth(getCurrentMonth());
-      setSelectedWeek(getCurrentWeek());
-    }
-  }, [activeView, timeRange]);
-
-  // Fetch analytics when cascading dropdown selections change
+  // Fetch dashboard analytics when filters change
   useEffect(() => {
     if (activeView === 'dashboard') {
-      console.log('🔄 Cascading dropdown changed:', { timeRange, selectedYear, selectedMonth, selectedWeek });
+      console.log('🔄 Dashboard filters changed, fetching analytics...');
       fetchAnalytics();
     }
-  }, [activeView, selectedYear, selectedMonth, selectedWeek, fetchAnalytics]);
+  }, [activeView, timeRange, selectedYear, selectedMonth, selectedWeek, fetchAnalytics]);
 
-  // Fetch analytics for each view when time range changes
+  // Fetch products analytics when view or time range changes
   useEffect(() => {
     if (activeView === 'products') {
-      console.log('🔄 Fetching products analytics for:', productsTimeRange);
+      console.log('🔄 Fetching products analytics...');
       fetchProductsAnalytics();
     }
   }, [activeView, productsTimeRange, fetchProductsAnalytics]);
 
+  // Fetch users analytics when view or time range changes
   useEffect(() => {
     if (activeView === 'users') {
-      console.log('🔄 Fetching users analytics for:', usersTimeRange);
+      console.log('🔄 Fetching users analytics...');
       fetchUsersAnalytics();
     }
   }, [activeView, usersTimeRange, fetchUsersAnalytics]);
 
+  // Fetch orders analytics when view or time range changes
   useEffect(() => {
     if (activeView === 'orders') {
-      console.log('🔄 Fetching orders analytics for:', ordersTimeRange);
+      console.log('🔄 Fetching orders analytics...');
       fetchOrdersAnalytics();
     }
   }, [activeView, ordersTimeRange, fetchOrdersAnalytics]);
@@ -392,11 +502,11 @@ const AdminDashboard = ({ admin, onLogout }) => {
     labels: salesQuantityChartData.map(d => d.date)
   });
 
-  // Removed unused chart data
-
   const filteredProducts = (products || []).filter(product =>
     (product.name || product.productName || '').toLowerCase().includes(productSearch.toLowerCase())
   );
+
+  console.log('🔍 AdminDashboard render - activeView:', activeView);
 
   return (
     <div className="admin-dashboard">
@@ -411,30 +521,88 @@ const AdminDashboard = ({ admin, onLogout }) => {
             className={activeView === 'dashboard' ? 'active' : ''}
             onClick={() => setActiveView('dashboard')}
           >
-            📊 Dashboard
+            <span className="nav-icon">▣</span> Dashboard
           </button>
           <button
             className={activeView === 'products' ? 'active' : ''}
-            onClick={() => setActiveView('products')}
+            onClick={() => {
+              console.log('🖱️ Products button clicked!');
+              setActiveView('products');
+            }}
           >
-            📦 Products
+            <span className="nav-icon">■</span> Products
           </button>
           <button
             className={activeView === 'users' ? 'active' : ''}
             onClick={() => setActiveView('users')}
           >
-            👥 Users
+            <span className="nav-icon">◉</span> Users
           </button>
           <button
             className={activeView === 'orders' ? 'active' : ''}
             onClick={() => setActiveView('orders')}
           >
-            🛒 Orders
+            <span className="nav-icon">◈</span> Orders
           </button>
+
+          {/* Professional Workflow Menu Items */}
+          <div className="sidebar-section">
+            <h3>Operations</h3>
+            <button
+              className={activeView === 'warehouses' ? 'active' : ''}
+              onClick={() => setActiveView('warehouses')}
+            >
+              <span className="nav-icon">▦</span> Warehouses
+            </button>
+            <button
+              className={activeView === 'inventory' ? 'active' : ''}
+              onClick={() => setActiveView('inventory')}
+            >
+              <span className="nav-icon">▥</span> Inventory
+            </button>
+            <button
+              className={activeView === 'couriers' ? 'active' : ''}
+              onClick={() => setActiveView('couriers')}
+            >
+              <span className="nav-icon">▨</span> Couriers
+            </button>
+          </div>
+
+          <div className="sidebar-section">
+            <h3>Customer Service</h3>
+            <button
+              className={activeView === 'returns' ? 'active' : ''}
+              onClick={() => setActiveView('returns')}
+            >
+              <span className="nav-icon">↺</span> Returns
+            </button>
+            <button
+              className={activeView === 'support' ? 'active' : ''}
+              onClick={() => setActiveView('support')}
+            >
+              <span className="nav-icon">◐</span> Support
+            </button>
+          </div>
+
+          <div className="sidebar-section">
+            <h3>Business</h3>
+            <button
+              className={activeView === 'loyalty' ? 'active' : ''}
+              onClick={() => setActiveView('loyalty')}
+            >
+              <span className="nav-icon">★</span> Loyalty
+            </button>
+            <button
+              className={activeView === 'settlements' ? 'active' : ''}
+              onClick={() => setActiveView('settlements')}
+            >
+              <span className="nav-icon">$</span> Settlements
+            </button>
+          </div>
         </nav>
 
         <button className="logout-button" onClick={handleLogout}>
-          🚪 Logout
+          <span className="nav-icon">⊗</span> Logout
         </button>
       </aside>
 
@@ -443,7 +611,7 @@ const AdminDashboard = ({ admin, onLogout }) => {
           <div className="header-left">
             <h1>E-Commerce Dashboard</h1>
           </div>
-          
+
           {activeView === 'dashboard' && (
             <div className="header-right">
               <div className="date-time-section">
@@ -457,19 +625,19 @@ const AdminDashboard = ({ admin, onLogout }) => {
         {activeView === 'dashboard' && (
           <div className="filters-section">
             <div className="time-filter">
-              <button 
+              <button
                 className={timeRange === 'week' ? 'active' : ''}
                 onClick={() => setTimeRange('week')}
               >
                 Week
               </button>
-              <button 
+              <button
                 className={timeRange === 'month' ? 'active' : ''}
                 onClick={() => setTimeRange('month')}
               >
                 Month
               </button>
-              <button 
+              <button
                 className={timeRange === 'year' ? 'active' : ''}
                 onClick={() => setTimeRange('year')}
               >
@@ -482,7 +650,7 @@ const AdminDashboard = ({ admin, onLogout }) => {
               {/* Year Dropdown - Always shown */}
               <div className="filter-dropdown-group">
                 <label>Year</label>
-                <select 
+                <select
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(parseInt(e.target.value))}
                   className="filter-dropdown"
@@ -497,7 +665,7 @@ const AdminDashboard = ({ admin, onLogout }) => {
               {(timeRange === 'month' || timeRange === 'week') && (
                 <div className="filter-dropdown-group">
                   <label>Month</label>
-                  <select 
+                  <select
                     value={selectedMonth}
                     onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
                     className="filter-dropdown"
@@ -513,7 +681,7 @@ const AdminDashboard = ({ admin, onLogout }) => {
               {timeRange === 'week' && (
                 <div className="filter-dropdown-group">
                   <label>Week</label>
-                  <select 
+                  <select
                     value={selectedWeek}
                     onChange={(e) => setSelectedWeek(parseInt(e.target.value))}
                     className="filter-dropdown"
@@ -588,94 +756,94 @@ const AdminDashboard = ({ admin, onLogout }) => {
 
             {analytics ? (
               <div className="charts-container" key={timeRange}>
-              {/* Sales & Quantity Trend */}
-              <div className="chart-box large">
-                <h3 className="chart-title">
-                  📈 Sales & Quantity Trend ({getTimeRangeLabel()}) 
-                  {salesQuantityChartData.length > 0 && (
-                    <span style={{fontSize: '14px', fontWeight: 'normal', color: '#6c757d', marginLeft: '10px'}}>
-                      • {salesQuantityChartData.reduce((sum, d) => sum + d.quantity, 0)} units
-                    </span>
+                {/* Sales & Quantity Trend */}
+                <div className="chart-box large">
+                  <h3 className="chart-title">
+                    📈 Sales & Quantity Trend ({getTimeRangeLabel()})
+                    {salesQuantityChartData.length > 0 && (
+                      <span style={{ fontSize: '14px', fontWeight: 'normal', color: '#6c757d', marginLeft: '10px' }}>
+                        • {salesQuantityChartData.reduce((sum, d) => sum + d.quantity, 0)} units
+                      </span>
+                    )}
+                  </h3>
+                  {salesQuantityChartData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={320}>
+                      <AreaChart data={salesQuantityChartData} key={`area-${timeRange}-${salesQuantityChartData.length}`}>
+                        <defs>
+                          <linearGradient id="colorQuantity" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#667eea" stopOpacity={0.8} />
+                            <stop offset="50%" stopColor="#764ba2" stopOpacity={0.6} />
+                            <stop offset="95%" stopColor="#f093fb" stopOpacity={0} />
+                          </linearGradient>
+                          <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#ff9800" stopOpacity={0.8} />
+                            <stop offset="95%" stopColor="#ff9800" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(102, 126, 234, 0.1)" />
+                        <XAxis
+                          dataKey="date"
+                          stroke="#6c757d"
+                          style={{ fontSize: '12px', fontWeight: '500' }}
+                          tick={{ fill: '#6c757d' }}
+                        />
+                        <YAxis
+                          stroke="#6c757d"
+                          style={{ fontSize: '12px', fontWeight: '500' }}
+                          tick={{ fill: '#6c757d' }}
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                            backdropFilter: 'blur(10px)',
+                            border: '1px solid rgba(102, 126, 234, 0.2)',
+                            borderRadius: '12px',
+                            boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)'
+                          }}
+                        />
+                        <Legend
+                          wrapperStyle={{ paddingTop: '20px' }}
+                          iconType="circle"
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="quantity"
+                          stroke="#667eea"
+                          strokeWidth={3}
+                          fillOpacity={1}
+                          fill="url(#colorQuantity)"
+                          name="Quantity Sold"
+                          dot={{ fill: '#667eea', strokeWidth: 2, r: 4 }}
+                          activeDot={{ r: 6, stroke: '#667eea', strokeWidth: 2 }}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="sales"
+                          stroke="#ff9800"
+                          strokeWidth={3}
+                          fillOpacity={1}
+                          fill="url(#colorSales)"
+                          name="Sales Revenue"
+                          dot={{ fill: '#ff9800', strokeWidth: 2, r: 4 }}
+                          activeDot={{ r: 6, stroke: '#ff9800', strokeWidth: 2 }}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div style={{
+                      height: '320px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#6c757d',
+                      fontSize: '16px',
+                      fontWeight: '500'
+                    }}>
+                      <p>📅 No data available for {getTimeRangeLabel()}</p>
+                    </div>
                   )}
-                </h3>
-                {salesQuantityChartData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={320}>
-                    <AreaChart data={salesQuantityChartData} key={`area-${timeRange}-${salesQuantityChartData.length}`}>
-                      <defs>
-                        <linearGradient id="colorQuantity" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#667eea" stopOpacity={0.8}/>
-                          <stop offset="50%" stopColor="#764ba2" stopOpacity={0.6}/>
-                          <stop offset="95%" stopColor="#f093fb" stopOpacity={0}/>
-                        </linearGradient>
-                        <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#ff9800" stopOpacity={0.8}/>
-                          <stop offset="95%" stopColor="#ff9800" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(102, 126, 234, 0.1)" />
-                      <XAxis 
-                        dataKey="date" 
-                        stroke="#6c757d" 
-                        style={{ fontSize: '12px', fontWeight: '500' }}
-                        tick={{ fill: '#6c757d' }}
-                      />
-                      <YAxis 
-                        stroke="#6c757d" 
-                        style={{ fontSize: '12px', fontWeight: '500' }}
-                        tick={{ fill: '#6c757d' }}
-                      />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                          backdropFilter: 'blur(10px)',
-                          border: '1px solid rgba(102, 126, 234, 0.2)',
-                          borderRadius: '12px',
-                          boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)'
-                        }} 
-                      />
-                      <Legend 
-                        wrapperStyle={{ paddingTop: '20px' }}
-                        iconType="circle"
-                      />
-                      <Area 
-                        type="monotone" 
-                        dataKey="quantity" 
-                        stroke="#667eea" 
-                        strokeWidth={3}
-                        fillOpacity={1} 
-                        fill="url(#colorQuantity)" 
-                        name="Quantity Sold"
-                        dot={{ fill: '#667eea', strokeWidth: 2, r: 4 }}
-                        activeDot={{ r: 6, stroke: '#667eea', strokeWidth: 2 }}
-                      />
-                      <Area 
-                        type="monotone" 
-                        dataKey="sales" 
-                        stroke="#ff9800" 
-                        strokeWidth={3}
-                        fillOpacity={1} 
-                        fill="url(#colorSales)" 
-                        name="Sales Revenue"
-                        dot={{ fill: '#ff9800', strokeWidth: 2, r: 4 }}
-                        activeDot={{ r: 6, stroke: '#ff9800', strokeWidth: 2 }}
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div style={{
-                    height: '320px', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    color: '#6c757d',
-                    fontSize: '16px',
-                    fontWeight: '500'
-                  }}>
-                    <p>📅 No data available for {getTimeRangeLabel()}</p>
-                  </div>
-                )}
+                </div>
               </div>
-            </div>
             ) : (
               <div className="no-data-message" style={{
                 background: 'rgba(255, 255, 255, 0.95)',
@@ -710,165 +878,7 @@ const AdminDashboard = ({ admin, onLogout }) => {
         )}
 
         {activeView === 'products' && (
-          <div className="products-view">
-            <div className="view-header">
-              <h2>📦 Products Management</h2>
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                <span className="stats-summary">
-                  Total Products: {products.length}
-                </span>
-                <input
-                  type="text"
-                  placeholder="Search products..."
-                  value={productSearch}
-                  onChange={(e) => setProductSearch(e.target.value)}
-                  className="search-input"
-                />
-              </div>
-            </div>
-
-            {/* Products Sales Graph - Same as Dashboard */}
-            <div className="chart-box large" style={{ marginBottom: '30px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', gap: '15px', width: '100%' }}>
-                <h3 className="chart-title" style={{ margin: 0, flex: '1' }}>
-                  📊 Product Sales Trend ({productsTimeRange === 'week' ? 'This Week' : productsTimeRange === 'month' ? 'This Month' : 'This Year'})
-                </h3>
-                <div className="time-filter" style={{ flex: '0 0 auto', marginLeft: 'auto' }}>
-                  <button 
-                    className={productsTimeRange === 'week' ? 'active' : ''}
-                    onClick={() => setProductsTimeRange('week')}
-                  >
-                    Week
-                  </button>
-                  <button 
-                    className={productsTimeRange === 'month' ? 'active' : ''}
-                    onClick={() => setProductsTimeRange('month')}
-                  >
-                    Month
-                  </button>
-                  <button 
-                    className={productsTimeRange === 'year' ? 'active' : ''}
-                    onClick={() => setProductsTimeRange('year')}
-                  >
-                    Year
-                  </button>
-                </div>
-              </div>
-              {productsAnalytics && productsAnalytics.charts && productsAnalytics.charts.dates && productsAnalytics.charts.dates.length > 0 ? (
-                <ResponsiveContainer width="100%" height={320}>
-                  <AreaChart 
-                    key={`products-${productsTimeRange}-${productsAnalytics.charts.dates.length}`}
-                    data={(productsAnalytics.charts.dates || []).map((date, index) => ({
-                      date: date,
-                      quantity: productsAnalytics.charts.quantityData?.[index] || 0,
-                      sales: productsAnalytics.charts.salesData?.[index] || 0
-                    }))}>
-                    <defs>
-                      <linearGradient id="colorQuantityProducts" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#667eea" stopOpacity={0.8}/>
-                        <stop offset="50%" stopColor="#764ba2" stopOpacity={0.6}/>
-                        <stop offset="95%" stopColor="#f093fb" stopOpacity={0}/>
-                      </linearGradient>
-                      <linearGradient id="colorSalesProducts" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#ff9800" stopOpacity={0.8}/>
-                        <stop offset="95%" stopColor="#ff9800" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(102, 126, 234, 0.1)" />
-                    <XAxis 
-                      dataKey="date" 
-                      stroke="#6c757d" 
-                      style={{ fontSize: '12px', fontWeight: '500' }}
-                      tick={{ fill: '#6c757d' }}
-                    />
-                    <YAxis 
-                      stroke="#6c757d" 
-                      style={{ fontSize: '12px', fontWeight: '500' }}
-                      tick={{ fill: '#6c757d' }}
-                    />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                        backdropFilter: 'blur(10px)',
-                        border: '1px solid rgba(102, 126, 234, 0.2)',
-                        borderRadius: '12px',
-                        boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)'
-                      }} 
-                    />
-                    <Legend 
-                      wrapperStyle={{ paddingTop: '20px' }}
-                      iconType="circle"
-                    />
-                    <Area 
-                      type="monotone" 
-                      dataKey="quantity" 
-                      stroke="#667eea" 
-                      strokeWidth={3}
-                      fillOpacity={1} 
-                      fill="url(#colorQuantityProducts)" 
-                      name="Quantity Sold"
-                      dot={{ fill: '#667eea', strokeWidth: 2, r: 4 }}
-                      activeDot={{ r: 6, stroke: '#667eea', strokeWidth: 2 }}
-                    />
-                    <Area 
-                      type="monotone" 
-                      dataKey="sales" 
-                      stroke="#ff9800" 
-                      strokeWidth={3}
-                      fillOpacity={1} 
-                      fill="url(#colorSalesProducts)" 
-                      name="Sales Revenue"
-                      dot={{ fill: '#ff9800', strokeWidth: 2, r: 4 }}
-                      activeDot={{ r: 6, stroke: '#ff9800', strokeWidth: 2 }}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              ) : (
-                <div style={{ height: '320px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6c757d', fontSize: '16px', fontWeight: '500' }}>
-                  <p>📅 No sales data available for selected period</p>
-                </div>
-              )}
-            </div>
-
-            {filteredProducts.length > 0 ? (
-              <div className="products-table">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Product ID</th>
-                      <th>Product Name</th>
-                      <th>Category</th>
-                      <th>Stock</th>
-                      <th>Sold</th>
-                      <th>Orders</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredProducts.map((product) => (
-                      <tr key={product.productId || product.id}>
-                        <td>{product.productId || product.id}</td>
-                        <td className="product-name" title={product.name || product.productName}>
-                          {product.name || product.productName}
-                        </td>
-                        <td><span className="category-badge">{product.category}</span></td>
-                        <td>
-                          <span className={(product.currentQuantity || 0) < 10 ? 'low-stock' : 'stock-ok'}>
-                            {product.currentQuantity || 0}
-                          </span>
-                        </td>
-                        <td className="quantity-cell">{product.totalSold || 0}</td>
-                        <td>{product.orderCount || 0}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div style={{ textAlign: 'center', padding: '40px', color: '#6c757d' }}>
-                <p>No products found{productSearch && ` matching "${productSearch}"`}</p>
-              </div>
-            )}
-          </div>
+          <ProductsManagement />
         )}
 
         {activeView === 'users' && (
@@ -878,26 +888,25 @@ const AdminDashboard = ({ admin, onLogout }) => {
               <p className="stats-summary">Total Users: {users.length}</p>
             </div>
 
-            {/* User Registrations Graph - Same as Dashboard */}
             <div className="chart-box large" style={{ marginBottom: '30px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', gap: '15px', width: '100%' }}>
                 <h3 className="chart-title" style={{ margin: 0, flex: '1' }}>
                   📈 New User Registrations ({usersTimeRange === 'week' ? 'This Week' : usersTimeRange === 'month' ? 'This Month' : 'This Year'})
                 </h3>
                 <div className="time-filter" style={{ flex: '0 0 auto', marginLeft: 'auto' }}>
-                  <button 
+                  <button
                     className={usersTimeRange === 'week' ? 'active' : ''}
                     onClick={() => setUsersTimeRange('week')}
                   >
                     Week
                   </button>
-                  <button 
+                  <button
                     className={usersTimeRange === 'month' ? 'active' : ''}
                     onClick={() => setUsersTimeRange('month')}
                   >
                     Month
                   </button>
-                  <button 
+                  <button
                     className={usersTimeRange === 'year' ? 'active' : ''}
                     onClick={() => setUsersTimeRange('year')}
                   >
@@ -907,7 +916,7 @@ const AdminDashboard = ({ admin, onLogout }) => {
               </div>
               {usersAnalytics && usersAnalytics.charts && usersAnalytics.charts.userDates && usersAnalytics.charts.userDates.length > 0 ? (
                 <ResponsiveContainer width="100%" height={320}>
-                  <AreaChart 
+                  <AreaChart
                     key={`users-${usersTimeRange}-${usersAnalytics.charts.userDates.length}`}
                     data={(usersAnalytics.charts.userDates || []).map((date, index) => ({
                       date: date,
@@ -915,43 +924,43 @@ const AdminDashboard = ({ admin, onLogout }) => {
                     }))}>
                     <defs>
                       <linearGradient id="colorRegistrations" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#4caf50" stopOpacity={0.8}/>
-                        <stop offset="50%" stopColor="#66bb6a" stopOpacity={0.6}/>
-                        <stop offset="95%" stopColor="#4caf50" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="#4caf50" stopOpacity={0.8} />
+                        <stop offset="50%" stopColor="#66bb6a" stopOpacity={0.6} />
+                        <stop offset="95%" stopColor="#4caf50" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(102, 126, 234, 0.1)" />
-                    <XAxis 
-                      dataKey="date" 
-                      stroke="#6c757d" 
+                    <XAxis
+                      dataKey="date"
+                      stroke="#6c757d"
                       style={{ fontSize: '12px', fontWeight: '500' }}
                       tick={{ fill: '#6c757d' }}
                     />
-                    <YAxis 
-                      stroke="#6c757d" 
+                    <YAxis
+                      stroke="#6c757d"
                       style={{ fontSize: '12px', fontWeight: '500' }}
                       tick={{ fill: '#6c757d' }}
                     />
-                    <Tooltip 
-                      contentStyle={{ 
+                    <Tooltip
+                      contentStyle={{
                         backgroundColor: 'rgba(255, 255, 255, 0.95)',
                         backdropFilter: 'blur(10px)',
                         border: '1px solid rgba(102, 126, 234, 0.2)',
                         borderRadius: '12px',
                         boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)'
-                      }} 
+                      }}
                     />
-                    <Legend 
+                    <Legend
                       wrapperStyle={{ paddingTop: '20px' }}
                       iconType="circle"
                     />
-                    <Area 
-                      type="monotone" 
-                      dataKey="registrations" 
-                      stroke="#4caf50" 
+                    <Area
+                      type="monotone"
+                      dataKey="registrations"
+                      stroke="#4caf50"
                       strokeWidth={3}
-                      fillOpacity={1} 
-                      fill="url(#colorRegistrations)" 
+                      fillOpacity={1}
+                      fill="url(#colorRegistrations)"
                       name="New Registrations"
                       dot={{ fill: '#4caf50', strokeWidth: 2, r: 4 }}
                       activeDot={{ r: 6, stroke: '#4caf50', strokeWidth: 2 }}
@@ -965,64 +974,50 @@ const AdminDashboard = ({ admin, onLogout }) => {
               )}
             </div>
 
-            {users.length > 0 ? (
-              <div className="users-table">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>User ID</th>
-                      <th>Name</th>
-                      <th>Email</th>
-                      <th>Registration Date</th>
+            <div className="users-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>User ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Joined Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map(user => (
+                    <tr key={user.id}>
+                      <td>{user.id}</td>
+                      <td>{user.full_name}</td>
+                      <td>{user.email}</td>
+                      <td>{new Date(user.created_at).toLocaleDateString()}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {users.map((user) => (
-                      <tr key={user.id}>
-                        <td>{user.id}</td>
-                        <td>{user.fullName || user.name || 'N/A'}</td>
-                        <td>{user.email}</td>
-                        <td>{new Date(user.registrationDate || user.accountCreatedDate).toLocaleDateString()}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div style={{ textAlign: 'center', padding: '40px', color: '#6c757d' }}>
-                <p>No users found</p>
-              </div>
-            )}
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
         {activeView === 'orders' && (
           <div className="orders-view">
-            <div className="view-header">
-              <h2>🛒 Orders Management</h2>
-              <p className="stats-summary">Total Orders: {ordersAnalytics?.summary?.totalOrders || analytics?.summary?.totalOrders || 0}</p>
-            </div>
-
-            {/* Orders Graph - Same as Dashboard */}
-            <div className="chart-box large" style={{ marginBottom: '30px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', gap: '15px', width: '100%' }}>
-                <h3 className="chart-title" style={{ margin: 0, flex: '1' }}>
-                  📊 Orders Trend ({ordersTimeRange === 'week' ? 'This Week' : ordersTimeRange === 'month' ? 'This Month' : 'This Year'})
-                </h3>
-                <div className="time-filter" style={{ flex: '0 0 auto', marginLeft: 'auto' }}>
-                  <button 
+            <div className="card orders-analytics">
+              <div className="card-header">
+                <h3>Orders Analytics</h3>
+                <div className="time-range-buttons">
+                  <button
                     className={ordersTimeRange === 'week' ? 'active' : ''}
                     onClick={() => setOrdersTimeRange('week')}
                   >
                     Week
                   </button>
-                  <button 
+                  <button
                     className={ordersTimeRange === 'month' ? 'active' : ''}
                     onClick={() => setOrdersTimeRange('month')}
                   >
                     Month
                   </button>
-                  <button 
+                  <button
                     className={ordersTimeRange === 'year' ? 'active' : ''}
                     onClick={() => setOrdersTimeRange('year')}
                   >
@@ -1032,67 +1027,67 @@ const AdminDashboard = ({ admin, onLogout }) => {
               </div>
               {ordersAnalytics && ordersAnalytics.chartData && ordersAnalytics.chartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={320}>
-                  <AreaChart 
+                  <AreaChart
                     key={`orders-${ordersTimeRange}-${ordersAnalytics.chartData.length}`}
                     data={ordersAnalytics.chartData.map(item => ({
-                      date: item.date, // Already formatted by backend (Sun-Sat, Week 1-4, Jan-Dec)
+                      date: item.date,
                       count: item.count || 0,
                       revenue: item.revenue || 0
                     }))}>
                     <defs>
                       <linearGradient id="colorCountOrders" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#9c27b0" stopOpacity={0.8}/>
-                        <stop offset="50%" stopColor="#ba68c8" stopOpacity={0.6}/>
-                        <stop offset="95%" stopColor="#9c27b0" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="#9c27b0" stopOpacity={0.8} />
+                        <stop offset="50%" stopColor="#ba68c8" stopOpacity={0.6} />
+                        <stop offset="95%" stopColor="#9c27b0" stopOpacity={0} />
                       </linearGradient>
                       <linearGradient id="colorRevenueOrders" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#ff9800" stopOpacity={0.8}/>
-                        <stop offset="95%" stopColor="#ff9800" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="#ff9800" stopOpacity={0.8} />
+                        <stop offset="95%" stopColor="#ff9800" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(102, 126, 234, 0.1)" />
-                    <XAxis 
-                      dataKey="date" 
-                      stroke="#6c757d" 
+                    <XAxis
+                      dataKey="date"
+                      stroke="#6c757d"
                       style={{ fontSize: '12px', fontWeight: '500' }}
                       tick={{ fill: '#6c757d' }}
                     />
-                    <YAxis 
-                      stroke="#6c757d" 
+                    <YAxis
+                      stroke="#6c757d"
                       style={{ fontSize: '12px', fontWeight: '500' }}
                       tick={{ fill: '#6c757d' }}
                     />
-                    <Tooltip 
-                      contentStyle={{ 
+                    <Tooltip
+                      contentStyle={{
                         backgroundColor: 'rgba(255, 255, 255, 0.95)',
                         backdropFilter: 'blur(10px)',
                         border: '1px solid rgba(102, 126, 234, 0.2)',
                         borderRadius: '12px',
                         boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)'
-                      }} 
+                      }}
                     />
-                    <Legend 
+                    <Legend
                       wrapperStyle={{ paddingTop: '20px' }}
                       iconType="circle"
                     />
-                    <Area 
-                      type="monotone" 
-                      dataKey="count" 
-                      stroke="#9c27b0" 
+                    <Area
+                      type="monotone"
+                      dataKey="count"
+                      stroke="#9c27b0"
                       strokeWidth={3}
-                      fillOpacity={1} 
-                      fill="url(#colorCountOrders)" 
+                      fillOpacity={1}
+                      fill="url(#colorCountOrders)"
                       name="Order Count"
                       dot={{ fill: '#9c27b0', strokeWidth: 2, r: 4 }}
                       activeDot={{ r: 6, stroke: '#9c27b0', strokeWidth: 2 }}
                     />
-                    <Area 
-                      type="monotone" 
-                      dataKey="revenue" 
-                      stroke="#ff9800" 
+                    <Area
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke="#ff9800"
                       strokeWidth={3}
-                      fillOpacity={1} 
-                      fill="url(#colorRevenueOrders)" 
+                      fillOpacity={1}
+                      fill="url(#colorRevenueOrders)"
                       name="Revenue (₹)"
                       dot={{ fill: '#ff9800', strokeWidth: 2, r: 4 }}
                       activeDot={{ r: 6, stroke: '#ff9800', strokeWidth: 2 }}
@@ -1148,6 +1143,282 @@ const AdminDashboard = ({ admin, onLogout }) => {
                       </td>
                     </tr>
                   )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Professional Workflow Views */}
+        {activeView === 'warehouses' && (
+          <div className="warehouses-view">
+            <div className="view-header">
+              <h2>🏭 Warehouse Management</h2>
+              <p className="stats-summary">Total Warehouses: {warehouses.length}</p>
+            </div>
+            <div className="warehouses-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Code</th>
+                    <th>City</th>
+                    <th>State</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {warehouses.map((warehouse) => (
+                    <tr key={warehouse.id}>
+                      <td>{warehouse.id}</td>
+                      <td>{warehouse.name}</td>
+                      <td>{warehouse.code}</td>
+                      <td>{warehouse.city}</td>
+                      <td>{warehouse.state}</td>
+                      <td><span className={`status-badge ${warehouse.is_active ? 'active' : 'inactive'}`}>{warehouse.is_active ? 'Active' : 'Inactive'}</span></td>
+                      <td>
+                        <button className="action-btn edit">Edit</button>
+                        <button className="action-btn view">View Inventory</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {activeView === 'inventory' && (
+          <div className="inventory-view">
+            <div className="view-header">
+              <h2>📦 Warehouse Inventory</h2>
+              <p className="stats-summary">Total Inventory Items: {warehouseInventory.length}</p>
+            </div>
+            <div className="inventory-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Warehouse</th>
+                    <th>Product</th>
+                    <th>Stock Quantity</th>
+                    <th>Reserved</th>
+                    <th>Available</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {warehouseInventory.map((item) => (
+                    <tr key={`${item.warehouse_id}-${item.product_id}`}>
+                      <td>{item.warehouse_name}</td>
+                      <td>{item.product_name}</td>
+                      <td>{item.stock_quantity}</td>
+                      <td>{item.reserved_quantity}</td>
+                      <td>{item.stock_quantity - item.reserved_quantity}</td>
+                      <td><span className={`status-badge ${item.stock_quantity <= item.low_stock_threshold ? 'low-stock' : 'in-stock'}`}>{item.stock_quantity <= item.low_stock_threshold ? 'Low Stock' : 'In Stock'}</span></td>
+                      <td>
+                        <button className="action-btn edit">Update Stock</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {activeView === 'couriers' && (
+          <div className="couriers-view">
+            <div className="view-header">
+              <h2>🚚 Courier Partners</h2>
+              <p className="stats-summary">Total Couriers: {courierPartners.length}</p>
+            </div>
+            <div className="couriers-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Code</th>
+                    <th>Contact Person</th>
+                    <th>Phone</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {courierPartners.map((courier) => (
+                    <tr key={courier.id}>
+                      <td>{courier.id}</td>
+                      <td>{courier.name}</td>
+                      <td>{courier.code}</td>
+                      <td>{courier.contact_person}</td>
+                      <td>{courier.phone}</td>
+                      <td><span className={`status-badge ${courier.is_active ? 'active' : 'inactive'}`}>{courier.is_active ? 'Active' : 'Inactive'}</span></td>
+                      <td>
+                        <button className="action-btn edit">Edit</button>
+                        <button className="action-btn view">View Details</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {activeView === 'returns' && (
+          <div className="returns-view">
+            <div className="view-header">
+              <h2>↩️ Return Requests</h2>
+              <p className="stats-summary">Total Returns: {returnRequests.length}</p>
+            </div>
+            <div className="returns-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Return ID</th>
+                    <th>Order</th>
+                    <th>Customer</th>
+                    <th>Reason</th>
+                    <th>Status</th>
+                    <th>Refund Amount</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {returnRequests.map((returnReq) => (
+                    <tr key={returnReq.id}>
+                      <td>{returnReq.id}</td>
+                      <td>{returnReq.order_number}</td>
+                      <td>{returnReq.first_name} {returnReq.last_name}</td>
+                      <td>{returnReq.reason}</td>
+                      <td><span className={`status-badge ${returnReq.status}`}>{returnReq.status}</span></td>
+                      <td>₹{returnReq.refund_amount?.toLocaleString() || 0}</td>
+                      <td>
+                        <button className="action-btn view">View Details</button>
+                        <button className="action-btn approve">Process</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {activeView === 'support' && (
+          <div className="support-view">
+            <div className="view-header">
+              <h2>🎧 Customer Support</h2>
+              <p className="stats-summary">Total Tickets: {supportTickets.length}</p>
+            </div>
+            <div className="support-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Ticket #</th>
+                    <th>Customer</th>
+                    <th>Subject</th>
+                    <th>Priority</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {supportTickets.map((ticket) => (
+                    <tr key={ticket.id}>
+                      <td>{ticket.ticket_number}</td>
+                      <td>{ticket.first_name} {ticket.last_name}</td>
+                      <td>{ticket.subject}</td>
+                      <td><span className={`priority-badge ${ticket.priority}`}>{ticket.priority}</span></td>
+                      <td><span className={`status-badge ${ticket.status}`}>{ticket.status}</span></td>
+                      <td>{new Date(ticket.created_at).toLocaleDateString()}</td>
+                      <td>
+                        <button className="action-btn view">View</button>
+                        <button className="action-btn reply">Reply</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {activeView === 'loyalty' && (
+          <div className="loyalty-view">
+            <div className="view-header">
+              <h2>⭐ Loyalty Program</h2>
+              <p className="stats-summary">Total Loyalty Members: {loyaltyPoints.length}</p>
+            </div>
+            <div className="loyalty-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Points Balance</th>
+                    <th>Total Earned</th>
+                    <th>Total Redeemed</th>
+                    <th>Tier</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loyaltyPoints.map((loyalty) => (
+                    <tr key={loyalty.id}>
+                      <td>{loyalty.first_name} {loyalty.last_name}</td>
+                      <td>{loyalty.points}</td>
+                      <td>{loyalty.total_earned}</td>
+                      <td>{loyalty.total_redeemed}</td>
+                      <td><span className={`tier-badge ${loyalty.tier}`}>{loyalty.tier}</span></td>
+                      <td>
+                        <button className="action-btn view">View History</button>
+                        <button className="action-btn adjust">Adjust Points</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {activeView === 'settlements' && (
+          <div className="settlements-view">
+            <div className="view-header">
+              <h2>💰 Payment Settlements</h2>
+              <p className="stats-summary">Total Settlements: {paymentSettlements.length}</p>
+            </div>
+            <div className="settlements-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Settlement Date</th>
+                    <th>Payment Method</th>
+                    <th>Total Amount</th>
+                    <th>Transaction Count</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paymentSettlements.map((settlement) => (
+                    <tr key={settlement.id}>
+                      <td>{new Date(settlement.settlement_date).toLocaleDateString()}</td>
+                      <td>{settlement.payment_method}</td>
+                      <td>₹{settlement.total_amount?.toLocaleString() || 0}</td>
+                      <td>{settlement.transaction_count}</td>
+                      <td><span className={`status-badge ${settlement.settlement_status}`}>{settlement.settlement_status}</span></td>
+                      <td>
+                        <button className="action-btn view">View Details</button>
+                        <button className="action-btn process">Process</button>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>

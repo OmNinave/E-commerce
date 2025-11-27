@@ -34,15 +34,15 @@ const ProductList = () => {
         setIsLoading(true);
         setError(null);
         console.log('🔄 Fetching products from API...');
-        
+
         const fetchedProducts = await apiService.getProducts();
-        
+
         console.log('📦 Fetched products:', {
           isArray: Array.isArray(fetchedProducts),
           length: fetchedProducts?.length || 0,
           firstProduct: fetchedProducts?.[0]?.name || 'N/A'
         });
-        
+
         if (fetchedProducts && Array.isArray(fetchedProducts) && fetchedProducts.length > 0) {
           console.log(`✅ Loaded ${fetchedProducts.length} products from API`);
           setProducts(fetchedProducts);
@@ -63,14 +63,14 @@ const ProductList = () => {
       } catch (err) {
         console.error('❌ Failed to load products from API:', err);
         console.log(`📦 Falling back to ${staticProducts.length} static products`);
-        
+
         // Fallback to static products
         console.log('📦 Checking static products fallback:', {
           exists: !!staticProducts,
           isArray: Array.isArray(staticProducts),
           length: staticProducts?.length || 0
         });
-        
+
         if (staticProducts && Array.isArray(staticProducts) && staticProducts.length > 0) {
           console.log(`✅ Using ${staticProducts.length} static products as fallback`);
           setProducts(staticProducts);
@@ -89,7 +89,7 @@ const ProductList = () => {
   }, []);
 
   // Get unique categories - with safety check
-  const categories = products && products.length > 0 
+  const categories = products && products.length > 0
     ? ['All', ...new Set(products.map(p => p.category).filter(Boolean))]
     : ['All'];
 
@@ -139,8 +139,8 @@ const ProductList = () => {
         break;
       case 'newest':
         filtered.sort((a, b) => {
-          const aId = a.id || '';
-          const bId = b.id || '';
+          const aId = String(a.id || '');
+          const bId = String(b.id || '');
           return bId.localeCompare(aId);
         });
         break;
@@ -162,11 +162,11 @@ const ProductList = () => {
     const value = e.target.value;
     setSearchTerm(value);
     setCurrentPage(1); // Reset to first page on search
-    
+
     // Generate search suggestions
     if (value.length > 1) {
       const suggestions = products
-        .filter(p => 
+        .filter(p =>
           p.name.toLowerCase().includes(value.toLowerCase()) ||
           p.model.toLowerCase().includes(value.toLowerCase()) ||
           p.category.toLowerCase().includes(value.toLowerCase())
@@ -222,7 +222,7 @@ const ProductList = () => {
 
     const autoScroll = () => {
       if (!isAutoScrolling || isDragging) return;
-      
+
       scrollAmount += scrollSpeed;
       slider.scrollLeft = scrollAmount;
 
@@ -315,7 +315,7 @@ const ProductList = () => {
         if (!img) return;
 
         scrollPositions[index] += scrollSpeeds[index];
-        
+
         // Reset position for infinite loop
         if (scrollPositions[index] >= 20) {
           scrollPositions[index] = 0;
@@ -357,11 +357,11 @@ const ProductList = () => {
     return (
       <div className="product-list-page">
         <div style={{ padding: '50px', textAlign: 'center' }}>
-          <div style={{ 
-            backgroundColor: '#fff3cd', 
-            border: '1px solid #ffc107', 
-            borderRadius: '8px', 
-            padding: '20px', 
+          <div style={{
+            backgroundColor: '#fff3cd',
+            border: '1px solid #ffc107',
+            borderRadius: '8px',
+            padding: '20px',
             marginBottom: '20px',
             maxWidth: '600px',
             margin: '0 auto 20px'
@@ -369,7 +369,7 @@ const ProductList = () => {
             <h3 style={{ color: '#856404', marginTop: 0 }}>⚠️ Warning</h3>
             <p style={{ color: '#856404', marginBottom: 0 }}>{error}</p>
           </div>
-          <button 
+          <button
             onClick={() => window.location.reload()}
             style={{
               padding: '10px 20px',
@@ -407,11 +407,11 @@ const ProductList = () => {
           Explore our comprehensive range of professional laboratory equipment
         </p>
         {error && products.length > 0 && (
-          <div style={{ 
-            backgroundColor: '#fff3cd', 
-            border: '1px solid #ffc107', 
-            borderRadius: '6px', 
-            padding: '12px 16px', 
+          <div style={{
+            backgroundColor: '#fff3cd',
+            border: '1px solid #ffc107',
+            borderRadius: '6px',
+            padding: '12px 16px',
             marginTop: '15px',
             fontSize: '14px',
             color: '#856404'
@@ -440,7 +440,7 @@ const ProductList = () => {
               aria-label="Search products"
             />
             <span className="search-icon">🔍</span>
-            
+
             {/* Search Suggestions */}
             {showSuggestions && searchSuggestions.length > 0 && (
               <div className="search-suggestions">
@@ -472,10 +472,10 @@ const ProductList = () => {
           {/* Filters */}
           <div className="sidebar-section">
             <h3 className="sidebar-title">Filters</h3>
-            
+
             {/* Category Filter */}
             <div className="filter-group">
-              <button 
+              <button
                 className="filter-title-button"
                 onClick={() => setIsCategoryOpen(!isCategoryOpen)}
               >
@@ -514,9 +514,9 @@ const ProductList = () => {
           {/* Sort Options */}
           <div className="sidebar-section">
             <h3 className="sidebar-title">Sort By</h3>
-            
+
             <div className="filter-group">
-              <button 
+              <button
                 className="filter-title-button"
                 onClick={() => setIsSortOpen(!isSortOpen)}
               >
@@ -555,9 +555,9 @@ const ProductList = () => {
           {/* Sidebar Ad 1 */}
           <div className="sidebar-ad" ref={sidebarAd1Ref}>
             <div className="sidebar-ad-badge">SPONSORED</div>
-            <img 
-              src="https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=300&h=400&fit=crop" 
-              alt="Premium Lab Equipment" 
+            <img
+              src="https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=300&h=400&fit=crop"
+              alt="Premium Lab Equipment"
               className="sidebar-ad-image"
             />
             <div className="sidebar-ad-content">
@@ -570,9 +570,9 @@ const ProductList = () => {
           {/* Sidebar Ad 2 */}
           <div className="sidebar-ad" ref={sidebarAd2Ref}>
             <div className="sidebar-ad-badge">SPONSORED</div>
-            <img 
-              src="https://images.unsplash.com/photo-1581093458791-9d42e3c4e1e4?w=300&h=400&fit=crop" 
-              alt="Lab Safety Equipment" 
+            <img
+              src="https://images.unsplash.com/photo-1581093458791-9d42e3c4e1e4?w=300&h=400&fit=crop"
+              alt="Lab Safety Equipment"
               className="sidebar-ad-image"
             />
             <div className="sidebar-ad-content">
@@ -595,17 +595,17 @@ const ProductList = () => {
         <div className="products-content">
           {/* Debug Info - Remove in production */}
           {process.env.NODE_ENV === 'development' && (
-            <div style={{ 
-              padding: '10px', 
-              backgroundColor: '#f0f0f0', 
-              marginBottom: '20px', 
+            <div style={{
+              padding: '10px',
+              backgroundColor: '#f0f0f0',
+              marginBottom: '20px',
               fontSize: '12px',
               borderRadius: '4px'
             }}>
-              <strong>Debug:</strong> Products: {products.length} | 
-              Filtered: {filteredProducts.length} | 
-              Current Page: {currentPage} | 
-              Showing: {currentProducts.length} | 
+              <strong>Debug:</strong> Products: {products.length} |
+              Filtered: {filteredProducts.length} |
+              Current Page: {currentPage} |
+              Showing: {currentProducts.length} |
               Total Pages: {totalPages}
             </div>
           )}
