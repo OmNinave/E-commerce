@@ -8,9 +8,14 @@ class ApiService {
 
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
+
+    // Get token from localStorage (check both user and admin tokens)
+    const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+
     const config = {
       headers: {
         'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` }),
         ...options.headers,
       },
       ...options,
@@ -19,9 +24,9 @@ class ApiService {
     try {
       console.log(`🌐 API Request: ${options.method || 'GET'} ${url}`);
       const response = await fetch(url, config);
-      
+
       console.log(`📡 API Response: ${response.status} ${response.statusText}`);
-      
+
       if (!response.ok) {
         const error = await response.json().catch(() => ({ error: 'Request failed' }));
         const errorMessage = error.error || `HTTP error! status: ${response.status}`;
@@ -30,8 +35,8 @@ class ApiService {
       }
 
       const data = await response.json();
-      console.log(`✅ API Success: Received data`, { 
-        hasProducts: !!data.products, 
+      console.log(`✅ API Success: Received data`, {
+        hasProducts: !!data.products,
         productsCount: data.products?.length || 0,
         total: data.total || 0
       });
@@ -49,28 +54,73 @@ class ApiService {
   }
 
   // Public endpoints
-  async getProducts() {
+  async getProducts(page = 1, limit = 12, filters = {}) {
     try {
-      const data = await this.request('/api/products');
-      // Handle both response formats: { products: [...] } or { success: true, products: [...] }
-      if (data.products && Array.isArray(data.products)) {
-        return data.products;
+      // Build query parameters
+      const queryParams = new URLSearchParams();
+
+      // Add pagination
+      queryParams.append('page', page.toString());
+      queryParams.append('limit', limit.toString());
+
+      // Add filters if provided
+      if (filters.search) {
+        queryParams.append('search', filters.search);
       }
-      // Fallback: if data itself is an array
+      if (filters.category && filters.category !== 'All') {
+        queryParams.append('category', filters.category);
+      }
+      if (filters.sort) {
+        queryParams.append('sort', filters.sort);
+      }
+      if (filters.min_price) {
+        queryParams.append('min_price', filters.min_price);
+      }
+      if (filters.max_price) {
+        queryParams.append('max_price', filters.max_price);
+      }
+
+      const data = await this.request(`/api/products?${queryParams.toString()}`);
+
+      // Return an array for components that expect lists
       if (Array.isArray(data)) {
         return data;
       }
-      console.warn('Unexpected API response format:', data);
-      return [];
+
+      return data?.products || [];
     } catch (error) {
       console.error('Failed to fetch products:', error);
       throw error;
     }
   }
 
+  async getFeaturedProducts(limit = 4) {
+    const query = new URLSearchParams({ limit: String(limit), sort: 'featured' });
+    const data = await this.request(`/api/products?${query.toString()}`);
+    return data?.products || [];
+  }
+
   async getProduct(id) {
     const data = await this.request(`/api/products/${id}`);
     return data.product;
+  }
+
+  async getProductReviews(productId) {
+    const data = await this.request(`/api/products/${productId}/reviews`);
+    return data.reviews || [];
+  }
+
+  async addProductReview(productId, rating, comment) {
+    const data = await this.request(`/api/products/${productId}/reviews`, {
+      method: 'POST',
+      body: JSON.stringify({ rating, comment })
+    });
+    return data.review;
+  }
+
+  async getCategories() {
+    const data = await this.request('/api/categories');
+    return data.categories || [];
   }
 
   // Authentication endpoints
@@ -79,6 +129,10 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify(userData)
     });
+    // Store token if provided
+    if (data.token) {
+      this.setToken(data.token);
+    }
     return data.user;
   }
 
@@ -87,6 +141,10 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify(credentials)
     });
+    // Store token if provided
+    if (data.token) {
+      this.setToken(data.token);
+    }
     return data.user;
   }
 
@@ -97,6 +155,121 @@ class ApiService {
       body: JSON.stringify(orderData)
     });
     return data.order;
+  }
+
+  async validateCart(items, shippingMethod = 'standard') {
+    return this.request('/api/cart/validate', {
+      method: 'POST',
+      body: JSON.stringify({ items, shippingMethod })
+    });
+  }
+
+  async getOrders() {
+    const data = await this.request('/api/orders');
+    return data.orders || [];
+  }
+
+  // Wishlist endpoints
+  async getWishlist(userId) {
+    const data = await this.request(`/api/users/${userId}/wishlist`);
+    return data.wishlist || [];
+  }
+
+  async addToWishlist(userId, productId) {
+    const data = await this.request(`/api/users/${userId}/wishlist`, {
+      method: 'POST',
+      body: JSON.stringify({ productId })
+    });
+    return data;
+  }
+
+  async removeFromWishlist(userId, productId) {
+    await this.request(`/api/users/${userId}/wishlist/${productId}`, {
+      method: 'DELETE'
+    });
+  }
+
+  async checkEmailAvailability(email) {
+    if (!email) {
+      return { available: false };
+    }
+    return this.request(`/api/auth/check-email?email=${encodeURIComponent(email)}`);
+  }
+
+  // Admin endpoints
+  async getAdminProducts(filters = {}) {
+    const queryParams = new URLSearchParams();
+    if (filters.search) queryParams.append('search', filters.search);
+    if (filters.category) queryParams.append('category', filters.category);
+
+    // Admin sees all products, potentially with different query params if needed
+    // For now, reuse the public endpoint but with admin token it might return more data if backend is configured
+    const data = await this.request(`/api/products?${queryParams.toString()}`);
+    return data.products || [];
+  }
+
+  async createProduct(productData) {
+    const data = await this.request('/api/products', {
+      method: 'POST',
+      body: JSON.stringify(productData)
+    });
+    return data.product;
+  }
+
+  async updateProduct(id, productData) {
+    const data = await this.request(`/api/products/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(productData)
+    });
+    return data.product;
+  }
+
+  async deleteProduct(id) {
+    await this.request(`/api/products/${id}`, {
+      method: 'DELETE'
+    });
+  }
+
+  async getUsers() {
+    const data = await this.request('/api/users');
+    return data.users || [];
+  }
+
+  async deleteUser(id) {
+    await this.request(`/api/users/${id}`, {
+      method: 'DELETE'
+    });
+  }
+
+  // Payment endpoints
+  async createPaymentOrder(amount) {
+    const data = await this.request('/api/payment/create-order', {
+      method: 'POST',
+      body: JSON.stringify({ amount })
+    });
+    return data;
+  }
+
+  async verifyPayment(paymentData) {
+    const data = await this.request('/api/payment/verify-payment', {
+      method: 'POST',
+      body: JSON.stringify(paymentData)
+    });
+    return data;
+  }
+
+  // Token management
+  setToken(token) {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('token', token);
+    }
+  }
+
+  removeToken() {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('token');
+      localStorage.removeItem('adminToken');
+    }
   }
 }
 

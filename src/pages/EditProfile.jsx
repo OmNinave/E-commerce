@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { AuthContext } from '../context/AuthContext';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import '../styles/EditProfile.css';
 
 export default function EditProfile() {
-  const { user, logout } = useContext(AuthContext);
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -35,26 +35,21 @@ export default function EditProfile() {
   const fetchProfile = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/users/${user.id}/profile`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const profile = data.profile || {};
+      setError(null);
+      
+      // Use user data from AuthContext if available
+      if (user) {
         setProfileData({
-          fullName: profile.fullName || '',
-          email: profile.email || '',
-          phone: profile.phone || '',
-          company: profile.company || '',
-          bio: profile.bio || ''
+          fullName: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.fullName || user.name || '',
+          email: user.email || '',
+          phone: user.phone || '',
+          company: user.company || '',
+          bio: user.bio || ''
         });
       }
     } catch (err) {
       console.error('Fetch profile error:', err);
+      setError('Failed to load profile');
     } finally {
       setLoading(false);
     }
@@ -80,7 +75,7 @@ export default function EditProfile() {
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
-    
+
     if (!profileData.fullName.trim()) {
       setError('Full name is required');
       return;

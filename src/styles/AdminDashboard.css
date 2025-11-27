@@ -40,9 +40,17 @@
 
 /* Animated background gradient */
 @keyframes gradientShift {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 /* Floating orbs for depth */
@@ -76,9 +84,19 @@
 }
 
 @keyframes float {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(30px, -30px) scale(1.1); }
-  66% { transform: translate(-20px, 20px) scale(0.9); }
+
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  33% {
+    transform: translate(30px, -30px) scale(1.1);
+  }
+
+  66% {
+    transform: translate(-20px, 20px) scale(0.9);
+  }
 }
 
 /* ============================================
@@ -218,6 +236,32 @@
   box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
 }
 
+/* Professional Nav Icons */
+.nav-icon {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  margin-right: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+  line-height: 20px;
+  opacity: 0.9;
+  transition: all 0.3s ease;
+}
+
+.sidebar-nav button:hover .nav-icon,
+.sidebar-section button:hover .nav-icon {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.sidebar-nav button.active .nav-icon,
+.sidebar-section button.active .nav-icon {
+  opacity: 1;
+  font-weight: 700;
+}
+
 .logout-button {
   margin: 20px;
   padding: 14px 20px;
@@ -270,7 +314,7 @@
 .admin-content {
   flex: 1;
   padding: 35px;
-  overflow-y: auto;
+  overflow-y: visible;
   position: relative;
   z-index: 5;
 }
@@ -528,12 +572,29 @@
   border-color: rgba(255, 255, 255, 0.5);
 }
 
-.stat-card.revenue::before { background: var(--accent-orange); }
-.stat-card.quantity::before { background: var(--accent-red); }
-.stat-card.orders::before { background: var(--accent-green); }
-.stat-card.traffic::before { background: var(--accent-blue); }
-.stat-card.users.new::before { background: var(--accent-green); }
-.stat-card.users.old::before { background: var(--accent-purple); }
+.stat-card.revenue::before {
+  background: var(--accent-orange);
+}
+
+.stat-card.quantity::before {
+  background: var(--accent-red);
+}
+
+.stat-card.orders::before {
+  background: var(--accent-green);
+}
+
+.stat-card.traffic::before {
+  background: var(--accent-blue);
+}
+
+.stat-card.users.new::before {
+  background: var(--accent-green);
+}
+
+.stat-card.users.old::before {
+  background: var(--accent-purple);
+}
 
 .stat-icon {
   font-size: 52px;
@@ -688,6 +749,7 @@
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -712,7 +774,7 @@
   gap: 20px;
 }
 
-.view-header > div {
+.view-header>div {
   display: flex;
   align-items: center;
   gap: 15px;
@@ -993,8 +1055,13 @@
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .admin-loading p {
@@ -1013,6 +1080,7 @@
     opacity: 0;
     transform: translateY(30px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -1028,11 +1096,11 @@
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 20px;
   }
-  
+
   .charts-container {
     grid-template-columns: 1fr;
   }
-  
+
   .chart-box.large {
     grid-column: span 1;
   }
@@ -1048,6 +1116,9 @@
     position: sticky;
     top: 0;
     z-index: 100;
+    display: flex;
+    flex-direction: column;
+    max-height: 100vh;
   }
 
   .sidebar-nav {
@@ -1055,6 +1126,8 @@
     padding: 15px 0;
     overflow-x: auto;
     gap: 10px;
+    flex: 1;
+    overflow-y: auto;
   }
 
   .sidebar-nav button {
@@ -1064,6 +1137,17 @@
     margin: 0 5px;
     width: auto;
     min-width: 120px;
+  }
+
+  .logout-button {
+    position: sticky !important;
+    bottom: 0 !important;
+    margin-top: auto !important;
+    order: 999 !important;
+    z-index: 101 !important;
+    background: rgba(255, 255, 255, 0.15) !important;
+    border-top: 2px solid rgba(255, 255, 255, 0.3) !important;
+    border-radius: 0 !important;
   }
 
   .admin-content {
@@ -1118,7 +1202,7 @@
     min-width: 100%;
   }
 
-  .view-header > div {
+  .view-header>div {
     width: 100%;
   }
 }
@@ -1188,5 +1272,418 @@
   .logout-button {
     font-size: 14px;
     padding: 12px;
+    position: fixed !important;
+    /* Changed from sticky to fixed */
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    margin: 0 !important;
+    order: 999 !important;
+    z-index: 1000 !important;
+    /* Increased z-index */
+    background: rgba(255, 255, 255, 0.95) !important;
+    /* More opaque background */
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(0, 0, 0, 0.1) !important;
+    border-radius: 0 !important;
+    width: 100% !important;
+    color: #333 !important;
+    /* Dark text for visibility */
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+  }
+
+  .admin-sidebar {
+    display: flex !important;
+    flex-direction: column !important;
+    max-height: 100vh !important;
+  }
+
+  .sidebar-nav {
+    flex: 1 !important;
+    overflow-y: auto !important;
+  }
+}
+
+/* ============================================
+   PROFESSIONAL WORKFLOW STYLES
+   ============================================ */
+
+/* Sidebar Sections */
+.sidebar-section {
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-section h3 {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+  padding: 0 20px;
+}
+
+.sidebar-section button {
+  width: calc(100% - 20px);
+  margin: 0 10px;
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.1) !important;
+  /* Increased opacity for visibility */
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  /* Increased border visibility */
+  border-radius: 12px;
+  color: #ffffff !important;
+  /* Force white text */
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  /* Add text shadow for contrast */
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 15px;
+  position: relative;
+  font-weight: 500;
+  overflow: hidden;
+}
+
+.sidebar-section button:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+  color: white !important;
+  transform: translateX(5px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-section button.active {
+  background: rgba(255, 255, 255, 0.3) !important;
+  color: white !important;
+  box-shadow: 0 2px 10px rgba(255, 255, 255, 0.2);
+  font-weight: 700;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Professional Workflow Views */
+.warehouses-view,
+.inventory-view,
+.couriers-view,
+.returns-view,
+.support-view,
+.loyalty-view,
+.settlements-view {
+  padding: 30px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.view-header {
+  margin-bottom: 30px;
+  padding: 20px;
+  background: var(--glass-bg);
+  backdrop-filter: var(--backdrop-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  box-shadow: var(--glass-shadow);
+}
+
+.view-header h2 {
+  color: var(--text-primary);
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  background: var(--primary-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.stats-summary {
+  color: var(--text-secondary);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+/* Professional Workflow Tables */
+.warehouses-table,
+.inventory-table,
+.couriers-table,
+.returns-table,
+.support-table,
+.loyalty-table,
+.settlements-table {
+  background: var(--glass-bg);
+  backdrop-filter: var(--backdrop-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  box-shadow: var(--glass-shadow);
+  overflow: hidden;
+}
+
+.warehouses-table table,
+.inventory-table table,
+.couriers-table table,
+.returns-table table,
+.support-table table,
+.loyalty-table table,
+.settlements-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.warehouses-table th,
+.inventory-table th,
+.couriers-table th,
+.returns-table th,
+.support-table th,
+.loyalty-table th,
+.settlements-table th {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  padding: 16px 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.warehouses-table td,
+.inventory-table td,
+.couriers-table td,
+.returns-table td,
+.support-table td,
+.loyalty-table td,
+.settlements-table td {
+  padding: 14px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.warehouses-table tbody tr:hover,
+.inventory-table tbody tr:hover,
+.couriers-table tbody tr:hover,
+.returns-table tbody tr:hover,
+.support-table tbody tr:hover,
+.loyalty-table tbody tr:hover,
+.settlements-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Status Badges */
+.status-badge.active {
+  background: #28a745;
+  color: white;
+}
+
+.status-badge.inactive {
+  background: #6c757d;
+  color: white;
+}
+
+.status-badge.low-stock {
+  background: #ffc107;
+  color: #212529;
+}
+
+.status-badge.in-stock {
+  background: #28a745;
+  color: white;
+}
+
+.status-badge.pending {
+  background: #ffc107;
+  color: #212529;
+}
+
+.status-badge.approved {
+  background: #28a745;
+  color: white;
+}
+
+.status-badge.rejected {
+  background: #dc3545;
+  color: white;
+}
+
+.status-badge.open {
+  background: #007bff;
+  color: white;
+}
+
+.status-badge.in-progress {
+  background: #ffc107;
+  color: #212529;
+}
+
+.status-badge.resolved {
+  background: #28a745;
+  color: white;
+}
+
+.status-badge.closed {
+  background: #6c757d;
+  color: white;
+}
+
+.priority-badge.high {
+  background: #dc3545;
+  color: white;
+}
+
+.priority-badge.medium {
+  background: #ffc107;
+  color: #212529;
+}
+
+.priority-badge.low {
+  background: #28a745;
+  color: white;
+}
+
+.tier-badge.bronze {
+  background: #cd7f32;
+  color: white;
+}
+
+.tier-badge.silver {
+  background: #c0c0c0;
+  color: #212529;
+}
+
+.tier-badge.gold {
+  background: #ffd700;
+  color: #212529;
+}
+
+.tier-badge.platinum {
+  background: #e5e4e2;
+  color: #212529;
+}
+
+/* Action Buttons */
+.action-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  margin-right: 8px;
+  transition: all 0.3s ease;
+}
+
+.action-btn.edit {
+  background: #007bff;
+  color: white;
+}
+
+.action-btn.edit:hover {
+  background: #0056b3;
+}
+
+.action-btn.view {
+  background: #28a745;
+  color: white;
+}
+
+.action-btn.view:hover {
+  background: #1e7e34;
+}
+
+.action-btn.approve {
+  background: #28a745;
+  color: white;
+}
+
+.action-btn.approve:hover {
+  background: #1e7e34;
+}
+
+.action-btn.reject {
+  background: #dc3545;
+  color: white;
+}
+
+.action-btn.reject:hover {
+  background: #bd2130;
+}
+
+.action-btn.reply {
+  background: #6f42c1;
+  color: white;
+}
+
+.action-btn.reply:hover {
+  background: #5a359a;
+}
+
+.action-btn.adjust {
+  background: #ffc107;
+  color: #212529;
+}
+
+.action-btn.adjust:hover {
+  background: #e0a800;
+}
+
+.action-btn.process {
+  background: #fd7e14;
+  color: white;
+}
+
+.action-btn.process:hover {
+  background: #e8680f;
+}
+
+/* Price cells */
+.price-cell {
+  font-weight: 600;
+  color: #28a745;
+}
+
+/* Responsive Professional Workflow */
+@media (max-width: 768px) {
+
+  .warehouses-view,
+  .inventory-view,
+  .couriers-view,
+  .returns-view,
+  .support-view,
+  .loyalty-view,
+  .settlements-view {
+    padding: 15px;
+  }
+
+  .view-header {
+    padding: 15px;
+  }
+
+  .view-header h2 {
+    font-size: 24px;
+  }
+
+  .warehouses-table,
+  .inventory-table,
+  .couriers-table,
+  .returns-table,
+  .support-table,
+  .loyalty-table,
+  .settlements-table {
+    overflow-x: auto;
+  }
+
+  .warehouses-table table,
+  .inventory-table table,
+  .couriers-table table,
+  .returns-table table,
+  .support-table table,
+  .loyalty-table table,
+  .settlements-table table {
+    min-width: 800px;
+  }
+
+  .sidebar-section button {
+    padding: 10px 15px;
+    font-size: 13px;
   }
 }

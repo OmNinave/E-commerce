@@ -16,6 +16,9 @@ const AdminLogin = ({ onLogin }) => {
     setLoading(true);
 
     try {
+      console.log('🔐 Attempting login to:', `${API_URL}/api/admin/login`);
+      console.log('📧 Email:', email);
+
       const response = await fetch(`${API_URL}/api/admin/login`, {
         method: 'POST',
         headers: {
@@ -24,21 +27,29 @@ const AdminLogin = ({ onLogin }) => {
         body: JSON.stringify({ email, password }),
       });
 
+      console.log('📡 Response status:', response.status, response.ok);
       const data = await response.json();
+      console.log('📦 Response data:', data);
 
       if (response.ok) {
+        console.log('✅ Login successful!');
         // Store both tokens if available
         if (data.jwtToken) {
           localStorage.setItem('adminToken', data.jwtToken); // Prefer JWT
-        } else {
+          console.log('💾 Stored jwtToken');
+        } else if (data.token) {
           localStorage.setItem('adminToken', data.token); // Fallback to legacy
+          console.log('💾 Stored token');
         }
         localStorage.setItem('adminUser', JSON.stringify(data.admin));
+        console.log('👤 Calling onLogin with:', data.admin);
         onLogin(data.admin);
       } else {
+        console.log('❌ Login failed:', data.error);
         setError(data.error || 'Login failed');
       }
     } catch (err) {
+      console.error('🚨 Login error:', err);
       setError('Failed to connect to server. Please ensure the admin server is running.');
     } finally {
       setLoading(false);

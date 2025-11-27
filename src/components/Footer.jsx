@@ -1,8 +1,14 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import '../styles/Footer.css';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
+
+  const handlePlaceholder = (e) => {
+    e.preventDefault();
+    alert("This feature is coming soon!");
+  };
 
   return (
     <footer className="footer" role="contentinfo">
@@ -15,20 +21,20 @@ const Footer = () => {
         <div className="footer-section">
           <h4>Quick Links</h4>
           <ul>
-            <li><a href="/">Home</a></li>
-            <li><a href="/products">Products</a></li>
-            <li><a href="#about">About Us</a></li>
-            <li><a href="#contact">Contact</a></li>
+            <li><Link to="/">Home</Link></li>
+            <li><Link to="/products">Products</Link></li>
+            <li><a href="#" onClick={handlePlaceholder}>About Us</a></li>
+            <li><a href="#" onClick={handlePlaceholder}>Contact</a></li>
           </ul>
         </div>
 
         <div className="footer-section">
           <h4>Support</h4>
           <ul>
-            <li><a href="#documentation">Documentation</a></li>
-            <li><a href="#warranty">Warranty</a></li>
-            <li><a href="#service">Service & Support</a></li>
-            <li><a href="#training">Training</a></li>
+            <li><a href="#" onClick={handlePlaceholder}>Documentation</a></li>
+            <li><a href="#" onClick={handlePlaceholder}>Warranty</a></li>
+            <li><a href="#" onClick={handlePlaceholder}>Service & Support</a></li>
+            <li><a href="#" onClick={handlePlaceholder}>Training</a></li>
           </ul>
         </div>
 
@@ -48,7 +54,7 @@ const Footer = () => {
           ISO 9001:2015 Certified | ISO 13485 Compliant
         </p>
         <p className="footer-admin">
-          <a href="/admin" target="_blank" rel="noopener noreferrer" style={{color: '#999', fontSize: '12px', textDecoration: 'none'}}>Admin</a>
+          <a href="/admin" target="_blank" rel="noopener noreferrer" style={{ color: '#999', fontSize: '12px', textDecoration: 'none' }}>Admin</a>
         </p>
       </div>
     </footer>

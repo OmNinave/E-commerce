@@ -1,8 +1,25 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import apiService from '../services/api';
+import { useCurrency } from '../context/CurrencyContext';
 import '../styles/Home.css';
 
 const Home = () => {
+  const [featuredProducts, setFeaturedProducts] = useState([]);
+  const { formatPrice } = useCurrency();
+
+  useEffect(() => {
+    const fetchFeatured = async () => {
+      try {
+        const products = await apiService.getFeaturedProducts();
+        setFeaturedProducts(products || []);
+      } catch (error) {
+        console.error('Failed to fetch featured products:', error);
+      }
+    };
+    fetchFeatured();
+  }, []);
+
   return (
     <div className="home">
       <section className="hero" role="banner">
@@ -25,10 +42,43 @@ const Home = () => {
         </div>
       </section>
 
+      {/* Featured Products Section */}
+      <section className="featured-products">
+        <div className="featured-container">
+          <h2 className="section-title">Featured Products</h2>
+          <div className="featured-grid">
+            {featuredProducts.length > 0 ? (
+              featuredProducts.map((product) => (
+                <div key={product.id} className="featured-card">
+                  <div className="featured-image-container">
+                    <img src={product.primary_image || product.image} alt={product.name} className="featured-image" />
+                    {product.discount > 0 && (
+                      <span className="featured-discount">-{product.discount}%</span>
+                    )}
+                  </div>
+                  <div className="featured-info">
+                    <h3 className="featured-name">{product.name}</h3>
+                    <p className="featured-price">
+                      <span className="current-price">{formatPrice(product.selling_price || product.price)}</span>
+                      {product.base_price && product.base_price > (product.selling_price || product.price) && (
+                        <span className="original-price">{formatPrice(product.base_price)}</span>
+                      )}
+                    </p>
+                    <Link to={`/products/${product.id}`} className="featured-link">View Details</Link>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="no-featured">Loading featured products...</p>
+            )}
+          </div>
+        </div>
+      </section>
+
       <section className="features">
         <div className="features-container">
           <h2 className="section-title">Why Choose ProLab Equipment?</h2>
-          
+
           <div className="features-grid">
             <div className="feature-card">
               <div className="feature-icon">🎯</div>

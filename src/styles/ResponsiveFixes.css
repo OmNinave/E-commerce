@@ -1,0 +1,331 @@
+/* ========================================
+   COMPREHENSIVE UI/UX FIXES
+   ======================================== */
+
+/* Product card navigation - removed problematic pointer-events CSS */
+/* Let React Router Link work naturally without interference */
+
+/* ==========================================
+   HIGH PRIORITY FIX: Search Bar Prominence
+   ========================================== */
+.search-input {
+    border: 2px solid #667eea !important;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15) !important;
+    font-size: 1.0625rem !important;
+}
+
+.search-input:focus {
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.25) !important;
+    transform: translateY(-2px);
+    transition: all 0.3s ease;
+}
+
+.search-icon {
+    font-size: 1.5rem !important;
+    color: #667eea !important;
+}
+
+/* ==========================================
+   HIGH PRIORITY FIX: Hero CTA Enhancement
+   ========================================== */
+.hero-cta-button {
+    min-width: 200px !important;
+    padding: 16px 32px !important;
+    font-size: 1.125rem !important;
+    box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4) !important;
+    animation: ctaPulse 2s infinite !important;
+}
+
+@keyframes ctaPulse {
+
+    0%,
+    100% {
+        box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4);
+    }
+
+    50% {
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+    }
+}
+
+/* ==========================================
+   HIGH PRIORITY FIX: Cart Image Size
+   ========================================== */
+.cart-item-image {
+    min-width: 120px !important;
+    min-height: 120px !important;
+    max-width: 150px !important;
+    max-height: 150px !important;
+}
+
+.cart-item-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+/* ==========================================
+   HIGH PRIORITY FIX: Admin Logout Button
+   ========================================== */
+.admin-sidebar {
+    position: relative;
+}
+
+.logout-button {
+    position: sticky !important;
+    bottom: 0 !important;
+    background: white !important;
+    border-top: 2px solid #e2e8f0 !important;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05) !important;
+    z-index: 100 !important;
+}
+
+/* ==========================================
+   HIGH PRIORITY FIX: Form Loading States
+   ========================================== */
+button[type="submit"]:disabled,
+.checkout-button:disabled,
+.login-button:disabled {
+    opacity: 0.6 !important;
+    cursor: not-allowed !important;
+    position: relative;
+}
+
+button[type="submit"]:disabled::after,
+.checkout-button:disabled::after {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border: 2px solid white;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+@keyframes spin {
+    to {
+        transform: translateY(-50%) rotate(360deg);
+    }
+}
+
+/* ==========================================
+   RESPONSIVE FIXES
+   ========================================== */
+
+/* Fix 1: Hide sidebar ads on mobile/tablet */
+@media (max-width: 1024px) {
+
+    .sidebar-ad,
+    .sidebar-banner-ad {
+        display: none !important;
+    }
+
+    .products-grid {
+        width: 100% !important;
+    }
+}
+
+/* Fix 2: Product card text overflow */
+.product-name {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    line-clamp: 2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 8px 12px;
+    min-height: 3em;
+}
+
+/* Fix 3: Cart quantity input center alignment */
+.quantity-input {
+    text-align: center !important;
+    padding: 8px 0 !important;
+    font-weight: 600 !important;
+    font-size: 1rem !important;
+}
+
+/* Fix 4: Cart item responsive layout */
+@media (max-width: 768px) {
+    .cart-item {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+    }
+
+    .cart-item-image {
+        width: 100% !important;
+        max-width: 200px !important;
+        margin: 0 auto 16px !important;
+    }
+
+    .cart-item-details {
+        width: 100% !important;
+        margin-bottom: 12px !important;
+    }
+
+    .cart-item-actions {
+        width: 100% !important;
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+    }
+
+    .remove-button {
+        min-width: 44px !important;
+        min-height: 44px !important;
+        padding: 12px !important;
+    }
+}
+
+/* Fix 5: Hero section mobile optimization */
+@media (max-width: 768px) {
+    .hero-title {
+        font-size: 2rem !important;
+        line-height: 1.2 !important;
+    }
+
+    .hero-subtitle {
+        font-size: 1rem !important;
+    }
+
+    .hero-cta-buttons {
+        flex-direction: column !important;
+        gap: 12px !important;
+        width: 100% !important;
+    }
+
+    .hero-cta-buttons button {
+        width: 100% !important;
+    }
+}
+
+/* ==========================================
+   MEDIUM PRIORITY FIXES
+   ========================================== */
+
+/* Fix: Continue Shopping Button */
+.continue-shopping-link {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 10px 20px !important;
+    background: white !important;
+    border: 2px solid #667eea !important;
+    border-radius: 8px !important;
+    color: #667eea !important;
+    font-weight: 600 !important;
+    text-decoration: none !important;
+    transition: all 0.3s ease !important;
+}
+
+.continue-shopping-link:hover {
+    background: #667eea !important;
+    color: white !important;
+    transform: translateX(-4px) !important;
+}
+
+/* Fix: Admin Table Responsiveness */
+@media (max-width: 768px) {
+    .admin-content table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .admin-content th,
+    .admin-content td {
+        min-width: 120px;
+        padding: 12px 8px !important;
+    }
+}
+
+/* Fix: Touch Targets - Minimum 44x44px */
+@media (max-width: 768px) {
+
+    button,
+    a.button,
+    input[type="button"],
+    input[type="submit"] {
+        min-height: 44px !important;
+        min-width: 44px !important;
+    }
+
+    .pagination-number {
+        min-width: 44px !important;
+        min-height: 44px !important;
+    }
+}
+
+/* Fix: Back to Top Button */
+.back-to-top {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 50px;
+    height: 50px;
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    font-size: 1.5rem;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    z-index: 1000;
+}
+
+.back-to-top.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.back-to-top:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+}
+
+/* Fix: Focus Indicators for Accessibility */
+*:focus-visible {
+    outline: 3px solid #667eea !important;
+    outline-offset: 2px !important;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+    outline: 3px solid #667eea !important;
+    outline-offset: 2px !important;
+}
+
+/* Fix: Consistent Spacing */
+.section {
+    margin-bottom: 3rem !important;
+}
+
+.card {
+    padding: 1.5rem !important;
+}
+
+/* Fix: Typography Consistency */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    line-height: 1.3 !important;
+    margin-bottom: 0.75em !important;
+}
+
+p {
+    line-height: 1.6 !important;
+    margin-bottom: 1em !important;
+}

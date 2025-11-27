@@ -5,6 +5,9 @@ import { useCurrency } from '../context/CurrencyContext';
 import '../styles/ProductCard.css';
 
 const ProductCard = ({ product }) => {
+  // Debug logging
+  console.log('🎴 ProductCard received product:', product);
+
   const { addToCart } = useCart();
   const { formatPrice, convertPrice } = useCurrency();
   const navigate = useNavigate();
@@ -24,17 +27,17 @@ const ProductCard = ({ product }) => {
     const random = (seed % 233280) / 233280;
     return (4 + random).toFixed(1);
   };
-  
+
   const generateConsistentReviewCount = (id) => {
     const seed = id * 7919 + 12345;
     return Math.floor((seed % 450) + 50);
   };
-  
+
   const rating = generateConsistentRating(product.id);
   const reviewCount = generateConsistentReviewCount(product.id);
-  
+
   // Calculate discount percentage from prices
-  const discount = product.originalPrice && product.price 
+  const discount = product.originalPrice && product.price
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : null;
 
@@ -58,8 +61,8 @@ const ProductCard = ({ product }) => {
   };
 
   return (
-    <Link 
-      to={`/products/${product.id}`} 
+    <Link
+      to={`/products/${product.id}`}
       className="product-card-link"
       aria-label={`View details for ${product.name}`}
     >
@@ -67,9 +70,9 @@ const ProductCard = ({ product }) => {
         <div className="product-image-container">
           {/* Discount Badge - Only show if there's an actual discount */}
           {discount && <div className="discount-badge">{discount}% OFF</div>}
-          
+
           {/* Wishlist Button */}
-          <button 
+          <button
             className={`wishlist-btn ${isWishlisted ? 'wishlisted' : ''}`}
             onClick={handleWishlist}
             aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
@@ -77,7 +80,7 @@ const ProductCard = ({ product }) => {
             {isWishlisted ? '❤️' : '🤍'}
           </button>
 
-          <img 
+          <img
             src={imageError ? placeholderImage : (product.image || placeholderImage)}
             alt={product.name}
             className="product-image"

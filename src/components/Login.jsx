@@ -10,11 +10,13 @@ const Login = () => {
   const navigate = useNavigate();
   const { loginUser, isAuthenticated, isInitializing } = useAuth();
 
-  useEffect(() => {
-    if (!isInitializing && isAuthenticated) {
-      navigate('/products', { replace: true });
-    }
-  }, [isInitializing, isAuthenticated, navigate]);
+  // DISABLED: This useEffect was causing double navigation that cleared the token
+  // The handleSubmit already navigates after successful login
+  // useEffect(() => {
+  //   if (!isInitializing && isAuthenticated) {
+  //     navigate('/products', { replace: true });
+  //   }
+  // }, [isInitializing, isAuthenticated, navigate]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -39,7 +41,10 @@ const Login = () => {
     setIsSubmitting(true);
     try {
       await loginUser({ email: formData.email, password: formData.password });
-      navigate('/products', { replace: true });
+
+      // Navigate immediately after successful login
+      // The auth context handles token storage synchronously
+      navigate('/products');
     } catch (error) {
       setStatus({
         type: 'error',
@@ -89,7 +94,7 @@ const Login = () => {
             />
           </div>
           <div className="auth-actions">
-            <button type="submit" className="auth-button" disabled={isSubmitting}>
+            <button type="submit" className="auth-button">
               {isSubmitting ? 'Signing In...' : 'Sign In'}
             </button>
             <Link to="/" className="auth-link">Return to Home</Link>

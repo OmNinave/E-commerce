@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import apiService from '../services/api';
 import '../styles/Auth.css';
+
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -13,6 +16,7 @@ const Register = () => {
   const [status, setStatus] = useState({ type: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState({ score: 0, text: '', color: '' });
+  const [emailStatus, setEmailStatus] = useState({ checking: false, available: null, message: '' });
   const navigate = useNavigate();
   const { registerUser, isAuthenticated, isInitializing } = useAuth();
 
@@ -25,7 +29,7 @@ const Register = () => {
     if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score++;
     if (/\d/.test(password)) score++;
     if (/[^a-zA-Z\d]/.test(password)) score++;
-    
+
     const strengths = [
       { text: '', color: '' },
       { text: 'Weak', color: '#ff4444' },
@@ -34,20 +38,58 @@ const Register = () => {
       { text: 'Strong', color: '#00aa00' },
       { text: 'Very Strong', color: '#008800' }
     ];
-    
+
     return { score, ...strengths[score] };
   };
 
+  // DISABLED: This useEffect was causing double navigation that cleared the token
+  // The handleSubmit already navigates after successful registration
+  // useEffect(() => {
+  //   if (!isInitializing && isAuthenticated) {
+  //     navigate('/products', { replace: true });
+  //   }
+  // }, [isInitializing, isAuthenticated, navigate]);
+
   useEffect(() => {
-    if (!isInitializing && isAuthenticated) {
-      navigate('/products', { replace: true });
+    let isSubscribed = true;
+    if (!formData.email || !emailRegex.test(formData.email)) {
+      setEmailStatus({ checking: false, available: null, message: '' });
+      return () => {
+        isSubscribed = false;
+      };
     }
-  }, [isInitializing, isAuthenticated, navigate]);
+
+    setEmailStatus((prev) => ({ ...prev, checking: true }));
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        const response = await apiService.checkEmailAvailability(formData.email.trim());
+        if (!isSubscribed) return;
+        setEmailStatus({
+          checking: false,
+          available: response.available,
+          message: response.available ? 'Email available' : 'Email already registered'
+        });
+      } catch (error) {
+        if (!isSubscribed) return;
+        setEmailStatus({
+          checking: false,
+          available: null,
+          message: 'Unable to verify email right now'
+        });
+      }
+    }, 400);
+
+    return () => {
+      isSubscribed = false;
+      clearTimeout(timeoutId);
+    };
+  }, [formData.email]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    
+
     // Update password strength when password changes
     if (name === 'password') {
       setPasswordStrength(calculatePasswordStrength(value));
@@ -60,8 +102,12 @@ const Register = () => {
       setStatus({ type: 'error', message: 'Please complete all required fields.' });
       return;
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    if (!emailRegex.test(formData.email)) {
       setStatus({ type: 'error', message: 'Enter a valid email address.' });
+      return;
+    }
+    if (emailStatus.available === false) {
+      setStatus({ type: 'error', message: 'This email is already registered.' });
       return;
     }
     if (formData.password.length < 6) {
@@ -80,7 +126,9 @@ const Register = () => {
         email: formData.email,
         password: formData.password
       });
-      navigate('/products', { replace: true });
+
+      // Navigate immediately after successful registration
+      navigate('/products');
     } catch (error) {
       setStatus({
         type: 'error',
@@ -127,6 +175,18 @@ const Register = () => {
               onChange={handleChange}
               required
             />
+            {emailStatus.message && (
+              <div
+                className="email-status"
+                style={{
+                  color: emailStatus.available ? '#00aa00' : '#c0392b',
+                  fontSize: '0.85rem',
+                  marginTop: '4px'
+                }}
+              >
+                {emailStatus.checking ? 'Checking availability...' : emailStatus.message}
+              </div>
+            )}
           </div>
           <div className="form-group">
             <label htmlFor="password" className="form-label">Password</label>
@@ -160,7 +220,11 @@ const Register = () => {
             />
           </div>
           <div className="auth-actions">
-            <button type="submit" className="auth-button" disabled={isSubmitting}>
+            <button
+              type="submit"
+              className="auth-button"
+              disabled={isSubmitting || emailStatus.available === false}
+            >
               {isSubmitting ? 'Creating Account...' : 'Create Account'}
             </button>
             <Link to="/" className="auth-link">Return to Home</Link>

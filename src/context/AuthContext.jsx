@@ -49,8 +49,18 @@ export const AuthProvider = ({ children }) => {
 
   const registerUser = async ({ fullName, email, password }) => {
     try {
+      // Split fullName into firstName and lastName
+      const nameParts = (fullName || '').split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      
       // Register via backend API - saves to unified database
-      const newUser = await apiService.registerUser({ fullName, email, password });
+      const newUser = await apiService.registerUser({ 
+        firstName, 
+        lastName, 
+        email, 
+        password 
+      });
       const sanitized = sanitizeUser(newUser);
       setCurrentUser(sanitized);
       setUser(sanitized);
@@ -76,6 +86,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
+    apiService.removeToken(); // Also remove the token
     setCurrentUser(null);
     setUser(null);
   };

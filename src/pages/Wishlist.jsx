@@ -1,10 +1,13 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { AuthContext } from '../context/AuthContext';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 import { useNavigate } from 'react-router-dom';
+import apiService from '../services/api';
 import '../styles/Wishlist.css';
 
 export default function Wishlist() {
-  const { user } = useContext(AuthContext);
+  const { user } = useAuth();
+  const { addToCart } = useCart();
   const navigate = useNavigate();
   const [wishlistItems, setWishlistItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -25,20 +28,8 @@ export default function Wishlist() {
     try {
       setLoading(true);
       setError(null);
-
-      const response = await fetch(`/api/users/${user.id}/wishlist`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch wishlist');
-      }
-
-      const data = await response.json();
-      setWishlistItems(data.wishlist || []);
+      const items = await apiService.getWishlist(user.id);
+      setWishlistItems(items || []);
     } catch (err) {
       setError(err.message);
       console.error('Fetch wishlist error:', err);
@@ -49,21 +40,12 @@ export default function Wishlist() {
 
   const fetchProducts = async () => {
     try {
-      const response = await fetch('/api/products', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
+      const productsData = await apiService.getProducts();
+      const productsMap = {};
+      (productsData || []).forEach(product => {
+        productsMap[product.id] = product;
       });
-
-      if (response.ok) {
-        const data = await response.json();
-        const productsMap = {};
-        (data.products || []).forEach(product => {
-          productsMap[product.id] = product;
-        });
-        setProducts(productsMap);
-      }
+      setProducts(productsMap);
     } catch (err) {
       console.error('Fetch products error:', err);
     }
@@ -71,18 +53,7 @@ export default function Wishlist() {
 
   const handleRemoveFromWishlist = async (productId) => {
     try {
-      const response = await fetch(`/api/users/${user.id}/wishlist`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ productId })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to remove from wishlist');
-      }
-
+      await apiService.removeFromWishlist(user.id, productId);
       await fetchWishlist();
     } catch (err) {
       alert('Error: ' + err.message);
@@ -97,21 +68,17 @@ export default function Wishlist() {
 
   const handleMoveToCart = async (productId) => {
     try {
-      // Add to cart and then remove from wishlist
-      const cartResponse = await fetch('/api/cart/add', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          productId,
-          quantity: 1
-        })
-      });
-
-      if (cartResponse.ok) {
+      // Get product details and add to cart using CartContext
+      const product = products[productId];
+      if (product) {
+        // Add product to cart
+        addToCart(product, 1);
+        // Remove from wishlist
         await handleRemoveFromWishlist(productId);
-        alert('Item moved to cart');
+        alert('Item added to cart!');
+      } else {
+        // If product not loaded, navigate to product page
+        navigate(`/products/${productId}`);
       }
     } catch (err) {
       alert('Error: ' + err.message);

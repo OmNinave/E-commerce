@@ -1,24 +1,28 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { AuthContext } from '../context/AuthContext';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import '../styles/ManageAddresses.css';
 
 export default function ManageAddresses() {
-  const { user } = useContext(AuthContext);
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [addresses, setAddresses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [currentAddress, setCurrentAddress] = useState(null);
+
+  // Form State
   const [formData, setFormData] = useState({
     fullName: '',
     phone: '',
-    address: '',
+    addressLine1: '',
+    addressLine2: '',
     city: '',
     state: '',
-    postalCode: '',
-    country: 'India',
+    pincode: '',
+    landmark: '',
+    addressType: 'Home',
     isDefault: false
   });
 
@@ -27,7 +31,6 @@ export default function ManageAddresses() {
       navigate('/login');
       return;
     }
-
     fetchAddresses();
   }, [user]);
 
@@ -35,355 +38,321 @@ export default function ManageAddresses() {
     try {
       setLoading(true);
       setError(null);
-
-      const response = await fetch(`/api/users/${user.id}/addresses`, {
-        method: 'GET',
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+      
+      const response = await fetch(`${API_URL}/api/users/${user.id}/addresses`, {
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
         }
       });
-
+      
       if (!response.ok) {
-        throw new Error('Failed to fetch addresses');
+        throw new Error('Failed to load addresses');
       }
-
+      
       const data = await response.json();
-      setAddresses(data.addresses || []);
+      if (data.success) {
+        setAddresses(data.addresses || []);
+      } else {
+        setError(data.error || 'Failed to load addresses');
+      }
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Error connecting to server');
       console.error('Fetch addresses error:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleFormChange = (e) => {
+  const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData({
-      ...formData,
+    setFormData(prev => ({
+      ...prev,
       [name]: type === 'checkbox' ? checked : value
-    });
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+    
     // Validation
-    if (!formData.fullName.trim()) {
-      alert('Please enter full name');
+    if (!formData.fullName || !formData.phone || !formData.addressLine1 || !formData.city || !formData.state || !formData.pincode) {
+      setError('Please fill in all required fields');
       return;
     }
-    if (!formData.phone.trim()) {
-      alert('Please enter phone number');
+    
+    // Pincode validation (6 digits for India)
+    if (!/^\d{6}$/.test(formData.pincode)) {
+      setError('Pincode must be 6 digits');
       return;
     }
-    if (!formData.address.trim()) {
-      alert('Please enter address');
+    
+    // Phone validation (10 digits for India)
+    if (!/^\d{10}$/.test(formData.phone.replace(/\D/g, ''))) {
+      setError('Phone number must be 10 digits');
       return;
     }
-    if (!formData.city.trim()) {
-      alert('Please enter city');
-      return;
-    }
-    if (!formData.state.trim()) {
-      alert('Please enter state');
-      return;
-    }
-    if (!formData.postalCode.trim()) {
-      alert('Please enter postal code');
-      return;
-    }
-
+    
     try {
-      const method = editingId ? 'PUT' : 'POST';
-      const endpoint = editingId
-        ? `/api/users/${user.id}/addresses/${editingId}`
-        : `/api/users/${user.id}/addresses`;
+      setError(null);
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+      
+      const url = isEditing
+        ? `${API_URL}/api/users/${user.id}/addresses/${currentAddress.id}`
+        : `${API_URL}/api/users/${user.id}/addresses`;
 
-      const response = await fetch(endpoint, {
+      const method = isEditing ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
         method,
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
         },
         body: JSON.stringify(formData)
       });
 
       if (!response.ok) {
-        throw new Error(editingId ? 'Failed to update address' : 'Failed to add address');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Operation failed');
       }
 
-      await fetchAddresses();
-      resetForm();
-      setShowForm(false);
-    } catch (err) {
-      alert('Error: ' + err.message);
-    }
-  };
+      const data = await response.json();
 
-  const handleEdit = (address) => {
-    setEditingId(address.id);
-    setFormData({
-      fullName: address.fullName,
-      phone: address.phone,
-      address: address.address,
-      city: address.city,
-      state: address.state,
-      postalCode: address.postalCode,
-      country: address.country,
-      isDefault: address.isDefault || false
-    });
-    setShowForm(true);
+      if (data.success) {
+        fetchAddresses();
+        resetForm();
+        alert(isEditing ? 'Address updated successfully!' : 'Address added successfully!');
+      } else {
+        setError(data.error || 'Operation failed');
+      }
+    } catch (err) {
+      setError(err.message || 'Error submitting form');
+      console.error('Submit address error:', err);
+    }
   };
 
   const handleDelete = async (addressId) => {
     if (!window.confirm('Are you sure you want to delete this address?')) return;
 
     try {
-      const response = await fetch(`/api/users/${user.id}/addresses/${addressId}`, {
+      setLoading(true);
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+      const response = await fetch(`${API_URL}/api/users/${user.id}/addresses/${addressId}`, {
         method: 'DELETE',
         headers: {
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${token}`
         }
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to delete address');
+      if (response.ok) {
+        fetchAddresses();
+      } else {
+        alert('Failed to delete address');
       }
-
-      await fetchAddresses();
     } catch (err) {
-      alert('Error: ' + err.message);
+      alert('Error deleting address');
     }
   };
 
-  const handleSetDefault = async (addressId) => {
-    try {
-      const response = await fetch(`/api/users/${user.id}/addresses/${addressId}/default`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to set default address');
-      }
-
-      await fetchAddresses();
-    } catch (err) {
-      alert('Error: ' + err.message);
-    }
+  const handleEdit = (address) => {
+    setCurrentAddress(address);
+    setFormData({
+      fullName: address.full_name,
+      phone: address.phone,
+      addressLine1: address.address_line1,
+      addressLine2: address.address_line2 || '',
+      city: address.city,
+      state: address.state,
+      pincode: address.pincode,
+      landmark: address.landmark || '',
+      addressType: address.address_type,
+      isDefault: address.is_default === 1
+    });
+    setIsEditing(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const resetForm = () => {
     setFormData({
       fullName: '',
       phone: '',
-      address: '',
+      addressLine1: '',
+      addressLine2: '',
       city: '',
       state: '',
-      postalCode: '',
-      country: 'India',
+      pincode: '',
+      landmark: '',
+      addressType: 'Home',
       isDefault: false
     });
-    setEditingId(null);
+    setIsEditing(false);
+    setCurrentAddress(null);
   };
 
-  if (!user) {
-    return <div className="manage-addresses-container">Please log in to manage addresses</div>;
-  }
+  if (loading && !addresses.length) return <div className="loading">Loading addresses...</div>;
 
   return (
     <div className="manage-addresses-container">
       <h1>Manage Addresses</h1>
 
-      {loading && <div className="loading">Loading addresses...</div>}
-      {error && <div className="error-message">{error}</div>}
-
-      {!loading && (
-        <>
-          <div className="addresses-header">
-            <button
-              className="btn-primary"
-              onClick={() => {
-                resetForm();
-                setShowForm(!showForm);
-              }}
-            >
-              {showForm ? 'Cancel' : '+ Add New Address'}
-            </button>
+      <div className="address-form-section">
+        <h2>{isEditing ? 'Edit Address' : 'Add New Address'}</h2>
+        <form onSubmit={handleSubmit} className="address-form">
+          <div className="form-row">
+            <div className="form-group">
+              <label>Full Name</label>
+              <input
+                type="text"
+                name="fullName"
+                value={formData.fullName}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>Phone Number</label>
+              <input
+                type="tel"
+                name="phone"
+                value={formData.phone}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
           </div>
 
-          {showForm && (
-            <div className="address-form-container">
-              <h2>{editingId ? 'Edit Address' : 'Add New Address'}</h2>
-              <form onSubmit={handleSubmit} className="address-form">
-                <div className="form-group">
-                  <label>Full Name *</label>
-                  <input
-                    type="text"
-                    name="fullName"
-                    value={formData.fullName}
-                    onChange={handleFormChange}
-                    placeholder="Enter full name"
-                    required
-                  />
-                </div>
+          <div className="form-group">
+            <label>Address Line 1</label>
+            <input
+              type="text"
+              name="addressLine1"
+              value={formData.addressLine1}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
 
-                <div className="form-group">
-                  <label>Phone Number *</label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleFormChange}
-                    placeholder="Enter phone number"
-                    required
-                  />
-                </div>
+          <div className="form-group">
+            <label>Address Line 2 (Optional)</label>
+            <input
+              type="text"
+              name="addressLine2"
+              value={formData.addressLine2}
+              onChange={handleInputChange}
+            />
+          </div>
 
-                <div className="form-group">
-                  <label>Address *</label>
-                  <textarea
-                    name="address"
-                    value={formData.address}
-                    onChange={handleFormChange}
-                    placeholder="Enter street address"
-                    rows="3"
-                    required
-                  />
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>City *</label>
-                    <input
-                      type="text"
-                      name="city"
-                      value={formData.city}
-                      onChange={handleFormChange}
-                      placeholder="City"
-                      required
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>State *</label>
-                    <input
-                      type="text"
-                      name="state"
-                      value={formData.state}
-                      onChange={handleFormChange}
-                      placeholder="State"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Postal Code *</label>
-                    <input
-                      type="text"
-                      name="postalCode"
-                      value={formData.postalCode}
-                      onChange={handleFormChange}
-                      placeholder="Postal Code"
-                      required
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Country *</label>
-                    <input
-                      type="text"
-                      name="country"
-                      value={formData.country}
-                      onChange={handleFormChange}
-                      placeholder="Country"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="form-group checkbox">
-                  <input
-                    type="checkbox"
-                    id="isDefault"
-                    name="isDefault"
-                    checked={formData.isDefault}
-                    onChange={handleFormChange}
-                  />
-                  <label htmlFor="isDefault">Set as default address</label>
-                </div>
-
-                <div className="form-actions">
-                  <button type="submit" className="btn-primary">
-                    {editingId ? 'Update Address' : 'Add Address'}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => {
-                      setShowForm(false);
-                      resetForm();
-                    }}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
+          <div className="form-row">
+            <div className="form-group">
+              <label>City</label>
+              <input
+                type="text"
+                name="city"
+                value={formData.city}
+                onChange={handleInputChange}
+                required
+              />
             </div>
-          )}
-
-          {addresses.length === 0 && !showForm && (
-            <div className="empty-state">
-              <p>No addresses saved yet.</p>
-              <p>Add your first address to get started.</p>
+            <div className="form-group">
+              <label>State</label>
+              <input
+                type="text"
+                name="state"
+                value={formData.state}
+                onChange={handleInputChange}
+                required
+              />
             </div>
-          )}
+          </div>
 
-          {addresses.length > 0 && (
-            <div className="addresses-list">
-              {addresses.map(address => (
-                <div key={address.id} className="address-card">
-                  {address.isDefault && (
-                    <div className="default-badge">Default Address</div>
-                  )}
-                  <h3>{address.fullName}</h3>
-                  <p>{address.address}</p>
-                  <p>{address.city}, {address.state} {address.postalCode}</p>
-                  <p>{address.country}</p>
-                  <p className="phone">Phone: {address.phone}</p>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Pincode</label>
+              <input
+                type="text"
+                name="pincode"
+                value={formData.pincode}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>Landmark (Optional)</label>
+              <input
+                type="text"
+                name="landmark"
+                value={formData.landmark}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
 
-                  <div className="address-actions">
-                    <button
-                      className="btn-secondary"
-                      onClick={() => handleEdit(address)}
-                    >
-                      Edit
-                    </button>
-                    {!address.isDefault && (
-                      <button
-                        className="btn-secondary"
-                        onClick={() => handleSetDefault(address.id)}
-                      >
-                        Set as Default
-                      </button>
-                    )}
-                    <button
-                      className="btn-danger"
-                      onClick={() => handleDelete(address.id)}
-                    >
-                      Delete
-                    </button>
-                  </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Address Type</label>
+              <select name="addressType" value={formData.addressType} onChange={handleInputChange}>
+                <option value="Home">Home</option>
+                <option value="Work">Work</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div className="form-group checkbox-group">
+              <label>
+                <input
+                  type="checkbox"
+                  name="isDefault"
+                  checked={formData.isDefault}
+                  onChange={handleInputChange}
+                />
+                Set as Default Address
+              </label>
+            </div>
+          </div>
+
+          <div className="form-actions">
+            <button type="submit" className="btn-primary">
+              {isEditing ? 'Update Address' : 'Save Address'}
+            </button>
+            {isEditing && (
+              <button type="button" onClick={resetForm} className="btn-secondary">
+                Cancel
+              </button>
+            )}
+          </div>
+        </form>
+      </div>
+
+      <div className="saved-addresses-section">
+        <h2>Saved Addresses</h2>
+        {addresses.length === 0 ? (
+          <p className="no-addresses">No addresses saved yet.</p>
+        ) : (
+          <div className="addresses-grid">
+            {addresses.map(addr => (
+              <div key={addr.id} className={`address-card ${addr.is_default ? 'default' : ''}`}>
+                <div className="address-header">
+                  <span className="address-type">{addr.address_type}</span>
+                  {addr.is_default === 1 && <span className="default-badge">Default</span>}
                 </div>
-              ))}
-            </div>
-          )}
-        </>
-      )}
+                <h3>{addr.full_name}</h3>
+                <p>{addr.address_line1}</p>
+                {addr.address_line2 && <p>{addr.address_line2}</p>}
+                <p>{addr.city}, {addr.state} - {addr.pincode}</p>
+                <p>Phone: {addr.phone}</p>
+                <div className="address-actions">
+                  <button onClick={() => handleEdit(addr)} className="btn-edit">Edit</button>
+                  <button onClick={() => handleDelete(addr.id)} className="btn-delete">Delete</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

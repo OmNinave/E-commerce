@@ -43,28 +43,31 @@ export default function ChatAssistant() {
     setLoading(true);
 
     try {
-      // TODO: Replace with actual API call to ChatAssistant backend
-      // const response = await fetch('/api/chat/messages', {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json'
-      //   },
-      //   body: JSON.stringify({
-      //     message: inputValue,
-      //     userId: user?.id,
-      //     conversationId: conversationId
-      //   })
-      // });
+      // API URL
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
-      // For now, simulate a bot response
-      const botResponse = {
-        id: userMessage.id + 1,
-        type: 'bot',
-        text: 'I\'m here to help! This feature is coming soon. In the meantime, please check our FAQ or contact support.',
-        timestamp: new Date()
-      };
+      const response = await fetch(`${API_URL}/api/chat/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          message: inputValue,
+          userId: user?.id
+        })
+      });
 
-      setMessages(prev => [...prev, botResponse]);
+      if (response.ok) {
+        const data = await response.json();
+        setMessages(prev => [...prev, {
+          id: data.id,
+          type: 'bot',
+          text: data.text,
+          timestamp: new Date(data.timestamp)
+        }]);
+      } else {
+        throw new Error('Failed to get response');
+      }
     } catch (error) {
       console.error('Chat error:', error);
       const errorMessage = {

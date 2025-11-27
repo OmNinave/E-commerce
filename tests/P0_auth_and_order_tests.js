@@ -169,6 +169,7 @@ async function runTests() {
     }
 
     const userId = regResult.data.user.id;
+    const token = regResult.data.token;
 
     // Attempt to create order with non-existent product
     const orderResult = await makeRequest('POST', '/api/orders', {
@@ -177,7 +178,7 @@ async function runTests() {
         { id: 'NONEXISTENT_PRODUCT', quantity: 1 }
       ],
       totalAmount: 999.99
-    });
+    }, { Authorization: `Bearer ${token}` });
 
     if (orderResult.status === 400 && (orderResult.data.error || orderResult.data.message)) {
       pass('Order rejected for non-existent product');
@@ -209,6 +210,7 @@ async function runTests() {
 
       if (regResult.status === 201) {
         const userId = regResult.data.user.id;
+        const token = regResult.data.token;
 
         // Try to create order with mismatched price (tampered from client)
         const tamperedPrice = (product.price || 0) - 9999;
@@ -218,7 +220,7 @@ async function runTests() {
             { id: product.id, quantity: 1 }
           ],
           totalAmount: tamperedPrice // Severely underpriced
-        });
+        }, { Authorization: `Bearer ${token}` });
 
         if (orderResult.status === 400 && orderResult.data.error) {
           pass('Order rejected for mismatched total amount');
@@ -255,6 +257,7 @@ async function runTests() {
 
     if (regResult.status === 201) {
       const userId = regResult.data.user.id;
+      const token = regResult.data.token;
 
       // Try order with missing quantity
       const orderResult = await makeRequest('POST', '/api/orders', {
@@ -262,7 +265,7 @@ async function runTests() {
         items: [
           { id: 'PROD001' }  // Missing quantity
         ]
-      });
+      }, { Authorization: `Bearer ${token}` });
 
       if (orderResult.status === 400) {
         pass('Order rejected for missing quantity field');

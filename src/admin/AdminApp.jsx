@@ -8,16 +8,27 @@ import AdminDashboard from './AdminDashboard';
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const AdminApp = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [admin, setAdmin] = useState(null);
+  // Initialize state from localStorage to persist across remounts
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return Boolean(localStorage.getItem('adminToken'));
+  });
+  const [admin, setAdmin] = useState(() => {
+    const saved = localStorage.getItem('adminUser');
+    return saved ? JSON.parse(saved) : null;
+  });
   const [loading, setLoading] = useState(true);
 
-  console.log('🚀 AdminApp component mounted');
+  console.log('🚀 AdminApp component mounted/re-rendered');
+  console.log('📊 Current state:', { isAuthenticated, admin: admin?.email, loading });
   console.log('🌐 API_URL:', API_URL);
 
   useEffect(() => {
-    console.log('🔄 useEffect triggered');
+    console.log('🔄 useEffect triggered - component mounted');
     verifySession();
+
+    return () => {
+      console.log('💀 AdminApp component unmounting');
+    };
   }, []);
 
   const verifySession = async () => {
@@ -40,12 +51,12 @@ const AdminApp = () => {
         if (response.ok) {
           const data = await response.json();
           console.log('✅ Session valid:', data);
-          
+
           // If a new JWT token is provided, store it
           if (data.jwtToken) {
             localStorage.setItem('adminToken', data.jwtToken);
           }
-          
+
           setAdmin(data.admin);
           setIsAuthenticated(true);
         } else {
@@ -63,13 +74,15 @@ const AdminApp = () => {
   };
 
   const handleLogin = (adminData) => {
+    console.log('🎯 handleLogin called with:', adminData);
     setAdmin(adminData);
     setIsAuthenticated(true);
+    console.log('✅ State updated: isAuthenticated = true');
   };
 
   const handleLogout = async () => {
     const token = localStorage.getItem('adminToken');
-    
+
     if (token) {
       try {
         // Call backend logout endpoint
@@ -84,11 +97,11 @@ const AdminApp = () => {
         console.error('Logout error:', err);
       }
     }
-    
+
     // Clear local storage
     localStorage.removeItem('adminToken');
     localStorage.removeItem('adminUser');
-    
+
     // Update state
     setAdmin(null);
     setIsAuthenticated(false);
@@ -96,11 +109,11 @@ const AdminApp = () => {
 
   if (loading) {
     return (
-      <div style={{ 
-        display: 'flex', 
+      <div style={{
+        display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'center', 
-        alignItems: 'center', 
+        justifyContent: 'center',
+        alignItems: 'center',
         height: '100vh',
         gap: '20px'
       }}>

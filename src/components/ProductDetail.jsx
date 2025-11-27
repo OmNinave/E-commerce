@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import apiService from '../services/api';
 import { useCart } from '../context/CartContext';
 import { useCurrency } from '../context/CurrencyContext';
+import { useAuth } from '../context/AuthContext';
 import '../styles/ProductDetail.css';
 
 const ProductDetail = () => {
@@ -15,17 +16,37 @@ const ProductDetail = () => {
   const [product, setProduct] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Reviews state
+  const [reviews, setReviews] = useState([]);
+  const [userRating, setUserRating] = useState(5);
+  const [userComment, setUserComment] = useState('');
+  const [reviewError, setReviewError] = useState(null);
+
   const { addToCart } = useCart();
   const { formatPrice } = useCurrency();
+  const { user } = useAuth();
 
-  // Fetch product from API
+  // Fetch product and reviews
   useEffect(() => {
-    const fetchProduct = async () => {
+    const fetchData = async () => {
       try {
         setIsLoading(true);
         setError(null);
+
+        // Fetch product
         const fetchedProduct = await apiService.getProduct(id);
         setProduct(fetchedProduct);
+
+        // Fetch reviews
+        try {
+          const fetchedReviews = await apiService.getProductReviews(id);
+          setReviews(fetchedReviews || []);
+        } catch (reviewErr) {
+          console.error('Failed to load reviews:', reviewErr);
+          setReviews([]);
+        }
+
       } catch (err) {
         console.error('Failed to load product:', err);
         setError('Product not found');
@@ -35,7 +56,7 @@ const ProductDetail = () => {
     };
 
     if (id) {
-      fetchProduct();
+      fetchData();
     }
   }, [id]);
 
@@ -49,15 +70,14 @@ const ProductDetail = () => {
     }
   }, [product]);
 
-  // Get similar products - fetch all products and filter
+  // Get similar products
   const [similarProducts, setSimilarProducts] = useState([]);
-  
   useEffect(() => {
     if (product) {
       const fetchSimilar = async () => {
         try {
           const allProducts = await apiService.getProducts();
-          const similar = allProducts.filter(p => 
+          const similar = allProducts.filter(p =>
             p.category === product.category && p.id !== product.id
           ).slice(0, 4);
           setSimilarProducts(similar);
@@ -69,14 +89,185 @@ const ProductDetail = () => {
     }
   }, [product]);
 
-  // Mock reviews data
-  const reviews = [
-    { id: 1, author: "Dr. Sarah Johnson", rating: 5, date: "2024-01-15", comment: "Excellent product! Very accurate and reliable for our lab work.", verified: true },
-    { id: 2, author: "Michael Chen", rating: 4, date: "2024-01-10", comment: "Great quality, though a bit pricey. Worth the investment.", verified: true },
-    { id: 3, author: "Emily Rodriguez", rating: 5, date: "2024-01-05", comment: "Outstanding performance. Customer service was also very helpful.", verified: true },
+  const handleSubmitReview = async (e) => {
+    e.preventDefault();
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+
+    try {
+      setReviewError(null);
+      const newReview = await apiService.addProductReview(id, userRating, userComment);
+      setReviews([newReview, ...reviews]);
+      setUserComment('');
+      setUserRating(5);
+      alert('Review submitted successfully!');
+    } catch (err) {
+      setReviewError(err.message || 'Failed to submit review');
+    }
+  };
+
+  const averageRating = reviews.length > 0
+    ? reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length
+    : 0;
+
+  const tabs = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'features', label: 'Features' },
+    { id: 'specifications', label: 'Specifications' },
+    { id: 'applications', label: 'Applications' },
+    { id: 'operation', label: 'Operation' },
+    { id: 'advantages', label: 'Advantages' },
+    { id: 'considerations', label: 'Considerations' },
+    { id: 'compliance', label: 'Compliance' },
   ];
 
-  const averageRating = reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length;
+  const handleDownloadSpecs = () => {
+    alert("Demo Mode: Datasheet download simulation.\n\nIn a real application, this would download the PDF specification sheet.");
+  };
+
+  const handleAddToCart = () => {
+    addToCart(product, quantity);
+  };
+
+  const handleBuyNow = () => {
+    addToCart(product, quantity);
+    navigate('/cart');
+  };
+
+  const handleAddToWishlist = async () => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    try {
+      await apiService.addToWishlist(user.id, product.id);
+      alert('Added to wishlist!');
+    } catch (err) {
+      alert('Failed to add to wishlist: ' + err.message);
+    }
+  };
+
+  const renderStars = (rating) => {
+    return Array.from({ length: 5 }, (_, i) => (
+      <span key={i} className={`star ${i < rating ? 'filled' : ''}`}>★</span>
+    ));
+  };
+
+  const renderTabContent = () => {
+    if (!product) return null;
+
+    switch (activeTab) {
+      case 'overview':
+        return (
+          <div className="tab-content">
+            <h2>Product Overview</h2>
+            <p className="overview-text">{product.overview}</p>
+          </div>
+        );
+
+      case 'features':
+        return (
+          <div className="tab-content">
+            <h2>Technical Capabilities & Features</h2>
+            <ul className="features-list">
+              {product.features && product.features.map((feature, index) => (
+                <li key={index} className="feature-item">
+                  <span className="feature-bullet">✓</span>
+                  {feature}
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+
+      case 'specifications':
+        return (
+          <div className="tab-content">
+            <h2>Physical Specifications</h2>
+            <div className="specifications-grid">
+              {product.specifications && Object.entries(product.specifications).map(([key, value]) => (
+                <div key={key} className="spec-item">
+                  <dt className="spec-label">
+                    {key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())}
+                  </dt>
+                  <dd className="spec-value">{value}</dd>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+
+      case 'applications':
+        return (
+          <div className="tab-content">
+            <h2>Applications & Use Cases</h2>
+            <div className="applications-grid">
+              {product.applications && product.applications.map((application, index) => (
+                <div key={index} className="application-card">
+                  <span className="application-icon">🔬</span>
+                  <p>{application}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+
+      case 'operation':
+        return (
+          <div className="tab-content">
+            <h2>Ease of Operation & Maintenance</h2>
+            <p className="operation-text">{product.operation}</p>
+          </div>
+        );
+
+      case 'advantages':
+        return (
+          <div className="tab-content">
+            <h2>Key Advantages</h2>
+            <ul className="advantages-list">
+              {product.advantages && product.advantages.map((advantage, index) => (
+                <li key={index} className="advantage-item">
+                  <span className="advantage-icon">✨</span>
+                  {advantage}
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+
+      case 'considerations':
+        return (
+          <div className="tab-content">
+            <h2>Important Considerations</h2>
+            <ul className="considerations-list">
+              {product.considerations && product.considerations.map((consideration, index) => (
+                <li key={index} className="consideration-item">
+                  <span className="consideration-icon">⚠️</span>
+                  {consideration}
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+
+      case 'compliance':
+        return (
+          <div className="tab-content">
+            <h2>Quality & Compliance</h2>
+            <p className="compliance-text">{product.compliance}</p>
+            <div className="commitment-section">
+              <h3>Our Commitment</h3>
+              <p className="commitment-text">{product.commitment}</p>
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
 
   if (isLoading) {
     return (
@@ -111,144 +302,6 @@ const ProductDetail = () => {
     );
   }
 
-  const tabs = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'features', label: 'Features' },
-    { id: 'specifications', label: 'Specifications' },
-    { id: 'applications', label: 'Applications' },
-    { id: 'operation', label: 'Operation' },
-    { id: 'advantages', label: 'Advantages' },
-    { id: 'considerations', label: 'Considerations' },
-    { id: 'compliance', label: 'Compliance' },
-  ];
-
-  const handleAddToCart = () => {
-    addToCart(product, quantity);
-  };
-
-  const handleBuyNow = () => {
-    addToCart(product, quantity);
-    navigate('/cart');
-  };
-
-  const renderStars = (rating) => {
-    return Array.from({ length: 5 }, (_, i) => (
-      <span key={i} className={`star ${i < rating ? 'filled' : ''}`}>★</span>
-    ));
-  };
-
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'overview':
-        return (
-          <div className="tab-content">
-            <h2>Product Overview</h2>
-            <p className="overview-text">{product.overview}</p>
-          </div>
-        );
-
-      case 'features':
-        return (
-          <div className="tab-content">
-            <h2>Technical Capabilities & Features</h2>
-            <ul className="features-list">
-              {product.features.map((feature, index) => (
-                <li key={index} className="feature-item">
-                  <span className="feature-bullet">✓</span>
-                  {feature}
-                </li>
-              ))}
-            </ul>
-          </div>
-        );
-
-      case 'specifications':
-        return (
-          <div className="tab-content">
-            <h2>Physical Specifications</h2>
-            <div className="specifications-grid">
-              {Object.entries(product.specifications).map(([key, value]) => (
-                <div key={key} className="spec-item">
-                  <dt className="spec-label">
-                    {key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())}
-                  </dt>
-                  <dd className="spec-value">{value}</dd>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-
-      case 'applications':
-        return (
-          <div className="tab-content">
-            <h2>Applications & Use Cases</h2>
-            <div className="applications-grid">
-              {product.applications.map((application, index) => (
-                <div key={index} className="application-card">
-                  <span className="application-icon">🔬</span>
-                  <p>{application}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-
-      case 'operation':
-        return (
-          <div className="tab-content">
-            <h2>Ease of Operation & Maintenance</h2>
-            <p className="operation-text">{product.operation}</p>
-          </div>
-        );
-
-      case 'advantages':
-        return (
-          <div className="tab-content">
-            <h2>Key Advantages</h2>
-            <ul className="advantages-list">
-              {product.advantages.map((advantage, index) => (
-                <li key={index} className="advantage-item">
-                  <span className="advantage-icon">✨</span>
-                  {advantage}
-                </li>
-              ))}
-            </ul>
-          </div>
-        );
-
-      case 'considerations':
-        return (
-          <div className="tab-content">
-            <h2>Important Considerations</h2>
-            <ul className="considerations-list">
-              {product.considerations.map((consideration, index) => (
-                <li key={index} className="consideration-item">
-                  <span className="consideration-icon">⚠️</span>
-                  {consideration}
-                </li>
-              ))}
-            </ul>
-          </div>
-        );
-
-      case 'compliance':
-        return (
-          <div className="tab-content">
-            <h2>Quality & Compliance</h2>
-            <p className="compliance-text">{product.compliance}</p>
-            <div className="commitment-section">
-              <h3>Our Commitment</h3>
-              <p className="commitment-text">{product.commitment}</p>
-            </div>
-          </div>
-        );
-
-      default:
-        return null;
-    }
-  };
-
   return (
     <div className="product-detail-page">
       <div className="breadcrumb">
@@ -270,8 +323,8 @@ const ProductDetail = () => {
       <div className="product-detail-header">
         <div className="product-image-section">
           <div className="main-image-container">
-            <img 
-              src={product.image} 
+            <img
+              src={product.image}
               alt={product.name}
               className="product-detail-image"
               onClick={() => setShowImageZoom(!showImageZoom)}
@@ -285,11 +338,11 @@ const ProductDetail = () => {
               <span className="badge-text">Premium Quality</span>
             </div>
           </div>
-          
+
           {/* Image thumbnails (mock - using same image) */}
           <div className="image-thumbnails">
             {[0, 1, 2, 3].map((index) => (
-              <div 
+              <div
                 key={index}
                 className={`thumbnail ${selectedImage === index ? 'active' : ''}`}
                 onClick={() => setSelectedImage(index)}
@@ -303,7 +356,7 @@ const ProductDetail = () => {
         <div className="product-info-section">
           <div className="product-category-badge">{product.category}</div>
           <h1 className="product-detail-name">{product.name}</h1>
-          
+
           {/* Rating Section */}
           <div className="rating-section">
             <div className="stars-container">
@@ -333,7 +386,7 @@ const ProductDetail = () => {
               </div>
               {product.originalPrice !== undefined && product.originalPrice !== null && (
                 <p className="detail-savings-text">
-                  You save: {formatPrice(product.originalPrice - product.price)} 
+                  You save: {formatPrice(product.originalPrice - product.price)}
                   ({Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% discount)
                 </p>
               )}
@@ -361,23 +414,23 @@ const ProductDetail = () => {
           <div className="quantity-section">
             <label htmlFor="quantity">Quantity:</label>
             <div className="quantity-controls">
-              <button 
-                className="qty-btn" 
+              <button
+                className="qty-btn"
                 onClick={() => setQuantity(Math.max(1, quantity - 1))}
                 aria-label="Decrease quantity"
               >
                 -
               </button>
-              <input 
+              <input
                 id="quantity"
-                type="number" 
-                value={quantity} 
+                type="number"
+                value={quantity}
                 onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
                 min="1"
                 className="qty-input"
               />
-              <button 
-                className="qty-btn" 
+              <button
+                className="qty-btn"
                 onClick={() => setQuantity(quantity + 1)}
                 aria-label="Increase quantity"
               >
@@ -392,6 +445,12 @@ const ProductDetail = () => {
             </button>
             <button onClick={handleBuyNow} className="buy-now-button-detail">
               ⚡ Buy Now
+            </button>
+            <button onClick={handleAddToWishlist} className="wishlist-button-detail" style={{ marginLeft: '10px', padding: '10px', background: 'none', border: '1px solid #ccc', borderRadius: '5px', cursor: 'pointer' }}>
+              ❤️ Add to Wishlist
+            </button>
+            <button onClick={handleDownloadSpecs} className="download-specs-button" style={{ marginLeft: '10px', padding: '10px', background: '#f0f0f0', border: '1px solid #ccc', borderRadius: '5px', cursor: 'pointer' }}>
+              📄 Download Specs
             </button>
           </div>
 
@@ -478,31 +537,74 @@ const ProductDetail = () => {
               <span className="total-reviews">{reviews.length} reviews</span>
             </div>
           </div>
+
+          <div className="write-review-section">
+            <h3>Write a Review</h3>
+            {user ? (
+              <form onSubmit={handleSubmitReview} className="review-form">
+                <div className="rating-input">
+                  <label>Rating:</label>
+                  <div className="star-rating-input">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <span
+                        key={star}
+                        className={`star ${star <= userRating ? 'filled' : ''}`}
+                        onClick={() => setUserRating(star)}
+                        style={{ cursor: 'pointer', fontSize: '24px' }}
+                      >
+                        ★
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="comment-input">
+                  <label>Comment:</label>
+                  <textarea
+                    value={userComment}
+                    onChange={(e) => setUserComment(e.target.value)}
+                    required
+                    placeholder="Share your experience with this product..."
+                    rows="4"
+                    style={{ width: '100%', padding: '10px', marginTop: '5px' }}
+                  />
+                </div>
+                {reviewError && <p className="error-message">{reviewError}</p>}
+                <button type="submit" className="submit-review-btn" style={{ marginTop: '10px', padding: '8px 16px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+                  Submit Review
+                </button>
+              </form>
+            ) : (
+              <div className="login-prompt">
+                <p>Please <Link to="/login">login</Link> to write a review.</p>
+              </div>
+            )}
+          </div>
+
           <div className="reviews-list">
-            {reviews.map((review) => (
-              <div key={review.id} className="review-card">
-                <div className="review-header">
-                  <div className="reviewer-info">
-                    <div className="reviewer-avatar">{review.author.charAt(0)}</div>
-                    <div>
-                      <h4 className="reviewer-name">{review.author}</h4>
-                      {review.verified && (
-                        <span className="verified-badge">✓ Verified Purchase</span>
-                      )}
+            {reviews.length > 0 ? (
+              reviews.map((review) => (
+                <div key={review.id} className="review-card">
+                  <div className="review-header">
+                    <div className="reviewer-info">
+                      <div className="reviewer-avatar">{review.author.charAt(0)}</div>
+                      <div>
+                        <h4 className="reviewer-name">{review.author}</h4>
+                        {review.verified && (
+                          <span className="verified-badge">✓ Verified Purchase</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="review-rating">
+                      {renderStars(review.rating)}
                     </div>
                   </div>
-                  <div className="review-rating">
-                    {renderStars(review.rating)}
-                  </div>
+                  <p className="review-date">{new Date(review.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                  <p className="review-comment">{review.comment}</p>
                 </div>
-                <p className="review-date">{new Date(review.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                <p className="review-comment">{review.comment}</p>
-                <div className="review-actions">
-                  <button className="review-action-btn">👍 Helpful (12)</button>
-                  <button className="review-action-btn">Report</button>
-                </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="no-reviews">No reviews yet. Be the first to review this product!</p>
+            )}
           </div>
         </div>
       </div>
@@ -513,8 +615,8 @@ const ProductDetail = () => {
           <h2 className="section-title">Similar Products You May Like</h2>
           <div className="similar-products-grid">
             {similarProducts.map((similarProduct) => (
-              <div 
-                key={similarProduct.id} 
+              <div
+                key={similarProduct.id}
                 className="similar-product-card"
                 onClick={() => navigate(`/products/${similarProduct.id}`)}
               >

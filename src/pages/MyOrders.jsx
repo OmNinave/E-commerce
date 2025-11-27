@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { AuthContext } from '../context/AuthContext';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import '../styles/MyOrders.css';
 
 export default function MyOrders() {
-  const { user } = useContext(AuthContext);
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -25,10 +25,14 @@ export default function MyOrders() {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`/api/users/${user.id}/orders`, {
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+
+      const response = await fetch(`${API_URL}/api/orders`, {
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
         }
       });
 
@@ -211,6 +215,8 @@ export default function MyOrders() {
                   <p>{selectedOrder.shippingAddress.country}</p>
                 </div>
               )}
+
+              <OrderProgressBar status={selectedOrder.status} createdAt={selectedOrder.createdAt} />
             </div>
           </div>
         </div>
@@ -218,3 +224,52 @@ export default function MyOrders() {
     </div>
   );
 }
+
+const OrderProgressBar = ({ status, createdAt }) => {
+  const steps = [
+    { id: 'pending', label: 'Order Placed', icon: '📝' },
+    { id: 'processing', label: 'Processing', icon: '⚙️' },
+    { id: 'shipped', label: 'Shipped', icon: '🚚' },
+    { id: 'delivered', label: 'Delivered', icon: '✅' }
+  ];
+
+  const getCurrentStepIndex = () => {
+    if (status === 'cancelled') return -1;
+    return steps.findIndex(step => step.id === status);
+  };
+
+  const currentStepIndex = getCurrentStepIndex();
+
+  if (status === 'cancelled') {
+    return (
+      <div className="order-progress-container">
+        <div className="error-message" style={{ textAlign: 'center', margin: 0 }}>
+          ❌ This order has been cancelled.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="order-progress-container">
+      <h3>Order Status</h3>
+      <div className="progress-track">
+        {steps.map((step, index) => {
+          const isCompleted = index <= currentStepIndex;
+          const isActive = index === currentStepIndex;
+
+          return (
+            <div
+              key={step.id}
+              className={`progress-step ${isCompleted ? 'completed' : ''} ${isActive ? 'active' : ''}`}
+            >
+              <div className="step-icon">{step.icon}</div>
+              <div className="step-label">{step.label}</div>
+              {index === 0 && <span className="step-date">{new Date(createdAt).toLocaleDateString()}</span>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};

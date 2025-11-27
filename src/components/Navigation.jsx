@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { useAuth } from '../context/AuthContext';
@@ -9,9 +9,27 @@ const Navigation = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const { getCartTotal } = useCart();
   const { currency, setCurrency, getAvailableCurrencies } = useCurrency();
   const { user, isAuthenticated, logout } = useAuth();
+  const quickActions = [
+    { label: 'Profile', icon: '👤', path: '/profile', auth: true },
+    { label: 'Orders', icon: '📦', path: '/orders', auth: true },
+    { label: 'Wishlist', icon: '❤️', path: '/wishlist', auth: true },
+    { label: 'Settings', icon: '⚙️', path: '/settings', auth: true },
+    { label: 'Support', icon: '🛟', path: '/notifications', auth: true }
+  ];
+
+  const handleQuickAction = (action) => {
+    setIsProfileOpen(false);
+    closeMenu();
+    if (action.auth && !isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    navigate(action.path);
+  };
   const profileRef = useRef(null);
 
   const toggleMenu = () => {
@@ -73,6 +91,20 @@ const Navigation = () => {
         </button>
 
         <ul className={`nav-menu ${isMenuOpen ? 'open' : ''}`}>
+          <li className="nav-quick-actions">
+            {quickActions.map((action) => (
+              <button
+                key={action.label}
+                type="button"
+                className="quick-action-button"
+                onClick={() => handleQuickAction(action)}
+                aria-label={action.label}
+              >
+                <span className="quick-action-icon">{action.icon}</span>
+                <span className="quick-action-label">{action.label}</span>
+              </button>
+            ))}
+          </li>
           <li>
             <Link
               to="/"

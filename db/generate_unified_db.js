@@ -13,7 +13,7 @@ const path = require('path');
 // ============================================
 
 const unifiedDbPath = path.join(__dirname, 'unified_database.json');
-const productsFilePath = path.join(__dirname, '../src/data/products.js');
+const productsFilePath = path.join(__dirname, 'backup_old_databases/products.js');
 
 // Load existing database if it exists
 function loadExistingDb() {
