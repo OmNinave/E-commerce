@@ -1,17 +1,23 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ShoppingBag, Trash2, ArrowRight, Minus, Plus, AlertCircle, CheckCircle2, ShieldCheck, Truck, CreditCard } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { useAuth } from '../context/AuthContext';
 import apiService from '../services/api';
+import { Button } from './ui/button';
+import { Card } from './ui/card';
+import { getProductImage } from '../utils/imageUtils';
 import '../styles/Cart.css';
+import '../styles/CartFixes.css';
 
 const Cart = () => {
-  const { 
-    cartItems, 
-    removeFromCart, 
-    updateQuantity, 
-    clearCart, 
+  const {
+    cartItems,
+    removeFromCart,
+    updateQuantity,
+    clearCart,
     getCartTotal,
     getCartSubtotal,
     getCartOriginalTotal,
@@ -31,16 +37,14 @@ const Cart = () => {
   };
 
   const handleCheckout = async () => {
-    // Check if user is logged in
     if (!isAuthenticated || !user) {
       navigate('/login');
       return;
     }
 
-    // Validate all items have valid prices
-    const invalidItems = cartItems.filter(item => 
-      item.price === undefined || 
-      item.price === null || 
+    const invalidItems = cartItems.filter(item =>
+      item.price === undefined ||
+      item.price === null ||
       item.price <= 0 ||
       isNaN(item.price)
     );
@@ -50,7 +54,6 @@ const Cart = () => {
       return;
     }
 
-    // Validate cart is not empty
     if (cartItems.length === 0) {
       setOrderMessage('Error: Your cart is empty.');
       return;
@@ -60,44 +63,54 @@ const Cart = () => {
     setOrderMessage('');
 
     try {
-      // Prepare order data
       const orderData = {
         userId: user.id,
-        // Only send product id and quantity to server. Server will use authoritative prices.
         items: cartItems.map(item => ({
-          id: item.id,
+          productId: item.id,
           quantity: item.quantity,
-          // Include client price for validation purposes only
-          clientPrice: item.price
+          price: item.price
         })),
-        totalAmount: getCartSubtotal()
+        totalAmount: getCartSubtotal(),
+        shippingMethod: 'standard',
+        shippingAddress: {
+          fullName: user.fullName || user.email || 'Guest',
+          addressLine1: 'To be updated',
+          city: 'Mumbai',
+          state: 'Maharashtra',
+          pincode: '400001',
+          phone: '9999999999'
+        }
       };
 
-      // Create order in backend database
       const response = await apiService.createOrder(orderData);
-      // Normalize response to get the order object
-      const order = response && response.order ? response.order : response.data && response.data.order ? response.data.order : response;
+      console.log('Order creation response:', response);
 
-      // If server returned a validation error or message, prefer that
-      if (!order || !order.orderId) {
-        const serverMessage = response && response.message ? response.message : null;
-        throw new Error(serverMessage || 'Failed to create order.');
+      // Backend returns { success: true, order_id: 123, message: "..." }
+      if (!response || !response.success || !response.order_id) {
+        const serverMessage = response?.message || 'Failed to create order.';
+        throw new Error(serverMessage);
       }
 
-      // Clear cart after successful order
       clearCart();
-      
-      // Show success message and server-computed total if provided
-      const totalMsg = order.totalAmount ? ` Total: ${formatPrice(order.totalAmount)}` : '';
-      setOrderMessage(`Order ${order.orderId} created successfully!${totalMsg}`);
-      
-      // Navigate to checkout confirmation
+      setOrderMessage(`Order #${response.order_id} created successfully!`);
+
       setTimeout(() => {
-        navigate('/checkout', { state: { order } });
+        navigate('/orders');
       }, 1500);
     } catch (error) {
       console.error('Failed to create order:', error);
-      setOrderMessage(error.message || 'Failed to create order. Please try again.');
+
+      if (error.message && (error.message.includes('Invalid token') || error.message.includes('Unauthorized') || error.message.includes('jwt expired'))) {
+        setOrderMessage('Your session has expired. Please log in again.');
+        localStorage.removeItem('token');
+        localStorage.removeItem('prolab_auth_current_user');
+
+        setTimeout(() => {
+          navigate('/login', { state: { from: '/cart', message: 'Session expired. Please login again.' } });
+        }, 2000);
+      } else {
+        setOrderMessage(error.message || 'Failed to create order. Please try again.');
+      }
     } finally {
       setIsCreatingOrder(false);
     }
@@ -105,193 +118,235 @@ const Cart = () => {
 
   if (cartItems.length === 0) {
     return (
-      <div className="cart-page">
-        <div className="cart-empty">
-          <div className="empty-cart-icon">🛒</div>
-          <h1>Your Cart is Empty</h1>
-          <p>Add some products to your cart to get started!</p>
-          <Link to="/products" className="continue-shopping-button">
-            Browse Products
-          </Link>
-        </div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center max-w-md"
+        >
+          <div className="w-24 h-24 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <ShoppingBag className="w-12 h-12 text-indigo-600" />
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">Your Cart is Empty</h1>
+          <p className="text-gray-500 mb-8 text-lg">Looks like you haven't added anything to your cart yet.</p>
+          <Button
+            onClick={() => navigate('/products')}
+            className="rounded-full h-12 px-8 text-lg bg-indigo-600 hover:bg-indigo-700 hover-lift"
+          >
+            Start Shopping
+          </Button>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="cart-page">
-      <div className="cart-header">
-        <h1 className="cart-title">Shopping Cart</h1>
-        <p className="cart-subtitle">
-          {getCartTotal()} {getCartTotal() === 1 ? 'item' : 'items'} in your cart
-        </p>
-      </div>
+    <div className="min-h-screen bg-gray-50 py-12 lg:py-20 font-sans">
+      <div className="container mx-auto px-4 max-w-7xl">
 
-      <div className="cart-content">
-        <div className="cart-items-section">
-          <div className="cart-items-header">
-            <span className="header-product">Product</span>
-            <span className="header-price">Price</span>
-            <span className="header-quantity">Quantity</span>
-            <span className="header-total">Total</span>
-            <span className="header-actions">Actions</span>
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex justify-between items-end mb-8"
+        >
+          <div>
+            <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">Shopping Cart</h1>
+            <p className="text-gray-500">
+              You have <span className="font-semibold text-indigo-600">{getCartTotal()} items</span> in your cart
+            </p>
           </div>
+          <Button
+            variant="outline"
+            onClick={clearCart}
+            className="hidden sm:flex text-red-500 hover:text-red-600 hover:bg-red-50 border-red-200"
+          >
+            <Trash2 className="w-4 h-4 mr-2" /> Clear Cart
+          </Button>
+        </motion.div>
 
-          <div className="cart-items-list">
-            {cartItems.map((item) => (
-              <div key={item.id} className="cart-item">
-                <div className="cart-item-image">
-                  <img src={item.image} alt={item.name} />
-                </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
 
-                <div className="cart-item-details">
-                  <h3 className="cart-item-name">{item.name}</h3>
-                  <p className="cart-item-model">Model: {item.model}</p>
-                  <p className="cart-item-id">Product ID: {item.productId}</p>
-                  <Link 
-                    to={`/products/${item.id}`} 
-                    className="cart-item-view-link"
-                  >
-                    View Details →
-                  </Link>
-                </div>
+          {/* Left: Cart Items */}
+          <div className="lg:col-span-2 space-y-6">
+            <AnimatePresence>
+              {cartItems.map((item, index) => (
+                <motion.div
+                  key={item.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, x: -100 }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <Card className="border-none shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden group">
+                    <div className="p-6 flex flex-row gap-6 items-start">
 
-                <div className="cart-item-price">
-                  {item && item.price !== undefined && item.price !== null ? (
-                    <>
-                      <div className="cart-price-current">{formatPrice(item.price)}</div>
-                      {item.originalPrice !== undefined && item.originalPrice !== null && item.originalPrice > item.price && (
-                        <div className="cart-price-original">{formatPrice(item.originalPrice)}</div>
-                      )}
-                    </>
-                  ) : (
-                    <div className="cart-price-error">Price unavailable</div>
-                  )}
-                </div>
+                      {/* Image */}
+                      <div className="w-32 h-32 bg-gray-100 rounded-xl overflow-hidden flex-shrink-0">
+                        <img
+                          src={getProductImage(item)}
+                          alt={item.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                      </div>
 
-                <div className="cart-item-quantity">
-                  <button
-                    className="quantity-button"
-                    onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                    aria-label="Decrease quantity"
-                  >
-                    −
-                  </button>
-                  <input
-                    type="number"
-                    min="1"
-                    value={item.quantity}
-                    onChange={(e) => handleQuantityChange(item.id, e.target.value)}
-                    className="quantity-input"
-                    aria-label="Quantity"
-                  />
-                  <button
-                    className="quantity-button"
-                    onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                    aria-label="Increase quantity"
-                  >
-                    +
-                  </button>
-                </div>
+                      {/* Details */}
+                      <div className="flex-1 text-left w-full">
+                        <div className="flex flex-col sm:flex-row justify-between mb-2">
+                          <h3 className="text-lg font-bold text-gray-900 mb-1 sm:mb-0">{item.name}</h3>
+                          <div className="text-lg font-bold text-indigo-600">
+                            {item.price ? formatPrice(item.price * item.quantity) : '-'}
+                          </div>
+                        </div>
 
-                <div className="cart-item-total">
-                  {item && item.price !== undefined && item.price !== null ? (
-                    <div className="cart-total-price">
-                      {formatPrice(item.price * item.quantity)}
+                        <p className="text-sm text-gray-500 mb-1">Model: {item.model}</p>
+                        {item.originalPrice > item.price && (
+                          <div className="text-xs text-green-600 font-medium mb-4">
+                            Saved {formatPrice((item.originalPrice - item.price) * item.quantity)}
+                          </div>
+                        )}
+
+                        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-4">
+                          {/* Quantity Controls */}
+                          <div className="flex items-center bg-gray-50 rounded-full p-1 border border-gray-200">
+                            <button
+                              onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white hover:shadow-sm transition-all text-gray-600"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <span className="w-12 text-center font-medium text-gray-900">{item.quantity}</span>
+                            <button
+                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white hover:shadow-sm transition-all text-gray-600"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex items-center gap-3">
+                            <Link
+                              to={`/products/${item.id}`}
+                              className="text-sm text-gray-500 hover:text-indigo-600 transition-colors"
+                            >
+                              View Details
+                            </Link>
+                            <div className="h-4 w-px bg-gray-200"></div>
+                            <button
+                              onClick={() => removeFromCart(item.id)}
+                              className="text-sm text-red-500 hover:text-red-600 transition-colors flex items-center"
+                            >
+                              <Trash2 className="w-3 h-3 mr-1" /> Remove
+                            </button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  ) : (
-                    <div className="cart-total-error">-</div>
-                  )}
-                </div>
+                  </Card>
+                </motion.div>
+              ))}
+            </AnimatePresence>
 
-                <div className="cart-item-actions">
-                  <button
-                    className="remove-button"
-                    onClick={() => removeFromCart(item.id)}
-                    aria-label={`Remove ${item.name} from cart`}
-                  >
-                    🗑️ Remove
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="cart-actions">
-            <button onClick={clearCart} className="clear-cart-button">
-              Clear Cart
-            </button>
-            <Link to="/products" className="continue-shopping-link">
-              ← Continue Shopping
-            </Link>
-          </div>
-        </div>
-
-        <div className="cart-summary-section">
-          <div className="cart-summary">
-            <h2 className="summary-title">Order Summary</h2>
-            
-            <div className="summary-details">
-              <div className="summary-row">
-                <span>Total Items:</span>
-                <span className="summary-value">{getCartTotal()}</span>
-              </div>
-              <div className="summary-row">
-                <span>Products:</span>
-                <span className="summary-value">{cartItems.length}</span>
-              </div>
-              {getCartOriginalTotal() > 0 && (
-                <>
-                  <div className="summary-row">
-                    <span>Original Total:</span>
-                    <span className="summary-value summary-original">{formatPrice(getCartOriginalTotal())}</span>
-                  </div>
-                  {getTotalSavings() > 0 && (
-                    <div className="summary-row summary-savings">
-                      <span>You Save:</span>
-                      <span className="summary-value">-{formatPrice(getTotalSavings())}</span>
-                    </div>
-                  )}
-                  <div className="summary-row summary-total">
-                    <span>Subtotal:</span>
-                    <span className="summary-value">{formatPrice(getCartSubtotal())}</span>
-                  </div>
-                </>
-              )}
+            <div className="flex justify-between items-center pt-4">
+              <Link to="/products" className="text-indigo-600 hover:text-indigo-700 font-medium flex items-center">
+                <ArrowRight className="w-4 h-4 mr-2 rotate-180" /> Continue Shopping
+              </Link>
+              <Button
+                variant="ghost"
+                onClick={clearCart}
+                className="sm:hidden text-red-500"
+              >
+                Clear Cart
+              </Button>
             </div>
+          </div>
 
-            {orderMessage && (
-              <div className={`order-message ${orderMessage.includes('successfully') ? 'success' : 'error'}`}>
-                {orderMessage}
-              </div>
-            )}
-            <button 
-              onClick={handleCheckout} 
-              className="checkout-button"
-              disabled={isCreatingOrder || !isAuthenticated}
+          {/* Right: Summary */}
+          <div className="lg:col-span-1">
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="sticky top-24"
             >
-              {isCreatingOrder ? 'Creating Order...' : isAuthenticated ? 'Proceed to Checkout' : 'Login to Checkout'}
-            </button>
-            {!isAuthenticated && (
-              <p style={{ fontSize: '14px', color: '#666', marginTop: '10px', textAlign: 'center' }}>
-                Please <Link to="/login" style={{ color: '#667eea' }}>login</Link> to create an order
-              </p>
-            )}
+              <Card className="border-none shadow-xl shadow-indigo-100/50 overflow-hidden">
+                <div className="p-6 bg-white">
+                  <h2 className="text-xl font-bold text-gray-900 mb-6">Order Summary</h2>
 
-            <div className="summary-info">
-              <div className="info-item">
-                <span className="info-icon">📧</span>
-                <span>Email quote request</span>
-              </div>
-              <div className="info-item">
-                <span className="info-icon">🚚</span>
-                <span>2-4 weeks delivery</span>
-              </div>
-              <div className="info-item">
-                <span className="info-icon">🛡️</span>
-                <span>3-year warranty</span>
-              </div>
-            </div>
+                  <div className="space-y-4 mb-6">
+                    <div className="flex justify-between text-gray-600">
+                      <span>Subtotal ({getCartTotal()} items)</span>
+                      <span className="font-medium text-gray-900">{formatPrice(getCartSubtotal())}</span>
+                    </div>
+
+                    {getCartOriginalTotal() > 0 && getTotalSavings() > 0 && (
+                      <div className="flex justify-between text-green-600 text-sm">
+                        <span>Total Savings</span>
+                        <span className="font-medium">-{formatPrice(getTotalSavings())}</span>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between text-gray-600">
+                      <span>Shipping</span>
+                      <span className="text-green-600 font-medium">Free</span>
+                    </div>
+
+                    <div className="h-px bg-gray-100 my-4"></div>
+
+                    <div className="flex justify-between items-end">
+                      <span className="text-lg font-bold text-gray-900">Total</span>
+                      <div className="text-right">
+                        <span className="text-2xl font-bold text-indigo-600 block leading-none">
+                          {formatPrice(getCartSubtotal())}
+                        </span>
+                        <span className="text-xs text-gray-400 mt-1 block">Including VAT</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {orderMessage && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className={`p-3 rounded-lg flex items-start gap-2 text-sm mb-4 ${orderMessage.includes('successfully') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}
+                    >
+                      {orderMessage.includes('successfully') ? <CheckCircle2 className="w-4 h-4 mt-0.5" /> : <AlertCircle className="w-4 h-4 mt-0.5" />}
+                      {orderMessage}
+                    </motion.div>
+                  )}
+
+                  <Button
+                    onClick={handleCheckout}
+                    disabled={isCreatingOrder}
+                    className="w-full h-12 text-lg bg-gray-900 hover:bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-200/50 hover-lift transition-all"
+                  >
+                    {isCreatingOrder ? 'Processing...' : 'Proceed to Checkout'}
+                    {!isCreatingOrder && <ArrowRight className="w-5 h-5 ml-2" />}
+                  </Button>
+
+                  {!isAuthenticated && (
+                    <p className="text-xs text-center text-gray-500 mt-4">
+                      Please <Link to="/login" className="text-indigo-600 hover:underline">login</Link> to complete your purchase
+                    </p>
+                  )}
+                </div>
+
+                <div className="bg-gray-50 p-4 space-y-3">
+                  <div className="flex items-center gap-3 text-sm text-gray-600">
+                    <ShieldCheck className="w-4 h-4 text-indigo-500" />
+                    <span>Secure Checkout</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm text-gray-600">
+                    <Truck className="w-4 h-4 text-indigo-500" />
+                    <span>Free Shipping on all orders</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm text-gray-600">
+                    <CreditCard className="w-4 h-4 text-indigo-500" />
+                    <span>All major cards accepted</span>
+                  </div>
+                </div>
+              </Card>
+            </motion.div>
           </div>
         </div>
       </div>

@@ -1,10 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Package, Calendar, ChevronRight, X, Clock, CheckCircle2, Truck, AlertCircle } from 'lucide-react';
+import PageLayout from '../components/PageLayout';
+import { Button } from '../components/ui/button';
+import { Badge } from '../components/ui/badge';
+import { Card } from '../components/ui/card';
 import '../styles/MyOrders.css';
 
 export default function MyOrders() {
-  const { user } = useAuth();
+  const { user, isInitializing } = useAuth();
   const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -12,19 +18,18 @@ export default function MyOrders() {
   const [selectedOrder, setSelectedOrder] = useState(null);
 
   useEffect(() => {
+    if (isInitializing) return;
     if (!user) {
       navigate('/login');
       return;
     }
-
     fetchOrders();
-  }, [user]);
+  }, [user, isInitializing, navigate]);
 
   const fetchOrders = async () => {
     try {
       setLoading(true);
       setError(null);
-
       const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
       const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
 
@@ -36,240 +41,306 @@ export default function MyOrders() {
         }
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch orders');
-      }
-
+      if (!response.ok) throw new Error('Failed to fetch orders');
       const data = await response.json();
       setOrders(data.orders || []);
     } catch (err) {
       setError(err.message);
-      console.error('Fetch orders error:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleViewDetails = (orderId) => {
-    const order = orders.find(o => o.id === orderId);
-    setSelectedOrder(order);
-  };
-
-  const handleCloseDetails = () => {
-    setSelectedOrder(null);
-  };
-
   const handleCancelOrder = async (orderId) => {
     if (!window.confirm('Are you sure you want to cancel this order?')) return;
-
     try {
-      const response = await fetch(`/api/orders/${orderId}/status`, {
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+
+      // FIX: Use the correct user cancel endpoint
+      const response = await fetch(`${API_URL}/api/orders/${orderId}/cancel`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ status: 'cancelled' })
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
       });
 
       if (!response.ok) {
-        throw new Error('Failed to cancel order');
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to cancel order');
       }
 
-      // Refresh orders
       await fetchOrders();
       setSelectedOrder(null);
+      alert('Order cancelled successfully');
     } catch (err) {
       alert('Error cancelling order: ' + err.message);
     }
   };
 
-  const getStatusBadgeColor = (status) => {
-    const colors = {
-      pending: '#ffc107',
-      confirmed: '#17a2b8',
-      processing: '#007bff',
-      shipped: '#20c997',
-      delivered: '#28a745',
-      cancelled: '#dc3545'
-    };
-    return colors[status] || '#6c757d';
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'delivered': return 'bg-green-100 text-green-700 border-green-200';
+      case 'shipped': return 'bg-blue-100 text-blue-700 border-blue-200';
+      case 'processing': return 'bg-indigo-100 text-indigo-700 border-indigo-200';
+      case 'cancelled': return 'bg-red-100 text-red-700 border-red-200';
+      default: return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+    }
   };
 
-  if (!user) {
-    return <div className="my-orders-container">Please log in to view your orders</div>;
-  }
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'delivered': return <CheckCircle2 className="w-4 h-4 mr-1" />;
+      case 'shipped': return <Truck className="w-4 h-4 mr-1" />;
+      case 'cancelled': return <AlertCircle className="w-4 h-4 mr-1" />;
+      default: return <Clock className="w-4 h-4 mr-1" />;
+    }
+  };
+
+  if (!user) return null;
 
   return (
-    <div className="my-orders-container">
-      <h1>My Orders</h1>
-
-      {loading && <div className="loading">Loading orders...</div>}
-      {error && <div className="error-message">{error}</div>}
-
-      {!loading && orders.length === 0 && (
-        <div className="empty-state">
-          <p>You haven't placed any orders yet.</p>
-          <button className="btn-primary" onClick={() => navigate('/products')}>
-            Continue Shopping
-          </button>
+    <div className="min-h-screen bg-gray-50 pb-12">
+      {/* Improved Header */}
+      <div className="bg-white border-b border-gray-200 mb-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col md:flex-row md:items-end justify-between gap-4"
+          >
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">My Orders</h1>
+              <p className="mt-2 text-gray-500">View and track your order history</p>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-gray-500 bg-gray-50 px-4 py-2 rounded-lg border border-gray-100">
+              <Package className="w-4 h-4 text-indigo-600" />
+              <span>Total Orders: <span className="font-semibold text-gray-900">{orders.length}</span></span>
+            </div>
+          </motion.div>
         </div>
-      )}
+      </div>
 
-      {!loading && orders.length > 0 && (
-        <div className="orders-list">
-          {orders.map(order => (
-            <div key={order.id} className="order-card">
-              <div className="order-header">
-                <div>
-                  <h3>Order #{order.id}</h3>
-                  <p className="order-date">
-                    {new Date(order.createdAt).toLocaleDateString()}
-                  </p>
-                </div>
-                <div className="order-status">
-                  <span
-                    className="status-badge"
-                    style={{ backgroundColor: getStatusBadgeColor(order.status) }}
-                  >
-                    {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                  </span>
-                </div>
-              </div>
-
-              <div className="order-summary">
-                <p><strong>{order.items?.length || 0}</strong> item(s)</p>
-                <p>Total: <strong>₹{order.totalAmount?.toFixed(2) || '0.00'}</strong></p>
-              </div>
-
-              <div className="order-actions">
-                <button
-                  className="btn-secondary"
-                  onClick={() => handleViewDetails(order.id)}
-                >
-                  View Details
-                </button>
-                {order.status === 'pending' && (
-                  <button
-                    className="btn-danger"
-                    onClick={() => handleCancelOrder(order.id)}
-                  >
-                    Cancel Order
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {selectedOrder && (
-        <div className="order-modal-overlay" onClick={handleCloseDetails}>
-          <div className="order-modal" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Order Details - #{selectedOrder.id}</h2>
-              <button className="btn-close" onClick={handleCloseDetails}>&times;</button>
-            </div>
-
-            <div className="modal-content">
-              <div className="order-info">
-                <h3>Order Information</h3>
-                <p><strong>Status:</strong> {selectedOrder.status}</p>
-                <p><strong>Date:</strong> {new Date(selectedOrder.createdAt).toLocaleString()}</p>
-                <p><strong>Total Amount:</strong> ₹{selectedOrder.totalAmount?.toFixed(2) || '0.00'}</p>
-              </div>
-
-              <div className="order-items">
-                <h3>Items</h3>
-                {selectedOrder.items && selectedOrder.items.length > 0 ? (
-                  <table className="items-table">
-                    <thead>
-                      <tr>
-                        <th>Product</th>
-                        <th>Price</th>
-                        <th>Quantity</th>
-                        <th>Subtotal</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedOrder.items.map((item, idx) => (
-                        <tr key={idx}>
-                          <td>{item.productName || 'Product'}</td>
-                          <td>₹{item.price?.toFixed(2) || '0.00'}</td>
-                          <td>{item.quantity}</td>
-                          <td>₹{((item.price || 0) * (item.quantity || 0)).toFixed(2)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <p>No items in this order</p>
-                )}
-              </div>
-
-              {selectedOrder.shippingAddress && (
-                <div className="shipping-address">
-                  <h3>Shipping Address</h3>
-                  <p>{selectedOrder.shippingAddress.fullName}</p>
-                  <p>{selectedOrder.shippingAddress.address}</p>
-                  <p>{selectedOrder.shippingAddress.city}, {selectedOrder.shippingAddress.state} {selectedOrder.shippingAddress.postalCode}</p>
-                  <p>{selectedOrder.shippingAddress.country}</p>
-                </div>
-              )}
-
-              <OrderProgressBar status={selectedOrder.status} createdAt={selectedOrder.createdAt} />
-            </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
           </div>
-        </div>
-      )}
+        ) : error ? (
+          <div className="text-center py-12 bg-white rounded-xl shadow-sm border border-red-100">
+            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Failed to load orders</h3>
+            <p className="text-gray-500 mb-6">{error}</p>
+            <Button onClick={fetchOrders} variant="outline">Try Again</Button>
+          </div>
+        ) : orders.length === 0 ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center py-16 bg-white rounded-2xl shadow-sm border border-gray-100"
+          >
+            <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Package className="w-10 h-10 text-indigo-500" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">No orders yet</h3>
+            <p className="text-gray-500 mb-8 max-w-md mx-auto">Looks like you haven't placed any orders yet. Start shopping to fill your cart!</p>
+            <Button onClick={() => navigate('/products')} className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full px-8 h-12 text-lg shadow-lg shadow-indigo-200/50 hover-lift">
+              Start Shopping
+            </Button>
+          </motion.div>
+        ) : (<>
+
+          <div className="space-y-6 max-w-4xl mx-auto">
+            <AnimatePresence>
+              {orders.map((order, index) => (
+                <motion.div
+                  key={order.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <Card className="border-none shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden hover:-translate-y-1 cursor-pointer group" onClick={() => setSelectedOrder(order)}>
+                    <div className="p-6">
+                      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                            <Package className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-bold text-gray-900">Order #{order.id}</h3>
+                            <div className="flex items-center text-sm text-gray-500 mt-1">
+                              <Calendar className="w-3 h-3 mr-1" />
+                              {new Date(order.createdAt).toLocaleDateString()}
+                            </div>
+                          </div>
+                        </div>
+                        <Badge className={`px-3 py-1 rounded-full border ${getStatusColor(order.status)} flex items-center`}>
+                          {getStatusIcon(order.status)}
+                          {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                        </Badge>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row justify-between items-center pt-4 border-t border-gray-100">
+                        <div className="flex gap-8 text-sm w-full sm:w-auto mb-4 sm:mb-0">
+                          <div>
+                            <span className="text-gray-500 block text-xs uppercase tracking-wider">Items</span>
+                            <span className="font-semibold text-gray-900">{order.items?.length || 0}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500 block text-xs uppercase tracking-wider">Total</span>
+                            <span className="font-semibold text-gray-900">₹{order.totalAmount?.toFixed(2)}</span>
+                          </div>
+                        </div>
+                        <Button variant="ghost" className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 group-hover:translate-x-1 transition-all">
+                          View Details <ChevronRight className="w-4 h-4 ml-1" />
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+
+          {/* Order Details Modal */}
+          <AnimatePresence>
+            {selectedOrder && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                onClick={() => setSelectedOrder(null)}
+              >
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.9, opacity: 0 }}
+                  className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+                  onClick={e => e.stopPropagation()}
+                >
+                  <div className="p-6 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white z-10">
+                    <h2 className="text-xl font-bold text-gray-900">Order Details</h2>
+                    <button onClick={() => setSelectedOrder(null)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                      <X className="w-5 h-5 text-gray-500" />
+                    </button>
+                  </div>
+
+                  <div className="p-6 space-y-8">
+                    {/* Status Bar */}
+                    <div className="bg-gray-50 rounded-xl p-6">
+                      <div className="flex justify-between items-center mb-4">
+                        <span className="text-sm font-medium text-gray-500">Order Status</span>
+                        <Badge className={`px-3 py-1 rounded-full border ${getStatusColor(selectedOrder.status)}`}>
+                          {selectedOrder.status.toUpperCase()}
+                        </Badge>
+                      </div>
+                      <OrderProgressBar status={selectedOrder.status} createdAt={selectedOrder.createdAt} />
+                    </div>
+
+                    {/* Items */}
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4">Items Ordered</h3>
+                      <div className="space-y-4">
+                        {selectedOrder.items?.map((item, idx) => (
+                          <div key={idx} className="flex justify-between items-center p-4 bg-white border border-gray-100 rounded-lg hover:shadow-sm transition-shadow">
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 bg-gray-100 rounded-md flex items-center justify-center">
+                                <Package className="w-6 h-6 text-gray-400" />
+                              </div>
+                              <div>
+                                <p className="font-medium text-gray-900">{item.productName || 'Product'}</p>
+                                <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
+                              </div>
+                            </div>
+                            <p className="font-semibold text-gray-900">₹{((item.price || 0) * (item.quantity || 0)).toFixed(2)}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Shipping */}
+                    {selectedOrder.shippingAddress && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-2">Shipping Address</h3>
+                          <div className="text-sm text-gray-600 leading-relaxed">
+                            <p className="font-medium text-gray-900">{selectedOrder.shippingAddress.fullName}</p>
+                            <p>{selectedOrder.shippingAddress.address}</p>
+                            <p>{selectedOrder.shippingAddress.city}, {selectedOrder.shippingAddress.state}</p>
+                            <p>{selectedOrder.shippingAddress.postalCode}</p>
+                          </div>
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-2">Payment Summary</h3>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-gray-500">Subtotal</span>
+                              <span className="font-medium">₹{selectedOrder.totalAmount?.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-500">Shipping</span>
+                              <span className="text-green-600 font-medium">Free</span>
+                            </div>
+                            <div className="flex justify-between pt-2 border-t border-gray-100">
+                              <span className="font-bold text-gray-900">Total</span>
+                              <span className="font-bold text-indigo-600">₹{selectedOrder.totalAmount?.toFixed(2)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedOrder.status === 'pending' && (
+                      <div className="pt-6 border-t border-gray-100">
+                        <Button
+                          onClick={() => handleCancelOrder(selectedOrder.id)}
+                          className="w-full bg-white border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+                        >
+                          Cancel Order
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </>)}
+      </div>
     </div>
   );
 }
 
 const OrderProgressBar = ({ status, createdAt }) => {
   const steps = [
-    { id: 'pending', label: 'Order Placed', icon: '📝' },
-    { id: 'processing', label: 'Processing', icon: '⚙️' },
-    { id: 'shipped', label: 'Shipped', icon: '🚚' },
-    { id: 'delivered', label: 'Delivered', icon: '✅' }
+    { id: 'pending', label: 'Placed' },
+    { id: 'processing', label: 'Processing' },
+    { id: 'shipped', label: 'Shipped' },
+    { id: 'delivered', label: 'Delivered' }
   ];
 
-  const getCurrentStepIndex = () => {
-    if (status === 'cancelled') return -1;
-    return steps.findIndex(step => step.id === status);
-  };
-
-  const currentStepIndex = getCurrentStepIndex();
-
-  if (status === 'cancelled') {
-    return (
-      <div className="order-progress-container">
-        <div className="error-message" style={{ textAlign: 'center', margin: 0 }}>
-          ❌ This order has been cancelled.
-        </div>
-      </div>
-    );
-  }
+  const currentStepIndex = steps.findIndex(step => step.id === status);
+  if (status === 'cancelled') return <div className="text-red-500 font-medium text-center">Order Cancelled</div>;
 
   return (
-    <div className="order-progress-container">
-      <h3>Order Status</h3>
-      <div className="progress-track">
-        {steps.map((step, index) => {
-          const isCompleted = index <= currentStepIndex;
-          const isActive = index === currentStepIndex;
+    <div className="relative flex justify-between w-full mt-4">
+      <div className="absolute top-1/2 left-0 w-full h-1 bg-gray-200 -z-10 -translate-y-1/2 rounded-full"></div>
+      <div
+        className="absolute top-1/2 left-0 h-1 bg-indigo-600 -z-10 -translate-y-1/2 rounded-full transition-all duration-500"
+        style={{ width: `${(currentStepIndex / (steps.length - 1)) * 100}%` }}
+      ></div>
 
-          return (
-            <div
-              key={step.id}
-              className={`progress-step ${isCompleted ? 'completed' : ''} ${isActive ? 'active' : ''}`}
-            >
-              <div className="step-icon">{step.icon}</div>
-              <div className="step-label">{step.label}</div>
-              {index === 0 && <span className="step-date">{new Date(createdAt).toLocaleDateString()}</span>}
-            </div>
-          );
-        })}
-      </div>
+      {steps.map((step, index) => {
+        const isCompleted = index <= currentStepIndex;
+        return (
+          <div key={step.id} className="flex flex-col items-center bg-white px-2">
+            <div className={`w-3 h-3 rounded-full border-2 ${isCompleted ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-gray-300'}`}></div>
+            <span className={`text-xs mt-2 ${isCompleted ? 'text-indigo-600 font-medium' : 'text-gray-400'}`}>{step.label}</span>
+          </div>
+        );
+      })}
     </div>
   );
 };

@@ -1,0 +1,26 @@
+/* Cart Page Fixes - Overrides for Cart.css */
+
+/* Fix 1: Product name truncation - allow text to wrap */
+.cart-item-name {
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    hyphens: auto !important;
+    line-height: 1.4 !important;
+    white-space: normal !important;
+}
+
+/* Fix 2: Cart actions footer spacing - add margin at bottom */
+.cart-actions {
+    margin-bottom: 3rem !important;
+}
+
+/* Fix 3: Better spacing for cart page overall */
+.cart-page {
+    padding-bottom: 4rem !important;
+}
+
+/* Fix 4: Ensure cart items have proper spacing */
+.cart-item-details {
+    min-width: 0 !important;
+    /* Allow flex items to shrink */
+}

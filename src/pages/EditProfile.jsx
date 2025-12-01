@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import PageLayout from '../components/PageLayout';
 import '../styles/EditProfile.css';
 
-export default function EditProfile() {
+export default function EditProfile({ standalone = true }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -36,7 +37,7 @@ export default function EditProfile() {
     try {
       setLoading(true);
       setError(null);
-      
+
       // Use user data from AuthContext if available
       if (user) {
         setProfileData({
@@ -161,14 +162,19 @@ export default function EditProfile() {
   };
 
   if (!user) {
-    return <div className="edit-profile-container">Please log in to edit your profile</div>;
+    if (!standalone) return <div className="text-center p-4"><p>Please log in to edit your profile</p></div>;
+    return (
+      <PageLayout title="Edit Profile" subtitle="Update your personal information">
+        <div className="text-center p-lg">
+          <p>Please log in to edit your profile</p>
+        </div>
+      </PageLayout>
+    );
   }
 
-  return (
-    <div className="edit-profile-container">
-      <h1>Edit Profile</h1>
-
-      <div className="tabs">
+  const content = (
+    <div className={standalone ? "" : "bg-white rounded-xl"}>
+      <div className="tabs mb-6">
         <button
           className={`tab ${activeTab === 'profile' ? 'active' : ''}`}
           onClick={() => {
@@ -206,8 +212,9 @@ export default function EditProfile() {
       {activeTab === 'profile' && (
         <form onSubmit={handleUpdateProfile} className="profile-form">
           <div className="form-group">
-            <label>Full Name *</label>
+            <label className="form-label">Full Name *</label>
             <input
+              className="form-input"
               type="text"
               name="fullName"
               value={profileData.fullName}
@@ -218,8 +225,9 @@ export default function EditProfile() {
           </div>
 
           <div className="form-group">
-            <label>Email *</label>
+            <label className="form-label">Email *</label>
             <input
+              className="form-input"
               type="email"
               name="email"
               value={profileData.email}
@@ -230,8 +238,9 @@ export default function EditProfile() {
           </div>
 
           <div className="form-group">
-            <label>Phone</label>
+            <label className="form-label">Phone</label>
             <input
+              className="form-input"
               type="tel"
               name="phone"
               value={profileData.phone}
@@ -241,8 +250,9 @@ export default function EditProfile() {
           </div>
 
           <div className="form-group">
-            <label>Company</label>
+            <label className="form-label">Company</label>
             <input
+              className="form-input"
               type="text"
               name="company"
               value={profileData.company}
@@ -252,8 +262,9 @@ export default function EditProfile() {
           </div>
 
           <div className="form-group">
-            <label>Bio</label>
+            <label className="form-label">Bio</label>
             <textarea
+              className="form-textarea"
               name="bio"
               value={profileData.bio}
               onChange={handleProfileChange}
@@ -262,7 +273,7 @@ export default function EditProfile() {
             />
           </div>
 
-          <button type="submit" className="btn-primary" disabled={loading}>
+          <button type="submit" className="btn btn-primary" disabled={loading}>
             {loading ? 'Updating...' : 'Update Profile'}
           </button>
         </form>
@@ -271,8 +282,9 @@ export default function EditProfile() {
       {activeTab === 'password' && (
         <form onSubmit={handleChangePassword} className="password-form">
           <div className="form-group">
-            <label>Current Password *</label>
+            <label className="form-label">Current Password *</label>
             <input
+              className="form-input"
               type="password"
               name="currentPassword"
               value={passwordData.currentPassword}
@@ -283,8 +295,9 @@ export default function EditProfile() {
           </div>
 
           <div className="form-group">
-            <label>New Password *</label>
+            <label className="form-label">New Password *</label>
             <input
+              className="form-input"
               type="password"
               name="newPassword"
               value={passwordData.newPassword}
@@ -295,8 +308,9 @@ export default function EditProfile() {
           </div>
 
           <div className="form-group">
-            <label>Confirm New Password *</label>
+            <label className="form-label">Confirm New Password *</label>
             <input
+              className="form-input"
               type="password"
               name="confirmPassword"
               value={passwordData.confirmPassword}
@@ -306,11 +320,22 @@ export default function EditProfile() {
             />
           </div>
 
-          <button type="submit" className="btn-primary" disabled={loading}>
+          <button type="submit" className="btn btn-primary" disabled={loading}>
             {loading ? 'Changing...' : 'Change Password'}
           </button>
         </form>
       )}
     </div>
+  );
+
+  if (!standalone) return content;
+
+  return (
+    <PageLayout
+      title="Edit Profile"
+      subtitle="Update your personal information"
+    >
+      {content}
+    </PageLayout>
   );
 }

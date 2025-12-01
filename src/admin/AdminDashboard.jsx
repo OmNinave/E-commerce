@@ -3,6 +3,7 @@ import {
   AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
+import { motion } from 'framer-motion';
 import '../styles/AdminDashboard.css';
 import ProductsManagement from './ProductsManagement';
 
@@ -142,15 +143,7 @@ const AdminDashboard = ({ admin, onLogout }) => {
       if (response.ok) {
         const data = await response.json();
         setAnalytics(data);
-        console.log('📊 Analytics Data:', {
-          timeRange: data.timeRange,
-          year: selectedYear,
-          month: selectedMonth,
-          week: selectedWeek,
-          totalQuantity: data.summary?.totalQuantitySold,
-          totalOrders: data.summary?.totalOrders,
-          chartDates: data.charts?.dates?.length
-        });
+
       } else {
         console.error('❌ Failed to fetch analytics:', response.status);
         handleLogout();
@@ -168,7 +161,7 @@ const AdminDashboard = ({ admin, onLogout }) => {
       // Use the same endpoint as dashboard - it already has all the data we need
       const url = `${API_URL}/api/admin/analytics?timeRange=${productsTimeRange}`;
 
-      console.log('📡 Fetching products analytics from:', url);
+
 
       const response = await fetch(url, {
         headers: {
@@ -180,14 +173,7 @@ const AdminDashboard = ({ admin, onLogout }) => {
         const data = await response.json();
         // Use the same structure as dashboard chart
         setProductsAnalytics(data);
-        console.log('✅ Products Analytics loaded:', {
-          timeRange: productsTimeRange,
-          dates: data.charts?.dates?.length,
-          quantityData: data.charts?.quantityData?.length,
-          salesData: data.charts?.salesData?.length,
-          hasData: !!(data.charts?.dates && data.charts.dates.length > 0),
-          sampleDates: data.charts?.dates?.slice(0, 3)
-        });
+
       } else {
         const errorText = await response.text();
         console.error('❌ Failed to fetch products analytics:', response.status, errorText);
@@ -205,7 +191,7 @@ const AdminDashboard = ({ admin, onLogout }) => {
       // Use the same endpoint as dashboard - it has user registration data
       const url = `${API_URL}/api/admin/analytics?timeRange=${usersTimeRange}`;
 
-      console.log('📡 Fetching users analytics from:', url);
+
 
       const response = await fetch(url, {
         headers: {
@@ -216,13 +202,7 @@ const AdminDashboard = ({ admin, onLogout }) => {
       if (response.ok) {
         const data = await response.json();
         setUsersAnalytics(data);
-        console.log('✅ Users Analytics loaded:', {
-          timeRange: usersTimeRange,
-          userDates: data.charts?.userDates?.length,
-          userCounts: data.charts?.userCounts?.length,
-          hasData: !!(data.charts?.userDates && data.charts.userDates.length > 0),
-          sampleDates: data.charts?.userDates?.slice(0, 3)
-        });
+
       } else {
         const errorText = await response.text();
         console.error('❌ Failed to fetch users analytics:', response.status, errorText);
@@ -240,7 +220,7 @@ const AdminDashboard = ({ admin, onLogout }) => {
       // Use the dedicated orders analytics endpoint
       const url = `${API_URL}/api/admin/analytics/orders?timeRange=${ordersTimeRange}`;
 
-      console.log('📡 Fetching orders analytics from:', url);
+
 
       const response = await fetch(url, {
         headers: {
@@ -251,14 +231,7 @@ const AdminDashboard = ({ admin, onLogout }) => {
       if (response.ok) {
         const data = await response.json();
         setOrdersAnalytics(data);
-        console.log('✅ Orders Analytics loaded:', {
-          timeRange: ordersTimeRange,
-          chartData: data.chartData?.length,
-          orders: data.orders?.length,
-          totalOrders: data.summary?.totalOrders,
-          hasData: !!(data.chartData && data.chartData.length > 0),
-          sampleData: data.chartData?.slice(0, 3)
-        });
+
       } else {
         const errorText = await response.text();
         console.error('❌ Failed to fetch orders analytics:', response.status, errorText);
@@ -400,7 +373,7 @@ const AdminDashboard = ({ admin, onLogout }) => {
 
   // Main Data Fetching Effect - Handles View Changes
   useEffect(() => {
-    console.log('🔄 View changed:', activeView);
+
 
     if (activeView === 'dashboard') {
       // Dashboard analytics are handled by the cascading dropdown effect
@@ -432,7 +405,7 @@ const AdminDashboard = ({ admin, onLogout }) => {
   // Fetch dashboard analytics when filters change
   useEffect(() => {
     if (activeView === 'dashboard') {
-      console.log('🔄 Dashboard filters changed, fetching analytics...');
+
       fetchAnalytics();
     }
   }, [activeView, timeRange, selectedYear, selectedMonth, selectedWeek, fetchAnalytics]);
@@ -440,7 +413,7 @@ const AdminDashboard = ({ admin, onLogout }) => {
   // Fetch products analytics when view or time range changes
   useEffect(() => {
     if (activeView === 'products') {
-      console.log('🔄 Fetching products analytics...');
+
       fetchProductsAnalytics();
     }
   }, [activeView, productsTimeRange, fetchProductsAnalytics]);
@@ -448,7 +421,7 @@ const AdminDashboard = ({ admin, onLogout }) => {
   // Fetch users analytics when view or time range changes
   useEffect(() => {
     if (activeView === 'users') {
-      console.log('🔄 Fetching users analytics...');
+
       fetchUsersAnalytics();
     }
   }, [activeView, usersTimeRange, fetchUsersAnalytics]);
@@ -456,7 +429,7 @@ const AdminDashboard = ({ admin, onLogout }) => {
   // Fetch orders analytics when view or time range changes
   useEffect(() => {
     if (activeView === 'orders') {
-      console.log('🔄 Fetching orders analytics...');
+
       fetchOrdersAnalytics();
     }
   }, [activeView, ordersTimeRange, fetchOrdersAnalytics]);
@@ -494,19 +467,13 @@ const AdminDashboard = ({ admin, onLogout }) => {
     sales: analytics?.charts?.salesData?.[index] || 0
   }));
 
-  console.log('📈 Chart Data:', {
-    timeRange,
-    rangeLabel: getTimeRangeLabel(),
-    dataPoints: salesQuantityChartData.length,
-    totalQuantity: salesQuantityChartData.reduce((sum, d) => sum + d.quantity, 0),
-    labels: salesQuantityChartData.map(d => d.date)
-  });
+
 
   const filteredProducts = (products || []).filter(product =>
     (product.name || product.productName || '').toLowerCase().includes(productSearch.toLowerCase())
   );
 
-  console.log('🔍 AdminDashboard render - activeView:', activeView);
+
 
   return (
     <div className="admin-dashboard">
@@ -526,7 +493,7 @@ const AdminDashboard = ({ admin, onLogout }) => {
           <button
             className={activeView === 'products' ? 'active' : ''}
             onClick={() => {
-              console.log('🖱️ Products button clicked!');
+
               setActiveView('products');
             }}
           >
@@ -697,9 +664,14 @@ const AdminDashboard = ({ admin, onLogout }) => {
         )}
 
         {activeView === 'dashboard' && (
-          <div className="dashboard-view">
+          <motion.div
+            className="dashboard-view"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
             <div className="stats-cards">
-              <div className="stat-card revenue">
+              <div className="stat-card revenue hover:scale-105 transition-transform duration-300 shadow-lg">
                 <div className="stat-icon">💰</div>
                 <div className="stat-info">
                   <h3>Total Revenue</h3>
@@ -708,7 +680,7 @@ const AdminDashboard = ({ admin, onLogout }) => {
                 </div>
               </div>
 
-              <div className="stat-card quantity">
+              <div className="stat-card quantity hover:scale-105 transition-transform duration-300 shadow-lg">
                 <div className="stat-icon">📦</div>
                 <div className="stat-info">
                   <h3>Quantity Sold</h3>
@@ -717,7 +689,7 @@ const AdminDashboard = ({ admin, onLogout }) => {
                 </div>
               </div>
 
-              <div className="stat-card orders">
+              <div className="stat-card orders hover:scale-105 transition-transform duration-300 shadow-lg">
                 <div className="stat-icon">🛒</div>
                 <div className="stat-info">
                   <h3>Total Orders</h3>
@@ -726,7 +698,7 @@ const AdminDashboard = ({ admin, onLogout }) => {
                 </div>
               </div>
 
-              <div className="stat-card traffic">
+              <div className="stat-card traffic hover:scale-105 transition-transform duration-300 shadow-lg">
                 <div className="stat-icon">👥</div>
                 <div className="stat-info">
                   <h3>User Traffic</h3>
@@ -874,7 +846,7 @@ const AdminDashboard = ({ admin, onLogout }) => {
                 </div>
               </div>
             )}
-          </div>
+          </motion.div>
         )}
 
         {activeView === 'products' && (

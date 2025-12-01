@@ -3,10 +3,11 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useNavigate } from 'react-router-dom';
 import apiService from '../services/api';
+import PageLayout from '../components/PageLayout';
 import '../styles/Wishlist.css';
 
 export default function Wishlist() {
-  const { user } = useAuth();
+  const { user, isInitializing } = useAuth();
   const { addToCart } = useCart();
   const navigate = useNavigate();
   const [wishlistItems, setWishlistItems] = useState([]);
@@ -15,6 +16,11 @@ export default function Wishlist() {
   const [products, setProducts] = useState({});
 
   useEffect(() => {
+    // Wait for auth to initialize
+    if (isInitializing) {
+      return;
+    }
+
     if (!user) {
       navigate('/login');
       return;
@@ -22,7 +28,7 @@ export default function Wishlist() {
 
     fetchWishlist();
     fetchProducts();
-  }, [user]);
+  }, [user, isInitializing, navigate]);
 
   const fetchWishlist = async () => {
     try {
@@ -86,21 +92,27 @@ export default function Wishlist() {
   };
 
   if (!user) {
-    return <div className="wishlist-container">Please log in to view your wishlist</div>;
+    return (
+      <PageLayout title="My Wishlist" subtitle="Save your favorite items">
+        <div className="text-center p-lg">
+          <p>Please log in to view your wishlist</p>
+        </div>
+      </PageLayout>
+    );
   }
 
   return (
-    <div className="wishlist-container">
-      <h1>My Wishlist</h1>
-
-      {loading && <div className="loading">Loading wishlist...</div>}
-      {error && <div className="error-message">{error}</div>}
-
+    <PageLayout
+      title="My Wishlist"
+      subtitle="Save your favorite items"
+      loading={loading}
+      error={error}
+    >
       {!loading && wishlistItems.length === 0 && (
         <div className="empty-state">
           <p>Your wishlist is empty.</p>
           <p>Add items to your wishlist to save them for later!</p>
-          <button className="btn-primary" onClick={() => navigate('/products')}>
+          <button className="btn btn-primary" onClick={() => navigate('/products')}>
             Continue Shopping
           </button>
         </div>
@@ -139,14 +151,14 @@ export default function Wishlist() {
                     </div>
                     <div className="wishlist-actions">
                       <button
-                        className="btn-primary"
+                        className="btn btn-primary"
                         onClick={() => handleMoveToCart(item.productId)}
                         disabled={product.stock === 0}
                       >
                         Add to Cart
                       </button>
                       <button
-                        className="btn-danger"
+                        className="btn btn-danger"
                         onClick={() => handleRemoveFromWishlist(item.productId)}
                       >
                         Remove
@@ -157,7 +169,7 @@ export default function Wishlist() {
                   <div className="product-loading">
                     <p>Loading product details...</p>
                     <button
-                      className="btn-danger"
+                      className="btn btn-danger"
                       onClick={() => handleRemoveFromWishlist(item.productId)}
                     >
                       Remove
@@ -169,6 +181,6 @@ export default function Wishlist() {
           })}
         </div>
       )}
-    </div>
+    </PageLayout>
   );
 }

@@ -1,3 +1,6 @@
+// Import CSRF manager
+import csrfManager from '../utils/csrf';
+
 // API Configuration
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -12,20 +15,48 @@ class ApiService {
     // Get token from localStorage (check both user and admin tokens)
     const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
 
+    // Prepare headers
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` }),
+      ...options.headers,
+    };
+
+    // Add CSRF token for state-changing requests
+    const method = options.method || 'GET';
+    if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method.toUpperCase())) {
+      try {
+        const csrfToken = await csrfManager.getToken();
+        headers['CSRF-Token'] = csrfToken;
+      } catch (csrfError) {
+        console.warn('Failed to get CSRF token:', csrfError);
+        // Continue anyway - the server will reject if CSRF is required
+      }
+    }
+
     const config = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` }),
-        ...options.headers,
-      },
       ...options,
+      headers,
+      credentials: 'include', // Important: include cookies for CSRF
     };
 
     try {
-      console.log(`🌐 API Request: ${options.method || 'GET'} ${url}`);
+      console.log(`🌐 API Request: ${method} ${url}`);
       const response = await fetch(url, config);
 
       console.log(`📡 API Response: ${response.status} ${response.statusText}`);
+
+      // Handle CSRF token errors
+      if (response.status === 403) {
+        const errorData = await response.json().catch(() => ({}));
+        if (errorData.error && errorData.error.toLowerCase().includes('csrf')) {
+          console.warn('CSRF token invalid, refreshing...');
+          // Refresh CSRF token and retry once
+          await csrfManager.refreshToken();
+          // Retry the request with new token
+          return this.request(endpoint, options);
+        }
+      }
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({ error: 'Request failed' }));
@@ -36,9 +67,9 @@ class ApiService {
 
       const data = await response.json();
       console.log(`✅ API Success: Received data`, {
-        hasProducts: !!data.products,
-        productsCount: data.products?.length || 0,
-        total: data.total || 0
+        keys: Object.keys(data),
+        isArray: Array.isArray(data),
+        count: Array.isArray(data) ? data.length : (data.products?.length || data.count || 1)
       });
       return data;
     } catch (error) {
@@ -148,13 +179,27 @@ class ApiService {
     return data.user;
   }
 
+  async changePassword(currentPassword, newPassword) {
+    return this.request('/api/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword })
+    });
+  }
+
+  async deleteAccount(password) {
+    return this.request('/api/auth/delete-account', {
+      method: 'DELETE',
+      body: JSON.stringify({ password })
+    });
+  }
+
   // Order endpoints
   async createOrder(orderData) {
     const data = await this.request('/api/orders', {
       method: 'POST',
       body: JSON.stringify(orderData)
     });
-    return data.order;
+    return data;
   }
 
   async validateCart(items, shippingMethod = 'standard') {

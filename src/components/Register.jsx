@@ -1,8 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { ArrowRight, Mail, Lock, User, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import apiService from '../services/api';
-import '../styles/Auth.css';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -18,9 +23,8 @@ const Register = () => {
   const [passwordStrength, setPasswordStrength] = useState({ score: 0, text: '', color: '' });
   const [emailStatus, setEmailStatus] = useState({ checking: false, available: null, message: '' });
   const navigate = useNavigate();
-  const { registerUser, isAuthenticated, isInitializing } = useAuth();
+  const { registerUser } = useAuth();
 
-  // Calculate password strength
   const calculatePasswordStrength = (password) => {
     if (!password) return { score: 0, text: '', color: '' };
     let score = 0;
@@ -32,31 +36,21 @@ const Register = () => {
 
     const strengths = [
       { text: '', color: '' },
-      { text: 'Weak', color: '#ff4444' },
-      { text: 'Fair', color: '#ffaa00' },
-      { text: 'Good', color: '#88cc00' },
-      { text: 'Strong', color: '#00aa00' },
-      { text: 'Very Strong', color: '#008800' }
+      { text: 'Weak', color: 'text-red-500' },
+      { text: 'Fair', color: 'text-yellow-500' },
+      { text: 'Good', color: 'text-green-500' },
+      { text: 'Strong', color: 'text-green-600' },
+      { text: 'Very Strong', color: 'text-green-700' }
     ];
 
     return { score, ...strengths[score] };
   };
 
-  // DISABLED: This useEffect was causing double navigation that cleared the token
-  // The handleSubmit already navigates after successful registration
-  // useEffect(() => {
-  //   if (!isInitializing && isAuthenticated) {
-  //     navigate('/products', { replace: true });
-  //   }
-  // }, [isInitializing, isAuthenticated, navigate]);
-
   useEffect(() => {
     let isSubscribed = true;
     if (!formData.email || !emailRegex.test(formData.email)) {
       setEmailStatus({ checking: false, available: null, message: '' });
-      return () => {
-        isSubscribed = false;
-      };
+      return () => { isSubscribed = false; };
     }
 
     setEmailStatus((prev) => ({ ...prev, checking: true }));
@@ -90,7 +84,6 @@ const Register = () => {
     const { name, value } = event.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
 
-    // Update password strength when password changes
     if (name === 'password') {
       setPasswordStrength(calculatePasswordStrength(value));
     }
@@ -126,8 +119,6 @@ const Register = () => {
         email: formData.email,
         password: formData.password
       });
-
-      // Navigate immediately after successful registration
       navigate('/products');
     } catch (error) {
       setStatus({
@@ -140,104 +131,136 @@ const Register = () => {
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-container">
-        <div className="auth-header">
-          <h1 className="auth-title">Create Account</h1>
-          <p className="auth-subtitle">Access exclusive lab equipment deals and seamless checkout.</p>
-        </div>
-        {status.message && (
-          <div className={`auth-status ${status.type}`} role="status">
-            {status.message}
-          </div>
-        )}
-        <form className="auth-form" onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="fullName" className="form-label">Full Name</label>
-            <input
-              id="fullName"
-              name="fullName"
-              type="text"
-              className="form-input"
-              value={formData.fullName}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="email" className="form-label">Email</label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              className="form-input"
-              value={formData.email}
-              onChange={handleChange}
-              required
-            />
-            {emailStatus.message && (
-              <div
-                className="email-status"
-                style={{
-                  color: emailStatus.available ? '#00aa00' : '#c0392b',
-                  fontSize: '0.85rem',
-                  marginTop: '4px'
-                }}
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 font-sans p-4 relative overflow-hidden">
+      {/* Background Blobs */}
+      <div className="absolute top-0 right-1/4 w-96 h-96 bg-indigo-200/30 rounded-full blur-3xl -z-10"></div>
+      <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-purple-200/30 rounded-full blur-3xl -z-10"></div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-md"
+      >
+        <Card className="border-none shadow-2xl shadow-indigo-100/50 bg-white/80 backdrop-blur-xl">
+          <CardHeader className="space-y-1 text-center pb-6">
+            <CardTitle className="text-2xl font-bold text-gray-900">Create Account</CardTitle>
+            <CardDescription className="text-gray-500">
+              Join ProLab to access exclusive equipment deals
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {status.message && (
+              <div className={`p-3 rounded-lg flex items-center gap-2 text-sm ${status.type === 'error' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
+                <AlertCircle className="w-4 h-4" />
+                {status.message}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="fullName">Full Name</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="fullName"
+                    name="fullName"
+                    type="text"
+                    placeholder="John Doe"
+                    className="pl-10"
+                    value={formData.fullName}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="name@example.com"
+                    className="pl-10"
+                    value={formData.email}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+                {emailStatus.message && (
+                  <div className={`text-xs flex items-center gap-1 ${emailStatus.available ? 'text-green-600' : 'text-red-600'}`}>
+                    {emailStatus.available ? <CheckCircle2 className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
+                    {emailStatus.checking ? 'Checking availability...' : emailStatus.message}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="password"
+                    name="password"
+                    type="password"
+                    placeholder="••••••••"
+                    className="pl-10"
+                    value={formData.password}
+                    onChange={handleChange}
+                    required
+                    minLength={6}
+                  />
+                </div>
+                {passwordStrength.text && (
+                  <div className={`text-xs font-medium ${passwordStrength.color}`}>
+                    Strength: {passwordStrength.text}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type="password"
+                    placeholder="••••••••"
+                    className="pl-10"
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    required
+                    minLength={6}
+                  />
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full h-11 bg-gray-900 hover:bg-indigo-600 text-white rounded-lg transition-colors mt-2"
+                disabled={isSubmitting || emailStatus.available === false}
               >
-                {emailStatus.checking ? 'Checking availability...' : emailStatus.message}
-              </div>
-            )}
-          </div>
-          <div className="form-group">
-            <label htmlFor="password" className="form-label">Password</label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              className="form-input"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              minLength={6}
-            />
-            {passwordStrength.text && (
-              <div className="password-strength" style={{ color: passwordStrength.color, fontSize: '0.85rem', marginTop: '4px' }}>
-                Password Strength: <strong>{passwordStrength.text}</strong>
-              </div>
-            )}
-          </div>
-          <div className="form-group">
-            <label htmlFor="confirmPassword" className="form-label">Confirm Password</label>
-            <input
-              id="confirmPassword"
-              name="confirmPassword"
-              type="password"
-              className="form-input"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              required
-              minLength={6}
-            />
-          </div>
-          <div className="auth-actions">
-            <button
-              type="submit"
-              className="auth-button"
-              disabled={isSubmitting || emailStatus.available === false}
-            >
-              {isSubmitting ? 'Creating Account...' : 'Create Account'}
-            </button>
-            <Link to="/" className="auth-link">Return to Home</Link>
-          </div>
-        </form>
-        <div className="terms-text">
-          By creating an account, you agree to receive updates about new research equipment, offers, and services.
-        </div>
-        <div className="auth-footer">
-          <span>Already have an account?</span>
-          <Link to="/login" className="auth-link">Sign In</Link>
-        </div>
-      </div>
+                {isSubmitting ? 'Creating Account...' : 'Create Account'}
+                {!isSubmitting && <ArrowRight className="w-4 h-4 ml-2" />}
+              </Button>
+            </form>
+
+            <div className="text-center text-xs text-gray-500 px-4">
+              By creating an account, you agree to our Terms of Service and Privacy Policy.
+            </div>
+
+            <div className="text-center text-sm text-gray-500 border-t pt-4">
+              Already have an account?{' '}
+              <Link to="/login" className="font-semibold text-indigo-600 hover:text-indigo-500">
+                Sign In
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
     </div>
   );
 };

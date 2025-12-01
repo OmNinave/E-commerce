@@ -1,17 +1,32 @@
 const express = require('express');
+const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const crypto = require('crypto');
+const cookieParser = require('cookie-parser');
+const csrf = require('csurf');
 require('dotenv').config();
 const { migrateToProfessionalWorkflow } = require('./migration_professional_workflow');
-const { sendTransactionalEmail, sendOrderStatusEmail } = require('./emailService');
+const { sendTransactionalEmail, sendOrderStatusEmail, sendOrderEmails } = require('./emailService');
 
 // Import SQLite Database API
 const dbAPI = require('./api');
 const { db } = require('./database');
+
+// Import Validation Middleware
+const {
+  validateRegistration,
+  validateLogin,
+  validateProduct,
+  validateOrder,
+  validateCart,
+  validateProfileUpdate,
+  validatePasswordChange,
+  validateReview
+} = require('./middleware/validation');
 
 const app = express();
 // Use fixed port for consistency
@@ -96,6 +111,12 @@ app.use(helmet({
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Cookie parsing (required for CSRF)
+app.use(cookieParser());
+
+// CSRF Protection
+const csrfProtection = csrf({ cookie: true });
 
 // Logging
 app.use(morgan('combined'));
@@ -473,36 +494,6 @@ function createOrUpdateAddress(userId, addressPayload = {}) {
   return result.lastInsertRowid;
 }
 
-function sendOrderEmails(user, order) {
-  if (!user?.email) {
-    return;
-  }
-
-  const shippingDetails = resolveShippingMethod(order.shipping_method);
-
-  sendTransactionalEmail({
-    to: user.email,
-    subject: `Order Confirmation - ${order.order_number}`,
-    template: 'orderConfirmation',
-    data: {
-      name: user.first_name || user.last_name || user.email,
-      order,
-      shippingDetails
-    }
-  }).catch((error) => {
-    console.error('Failed to queue order confirmation email:', error);
-  });
-
-  if (process.env.NOTIFICATION_EMAIL) {
-    sendTransactionalEmail({
-      to: process.env.NOTIFICATION_EMAIL,
-      subject: `New Order Received - ${order.order_number}`,
-      html: `<p>Order <strong>${order.order_number}</strong> placed by ${user.email}</p><p>Total: ₹${order.total_amount}</p>`
-    }).catch((error) => {
-      console.error('Failed to notify admin about order:', error);
-    });
-  }
-}
 
 // ==================== PUBLIC API ROUTES ====================
 
@@ -584,7 +575,32 @@ app.get('/api/products/:id', (req, res) => {
       return res.status(404).json({ error: 'Product not found' });
     }
 
-    res.json({ success: true, product });
+    // Apply discount logic and field mapping
+    const discount = dbAPI.getActiveDiscount(product.id);
+
+    // Add price field for frontend compatibility
+    const baseProduct = {
+      ...product,
+      price: product.selling_price,
+      originalPrice: product.base_price
+    };
+
+    let finalProduct = baseProduct;
+
+    if (discount) {
+      const discountedPrice = discount.discount_type === 'percentage'
+        ? product.selling_price * (1 - discount.discount_value / 100)
+        : product.selling_price - discount.discount_value;
+
+      finalProduct = {
+        ...baseProduct,
+        discount,
+        price: Math.max(0, discountedPrice).toFixed(2),
+        discounted_price: Math.max(0, discountedPrice).toFixed(2)
+      };
+    }
+
+    res.json({ success: true, product: finalProduct });
   } catch (error) {
     console.error('Error fetching product:', error);
     res.status(500).json({ error: 'Failed to fetch product' });
@@ -877,8 +893,13 @@ app.get('/api/auth/check-email', (req, res) => {
   }
 });
 
+// CSRF Token Endpoint (must be called before any protected requests)
+app.get('/api/csrf-token', csrfProtection, (req, res) => {
+  res.json({ csrfToken: req.csrfToken() });
+});
+
 // Register
-app.post('/api/auth/register', authLimiter, async (req, res) => {
+app.post('/api/auth/register', authLimiter, csrfProtection, validateRegistration, async (req, res) => {
   try {
     const { email, password, firstName, lastName, phone } = req.body;
     console.log('Registration request received:', { email, firstName, lastName });
@@ -957,7 +978,7 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
 });
 
 // User Login
-app.post('/api/auth/login', authLimiter, async (req, res) => {
+app.post('/api/auth/login', authLimiter, csrfProtection, validateLogin, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -995,6 +1016,63 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
   } catch (error) {
     console.error('User login error:', error);
     res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+
+// Change Password
+app.post('/api/auth/change-password', requireAuth, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const user = dbAPI.getUserById(req.userId);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Verify current password
+    const isValid = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!isValid) {
+      return res.status(400).json({ error: 'Invalid current password' });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password
+    db.prepare('UPDATE users SET password_hash = ? WHERE id = ?')
+      .run(hashedPassword, req.userId);
+
+    res.json({ success: true, message: 'Password updated successfully' });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ error: 'Failed to update password' });
+  }
+});
+
+// Delete Account
+app.delete('/api/auth/delete-account', requireAuth, async (req, res) => {
+  try {
+    const { password } = req.body;
+    const user = dbAPI.getUserById(req.userId);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Verify password for security
+    const isValid = await bcrypt.compare(password, user.password_hash);
+    if (!isValid) {
+      return res.status(400).json({ error: 'Invalid password' });
+    }
+
+    // Delete user
+    db.prepare('DELETE FROM users WHERE id = ?').run(req.userId);
+
+    res.json({ success: true, message: 'Account deleted successfully' });
+  } catch (error) {
+    console.error('Delete account error:', error);
+    res.status(500).json({ error: 'Failed to delete account' });
   }
 });
 
@@ -1138,7 +1216,7 @@ app.get('/api/admin/products', requireAuth, requireAdmin, (req, res) => {
 });
 
 // Create product
-app.post('/api/admin/products', requireAuth, requireAdmin, (req, res) => {
+app.post('/api/admin/products', requireAuth, requireAdmin, validateProduct, (req, res) => {
   try {
     const productData = req.body;
 
@@ -1188,7 +1266,7 @@ app.post('/api/admin/products', requireAuth, requireAdmin, (req, res) => {
 });
 
 // Update product
-app.put('/api/admin/products/:id', requireAuth, requireAdmin, (req, res) => {
+app.put('/api/admin/products/:id', requireAuth, requireAdmin, validateProduct, (req, res) => {
   try {
     const productId = req.params.id;
     const updates = req.body;
@@ -1346,6 +1424,220 @@ app.get('/api/admin/users/:id', requireAuth, requireAdmin, (req, res) => {
 
 // Featured products endpoint removed (duplicate) - see line 1674
 
+
+// ==================== WISHLIST ROUTES ====================
+
+// Get Wishlist
+app.get('/api/users/:userId/wishlist', requireAuth, (req, res) => {
+  try {
+    if (req.params.userId != req.userId && !req.isAdmin) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const wishlist = db.prepare('SELECT * FROM wishlist WHERE user_id = ?').all(req.params.userId);
+
+    // Map product_id to productId for frontend compatibility
+    const formattedWishlist = wishlist.map(item => ({
+      ...item,
+      productId: item.product_id
+    }));
+
+    res.json({ success: true, wishlist: formattedWishlist });
+  } catch (error) {
+    console.error('Get wishlist error:', error);
+    res.status(500).json({ error: 'Failed to fetch wishlist' });
+  }
+});
+
+// Add to Wishlist
+app.post('/api/users/:userId/wishlist', requireAuth, (req, res) => {
+  try {
+    if (req.params.userId != req.userId && !req.isAdmin) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const { productId } = req.body;
+
+    // Check if already exists
+    const existing = db.prepare('SELECT * FROM wishlist WHERE user_id = ? AND product_id = ?')
+      .get(req.params.userId, productId);
+
+    if (existing) {
+      return res.json({ success: true, message: 'Already in wishlist' });
+    }
+
+    db.prepare('INSERT INTO wishlist (user_id, product_id, created_at) VALUES (?, ?, ?)')
+      .run(req.params.userId, productId, new Date().toISOString());
+
+    res.json({ success: true, message: 'Added to wishlist' });
+  } catch (error) {
+    console.error('Add to wishlist error:', error);
+    res.status(500).json({ error: 'Failed to add to wishlist' });
+  }
+});
+
+// Remove from Wishlist
+app.delete('/api/users/:userId/wishlist/:productId', requireAuth, (req, res) => {
+  try {
+    if (req.params.userId != req.userId && !req.isAdmin) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    db.prepare('DELETE FROM wishlist WHERE user_id = ? AND product_id = ?')
+      .run(req.params.userId, req.params.productId);
+
+    res.json({ success: true, message: 'Removed from wishlist' });
+  } catch (error) {
+    console.error('Remove from wishlist error:', error);
+    res.status(500).json({ error: 'Failed to remove from wishlist' });
+  }
+});
+
+// ==================== USER ORDER ROUTES ====================
+
+// Create Order (Checkout)
+app.post('/api/orders', requireAuth, csrfProtection, validateOrder, (req, res) => {
+  try {
+    // Debug: Log incoming request body
+    console.log('DEBUG /api/orders request body:', JSON.stringify(req.body, null, 2));
+    const { items, shippingAddress, paymentMethod, totalAmount } = req.body;
+
+    if (!items || items.length === 0) {
+      return res.status(400).json({ error: 'No items in order' });
+    }
+
+    // Create Address if needed
+    let shippingAddressId = shippingAddress.id;
+    if (!shippingAddressId && typeof shippingAddress === 'object') {
+      shippingAddressId = createOrUpdateAddress(req.userId, shippingAddress);
+    }
+
+    // Debug: Log order data before DB insert
+    const orderDataForDb = {
+      order_number: createOrderNumber(),
+      user_id: req.userId,
+      status: 'pending',
+      payment_status: 'pending',
+      payment_method: paymentMethod,
+      subtotal: totalAmount,
+      total_amount: totalAmount,
+      shipping_address_id: shippingAddressId
+    };
+    console.log('DEBUG /api/orders orderDataForDb:', JSON.stringify(orderDataForDb, null, 2));
+
+    // Create Order
+    const orderId = dbAPI.createOrder(orderDataForDb);
+
+    // Add Items
+    console.log('DEBUG: Items array:', JSON.stringify(items, null, 2));
+    items.forEach((item, index) => {
+      console.log(`DEBUG: Processing item ${index}:`, JSON.stringify(item, null, 2));
+      console.log(`DEBUG: item.productId = ${item.productId}, item.id = ${item.id}`);
+
+      dbAPI.addOrderItem({
+        order_id: orderId,
+        product_id: item.productId || item.id, // Try both fields
+        product_name: item.name || '',
+        product_sku: item.sku || 'SKU',
+        quantity: item.quantity,
+        unit_price: item.price,
+        total_price: item.price * item.quantity
+      });
+    });
+
+    res.status(201).json({
+      success: true,
+      order_id: orderId,
+      message: 'Order placed successfully'
+    });
+  } catch (error) {
+    console.error('Create order error:', error);
+    // Debug: Log error stack if available
+    if (error && error.stack) {
+      console.error('Error stack:', error.stack);
+    }
+    res.status(500).json({ error: 'Failed to create order', details: error && error.message ? error.message : error });
+  }
+});
+
+// Cancel Order (User)
+app.put('/api/orders/:id/cancel', requireAuth, (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const userId = req.userId;
+
+    // Verify order belongs to user
+    const order = dbAPI.getOrderById(orderId);
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    // Ensure user owns the order
+    if (order.user_id !== userId) {
+      return res.status(403).json({ error: 'Unauthorized to cancel this order' });
+    }
+
+    // Only pending orders can be cancelled
+    if (order.status !== 'pending') {
+      return res.status(400).json({ error: 'Cannot cancel order that is not pending' });
+    }
+
+    dbAPI.updateOrderStatus(orderId, 'cancelled');
+
+    // Log the cancellation
+    console.log(`Order #${orderId} cancelled by user ${userId}`);
+
+    res.json({ success: true, message: 'Order cancelled successfully' });
+  } catch (error) {
+    console.error('Cancel order error:', error);
+    res.status(500).json({ error: 'Failed to cancel order' });
+  }
+});
+
+// Get User Orders
+app.get('/api/orders', requireAuth, (req, res) => {
+  try {
+    const orders = dbAPI.getAllOrders({ user_id: req.userId });
+
+    // Fetch items for each order
+    const ordersWithItems = orders.map(order => {
+      const items = dbAPI.getOrderItems(order.id);
+      return { ...order, items };
+    });
+
+    res.json({
+      success: true,
+      orders: ordersWithItems
+    });
+  } catch (error) {
+    console.error('Get user orders error:', error);
+    res.status(500).json({ error: 'Failed to fetch orders' });
+  }
+});
+
+// Get Single Order
+app.get('/api/orders/:id', requireAuth, (req, res) => {
+  try {
+    const order = dbAPI.getOrderById(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    // Security check: ensure order belongs to user
+    if (order.user_id !== req.userId && !req.isAdmin) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    res.json({
+      success: true,
+      order
+    });
+  } catch (error) {
+    console.error('Get order error:', error);
+    res.status(500).json({ error: 'Failed to fetch order' });
+  }
+});
 
 // ==================== ADMIN ORDER ROUTES ====================
 
@@ -2009,7 +2301,7 @@ app.post('/api/payment/verify-payment', requireAuth, async (req, res) => {
 
 // ==================== ORDER ROUTES ====================
 
-app.post('/api/cart/validate', requireAuth, (req, res) => {
+app.post('/api/cart/validate', requireAuth, csrfProtection, validateCart, (req, res) => {
   try {
     const { items, shippingMethod } = req.body;
     const { sanitizedItems, subtotal, errors } = validateCartItems(items);
@@ -2072,7 +2364,17 @@ app.post('/api/orders', requireAuth, async (req, res) => {
     const taxAmount = Number((subtotal * 0.18).toFixed(2));
     const shippingCost = calculateShippingCost(methodConfig, subtotal);
     const totalAmount = Number((subtotal + taxAmount + shippingCost).toFixed(2));
-    const shippingAddressId = createOrUpdateAddress(userId, shippingAddress);
+
+    let shippingAddressId = null;
+    try {
+      console.log('Creating address with payload:', JSON.stringify(shippingAddress, null, 2));
+      shippingAddressId = createOrUpdateAddress(userId, shippingAddress);
+      console.log('Address created with ID:', shippingAddressId);
+    } catch (addressError) {
+      console.error('Address creation failed:', addressError);
+      throw new Error(`Failed to create shipping address: ${addressError.message}`);
+    }
+
     const orderNumber = createOrderNumber();
 
     const runTransaction = db.transaction(() => {
@@ -2166,6 +2468,9 @@ app.post('/api/orders', requireAuth, async (req, res) => {
     });
   } catch (error) {
     console.error('Create order error:', error);
+    try {
+      fs.appendFileSync('server_error.log', `[${new Date().toISOString()}] Create Order Error: ${error.stack || error.message}\n`);
+    } catch (e) { console.error('Failed to write log:', e); }
     res.status(400).json({ error: error.message || 'Failed to create order' });
   }
 });

@@ -23,19 +23,19 @@ const isSmtpConfigured = Boolean(
 const transporter = nodemailer.createTransport(
   isSmtpConfigured
     ? {
-        host: process.env.SMTP_HOST,
-        port: Number(process.env.SMTP_PORT),
-        secure:
-          process.env.SMTP_SECURE === 'true' ||
-          Number(process.env.SMTP_PORT) === 465,
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS
-        }
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT),
+      secure:
+        process.env.SMTP_SECURE === 'true' ||
+        Number(process.env.SMTP_PORT) === 465,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
       }
+    }
     : {
-        jsonTransport: true
-      }
+      jsonTransport: true
+    }
 );
 
 const defaultFrom = process.env.EMAIL_FROM || 'ProLab <no-reply@prolab.local>';
@@ -54,23 +54,20 @@ const templates = {
       <p>Hi ${name || 'there'},</p>
       <p>Thanks for your order! We are processing it and will notify you once it ships.</p>
       <p><strong>Total:</strong> ₹${Number(order?.total_amount || 0).toLocaleString()}</p>
-      ${
-        order?.shipping_details
-          ? `<p><strong>Shipping Method:</strong> ${order.shipping_details.label} · ${order.shipping_details.eta}</p>`
-          : ''
-      }
-      ${
-        order?.items && order.items.length
-          ? `<ul>${order.items
-              .map(
-                (item) =>
-                  `<li>${item.product_name || item.productName} × ${
-                    item.quantity
-                  }</li>`
-              )
-              .join('')}</ul>`
-          : ''
-      }
+      ${order?.shipping_details
+      ? `<p><strong>Shipping Method:</strong> ${order.shipping_details.label} · ${order.shipping_details.eta}</p>`
+      : ''
+    }
+      ${order?.items && order.items.length
+      ? `<ul>${order.items
+        .map(
+          (item) =>
+            `<li>${item.product_name || item.productName} × ${item.quantity
+            }</li>`
+        )
+        .join('')}</ul>`
+      : ''
+    }
       <p>Regards,<br/>ProLab Fulfillment Team</p>
     `,
   orderStatus: ({ name, order, statusLabel, message }) =>
@@ -79,11 +76,10 @@ const templates = {
       <p>Hi ${name || 'there'},</p>
       <p><strong>Status:</strong> ${statusLabel}</p>
       ${message ? `<p>${message}</p>` : ''}
-      ${
-        order?.shipping_details
-          ? `<p><strong>Shipping:</strong> ${order.shipping_details.label} · ${order.shipping_details.eta}</p>`
-          : ''
-      }
+      ${order?.shipping_details
+      ? `<p><strong>Shipping:</strong> ${order.shipping_details.label} · ${order.shipping_details.eta}</p>`
+      : ''
+    }
       <p>Total Amount: ₹${Number(order?.total_amount || 0).toLocaleString()}</p>
       <p>We'll keep you updated with future changes.</p>
       <p>Regards,<br/>ProLab Fulfillment Team</p>
@@ -166,9 +162,25 @@ function sendOrderStatusEmail({ to, name, order, statusLabel, message }) {
   });
 }
 
+function sendOrderEmails(user, order) {
+  if (!user || !user.email) return;
+
+  const recipientName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email;
+
+  return sendTransactionalEmail({
+    to: user.email,
+    subject: `Order Confirmation ${order.order_number}`,
+    template: 'orderConfirmation',
+    data: {
+      name: recipientName,
+      order: order
+    }
+  });
+}
+
 module.exports = {
   sendTransactionalEmail,
   sendOrderStatusEmail,
+  sendOrderEmails,
   isSmtpConfigured
 };
-
