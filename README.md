@@ -311,37 +311,13 @@ Password: admin123
 
 <div align="center">
 
-```
-┌─ 📦 ecomerce/
-│
-├─ 🗄️ db/                      ← Backend & Database Layer
-│  ├─ admin_server.js           (Express Application - 101KB)
-│  ├─ api.js                    (Database API Layer - 35KB)
-│  ├─ ecommerce.db              (SQLite Database - 905KB)
-│  ├─ checkout_routes.js        (Checkout Logic)
-│  ├─ emailService.js           (Email Service)
-│  └─ middleware/               (Auth & Validation)
-│
-├─ ⚛️ src/                      ← React Frontend
-│  ├─ 🛡️ admin/                 (Admin Panel - 5 files)
-│  ├─ 🧩 components/            (UI Components - 20 files)
-│  ├─ 📄 pages/                 (Page Components - 19 files)
-│  ├─ 🔌 services/              (API Services)
-│  └─ 🎯 context/               (State Management)
-│
-├─ 🛠️ scripts/                  ← Utility Scripts
-│  ├─ add_admin.js              (Admin Creation)
-│  ├─ populate_product_data.js  (Data Seeding)
-│  └─ (7 more utility files)
-│
-├─ 🧪 tests/                    ← Test Suite
-│  ├─ api_functionality_test.js
-│  ├─ integration_logic_tests.js
-│  └─ (6 more test files - 92% coverage)
-│
-└─ 🌐 public/                   ← Static Assets
-   └─ (HTML, robots.txt, redirects)
-```
+| Directory | Description | Key Files |
+|:----------|:------------|:----------|
+| **🗄️ db/** | Backend & Database Layer | `admin_server.js` (101KB), `api.js` (35KB), `ecommerce.db` (905KB), `checkout_routes.js`, `emailService.js`, `middleware/` |
+| **⚛️ src/** | React Frontend | `admin/` (5 files), `components/` (20 files), `pages/` (19 files), `services/`, `context/` |
+| **🛠️ scripts/** | Utility Scripts | `add_admin.js`, `populate_product_data.js`, + 7 more utility files |
+| **🧪 tests/** | Test Suite (92% coverage) | `api_functionality_test.js`, `integration_logic_tests.js`, + 6 more test files |
+| **🌐 public/** | Static Assets | HTML, robots.txt, redirects |
 
 </div>
 
