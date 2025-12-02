@@ -37,8 +37,6 @@
 
 ### ✨ Core Features
 
-</div>
-
 <table>
 <tr>
 <td align="center" width="33%">
@@ -68,6 +66,8 @@ Payment integration ready
 </tr>
 </table>
 
+</div>
+
 <br/>
 
 <div align="center">
@@ -92,13 +92,13 @@ Payment integration ready
 
 <div align="center">
 
-### Frontend
+<h3>Frontend</h3>
 <img src="https://skillicons.dev/icons?i=react,js,html,css,tailwind&theme=dark" height="50" />
 
-### Backend  
+<h3>Backend</h3>
 <img src="https://skillicons.dev/icons?i=nodejs,express,sqlite&theme=dark" height="50" />
 
-### Tools
+<h3>Tools</h3>
 <img src="https://skillicons.dev/icons?i=git,vscode,postman,vercel&theme=dark" height="50" />
 
 </div>
@@ -130,7 +130,7 @@ Payment integration ready
 ## 📐 System Architecture
 
 ```mermaid
-%%{init: {'theme':'dark'}}%%
+%%{init: {'theme':'dark', 'themeVariables': {'primaryTextColor':'#00F0FF', 'secondaryTextColor':'#00F0FF', 'tertiaryTextColor':'#00F0FF', 'textColor':'#00F0FF'}}}%%
 graph TB
     subgraph Client["🌐 CLIENT LAYER"]
         A[👤 Customer]
@@ -160,10 +160,10 @@ graph TB
     G -->|JSON| F
     F -->|Response| C
     
-    style Client fill:#e1f5fe,stroke:#01579b,stroke-width:2px
-    style Frontend fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
-    style Backend fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
-    style Data fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style Client fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000000
+    style Frontend fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#000000
+    style Backend fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px,color:#000000
+    style Data fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#000000
 ```
 
 <br/>
@@ -177,13 +177,15 @@ graph TB
 
 <table>
 <tr>
-<td width="50%">
+<td width="50%" valign="top">
 
 ### 🪟 Windows (Recommended)
 
 ```powershell
 # Clone repository
 git clone https://github.com/OmNinave/Ecommerce.git
+
+# Navigate to folder
 cd Ecommerce
 
 # One-click launch
@@ -196,7 +198,7 @@ cd Ecommerce
 - 🛡️ Admin: `http://localhost:3000/admin`
 
 </td>
-<td width="50%">
+<td width="50%" valign="top">
 
 ### 🐧 Linux / Mac
 
@@ -210,9 +212,11 @@ cp .env.example .env
 # Initialize database
 node db/seed.js
 
-# Start servers
-node db/admin_server.js  # Terminal 1
-npm start                # Terminal 2
+# Start backend
+node db/admin_server.js
+
+# Start frontend (new terminal)
+npm start
 ```
 
 </td>
@@ -250,24 +254,36 @@ npm start                # Terminal 2
 
 ## 📁 Project Structure
 
+<div align="center">
+
 ```
-📦 ecomerce/
-├── 📂 db/                      # Backend & Database
-│   ├── 📄 admin_server.js      # Express App (101KB)
-│   ├── 📄 api.js               # Database API (35KB)
-│   ├── 📄 ecommerce.db         # SQLite DB (905KB)
-│   ├── 📄 checkout_routes.js   # Checkout Logic
-│   └── 📄 emailService.js      # Email Service
-├── 📂 src/                     # React Frontend
-│   ├── 📂 admin/               # Admin Panel (5 files)
-│   ├── 📂 components/          # UI Components (20 files)
-│   ├── 📂 pages/               # Pages (19 files)
-│   ├── 📂 services/            # API Services
-│   └── 📂 context/             # State Management
-├── 📂 scripts/                 # Utilities (9 files)
-├── 📂 tests/                   # Tests (8 files)
-└── 📂 public/                  # Static Assets
+┌─ 📦 ecomerce/
+│
+├─ �️ db/                      ← Backend & Database Layer
+│  ├─ admin_server.js           (Express Application - 101KB)
+│  ├─ api.js                    (Database API Layer - 35KB)
+│  ├─ ecommerce.db              (SQLite Database - 905KB)
+│  ├─ checkout_routes.js        (Checkout Logic)
+│  └─ emailService.js           (Email Service)
+│
+├─ ⚛️ src/                      ← React Frontend
+│  ├─ �️ admin/                 (Admin Panel - 5 files)
+│  ├─ 🧩 components/            (UI Components - 20 files)
+│  ├─ � pages/                 (Page Components - 19 files)
+│  ├─ � services/              (API Services)
+│  └─ 🎯 context/               (State Management)
+│
+├─ �️ scripts/                  ← Utility Scripts
+│  └─ (9 utility files)
+│
+├─ 🧪 tests/                    ← Test Suite
+│  └─ (8 test files - 92% coverage)
+│
+└─ 🌐 public/                   ← Static Assets
+   └─ (HTML, robots.txt, redirects)
 ```
+
+</div>
 
 <br/>
 
