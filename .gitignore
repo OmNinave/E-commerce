@@ -55,3 +55,8 @@ db/*.json
 
 # OS
 Thumbs.db
+
+# Private Documentation
+DOCS/
+*.md
+!README.md
