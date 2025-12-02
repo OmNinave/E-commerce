@@ -110,30 +110,6 @@ Email notifications
 
 <br/>
 
-## 🆚 Why ProLab Equipment?
-
-<div align="center">
-
-| Feature | ProLab Equipment | Traditional E-Commerce |
-|:--------|:----------------:|:----------------------:|
-| **Real-Time Inventory** | ✅ Live Updates | ❌ Manual Sync |
-| **Currency Conversion** | ✅ INR/USD Dynamic | ❌ Single Currency |
-| **Admin Analytics** | ✅ Visual Dashboard | ❌ Basic Reports |
-| **Security Grade** | ✅ A+ Rated | ⚠️ Varies |
-| **Test Coverage** | ✅ 92% | ❌ Limited |
-| **API Architecture** | ✅ RESTful + Modular | ⚠️ Monolithic |
-| **Authentication** | ✅ JWT + Bcrypt | ⚠️ Basic |
-| **Email System** | ✅ Automated | ❌ Manual |
-
-</div>
-
-<br/><br/>
-
-<!-- ANIMATED DIVIDER -->
-<img src="https://user-images.githubusercontent.com/73097560/115834477-dbab4500-a447-11eb-908a-139a6edaec5c.gif" width="100%">
-
-<br/>
-
 ## 💻 Technology Stack
 
 <div align="center">
