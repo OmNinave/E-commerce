@@ -1,255 +1,107 @@
-# 🛒 Professional E-Commerce Platform
+<!-- 
+  🚀 PROLAB EQUIPMENT - SVG CARD EDITION
+  Bypassing GitHub CSS limitations using rendered SVGs
+-->
 
-A full-stack e-commerce application built with React, Node.js, Express, and SQLite.
+<div align="center">
 
-## 🚀 Quick Start
+<!-- HEADER: STATIC GLOWING NEON (Capsule Render with specific settings) -->
+<img src="https://capsule-render.vercel.app/api?type=transparent&fontColor=00F0FF&text=PROLAB%20EQUIPMENT&height=150&fontSize=70&desc=SCIENTIFIC%20COMMERCE%20OS&descSize=25&descAlignY=75&descAlign=50&stroke=00F0FF&strokeWidth=2&animation=fadeIn" alt="ProLab Header" width="100%" />
 
-### Prerequisites
-- Node.js (v14 or higher)
-- npm or yarn
-- Git
+<br/>
 
-### Installation
+<!-- BADGES: NEON STYLE -->
+<p>
+  <img src="https://img.shields.io/badge/REACT-18-000000?style=for-the-badge&logo=react&logoColor=61DAFB&color=0d1117&labelColor=000000&border=61DAFB">
+  <img src="https://img.shields.io/badge/NODE-JS-000000?style=for-the-badge&logo=node.js&logoColor=339933&color=0d1117&labelColor=000000&border=339933">
+  <img src="https://img.shields.io/badge/SQLITE-3-000000?style=for-the-badge&logo=sqlite&logoColor=003B57&color=0d1117&labelColor=000000&border=003B57">
+  <img src="https://img.shields.io/badge/STATUS-ONLINE-000000?style=for-the-badge&logo=github-actions&logoColor=00F0FF&color=0d1117&labelColor=000000&border=00F0FF">
+</p>
 
-1. **Clone the repository**
-```bash
-git clone https://github.com/OmNinave/Ecommerce.git
-cd Ecommerce
+<br/>
+
+<!-- ISOMETRIC CITY (Kept because it looks cool) -->
+<img src="https://raw.githubusercontent.com/platane/platane/master/public/github-isometric-2019.svg" width="100%" alt="Isometric City" style="filter: hue-rotate(180deg) contrast(1.2);" />
+
+<br/><br/>
+
+<!-- FEATURE CARDS (Using Readme-Stats to simulate UI Cards) -->
+<!-- These have built-in rounded corners and themes -->
+
+<table border="0">
+  <tr>
+    <td width="50%" align="center">
+      <a href="#">
+        <img src="https://github-readme-stats.vercel.app/api/pin/?username=anuraghazra&repo=github-readme-stats&theme=radical&hide_border=true&title_color=00F0FF&icon_color=BD00FF&text_color=ffffff&bg_color=0d1117" alt="System Core" width="100%" />
+      </a>
+      <br/>
+      <b>⚡ SYSTEM CORE</b>
+    </td>
+    <td width="50%" align="center">
+      <a href="#">
+        <img src="https://github-readme-stats.vercel.app/api/pin/?username=facebook&repo=react&theme=radical&hide_border=true&title_color=00F0FF&icon_color=BD00FF&text_color=ffffff&bg_color=0d1117" alt="Live Metrics" width="100%" />
+      </a>
+      <br/>
+      <b>📊 LIVE METRICS</b>
+    </td>
+  </tr>
+</table>
+
+<br/>
+
+<!-- TECH STACK -->
+<h2>🧬 TECHNOLOGY MATRIX</h2>
+<img src="https://skillicons.dev/icons?i=react,js,html,css,tailwind,nodejs,express,sqlite,git,vscode,postman,vercel&perline=12&theme=dark" />
+
+<br/><br/>
+
+<!-- ARCHITECTURE DIAGRAM (Mermaid is still the best for this) -->
+<h2>📐 NEURAL NETWORK</h2>
+<pre>
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#00F0FF', 'edgeLabelBackground':'#000000', 'tertiaryColor': '#0d1117'}}}%%
+graph TD
+    User((👤 USER)) -->|HTTPS| UI[💻 FRONTEND]
+    Admin((🕵️ ADMIN)) -->|HTTPS| UI
+    
+    subgraph CORE [🔥 SYSTEM CORE]
+        UI -->|JSON| API[⚡ API GATEWAY]
+        API -->|JWT| Auth[🛡️ SECURITY]
+        Auth -->|Query| DB[(💾 DATA VAULT)]
+    end
+    
+    DB -->|Analytics| Dashboard[📊 DASHBOARD]
+    
+    style UI fill:#0d1117,stroke:#00F0FF,stroke-width:2px
+    style API fill:#0d1117,stroke:#BD00FF,stroke-width:2px
+    style DB fill:#0d1117,stroke:#00FF00,stroke-width:2px
+    style Auth fill:#0d1117,stroke:#FF0000,stroke-width:2px
 ```
+</pre>
 
-2. **Install dependencies**
-```bash
-npm install
-```
+<br/>
 
-3. **Set up environment variables**
-```bash
-# Create .env file in root directory
-cp .env.example .env
-```
+<!-- DEPLOYMENT SECTION -->
+<h2>🚀 DEPLOYMENT PROTOCOLS</h2>
 
-4. **Initialize the database**
-```bash
-node db/seed.js
-```
+<table width="100%">
+<tr>
+<td width="50%" align="center">
+  <img src="https://capsule-render.vercel.app/api?type=rect&color=0d1117&text=WINDOWS&fontColor=00F0FF&stroke=00F0FF&strokeWidth=1&height=80&fontSize=30&animation=fadeIn" width="100%" />
+  <br/>
+  <code>./start-all.bat</code>
+</td>
+<td width="50%" align="center">
+  <img src="https://capsule-render.vercel.app/api?type=rect&color=0d1117&text=UNIX&fontColor=BD00FF&stroke=BD00FF&strokeWidth=1&height=80&fontSize=30&animation=fadeIn" width="100%" />
+  <br/>
+  <code>npm start</code>
+</td>
+</tr>
+</table>
 
-5. **Start the application**
+<br/>
 
-**Option 1: Using batch file (Windows)**
-```bash
-start-all.bat
-```
+<!-- FOOTER -->
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:000000,50:0d1117,100:000000&height=120&section=footer&text=ENGINEERED%20BY%20PROLAB&fontSize=20&fontColor=555555&animation=fadeIn" width="100%" />
 
-**Option 2: Manual start**
-
-Terminal 1 - Backend:
-```bash
-node db/admin_server.js
-```
-
-Terminal 2 - Frontend:
-```bash
-npm start
-```
-
-## 📱 Access Points
-
-- **Frontend:** http://localhost:3000
-- **Backend API:** http://localhost:5000
-- **Admin Panel:** http://localhost:3000/admin
-
-### Default Admin Credentials
-- **Email:** admin@ecommerce.com
-- **Password:** admin123
-
-## 🏗️ Project Structure
-
-```
-ecomerce/
-├── db/                          # Backend & Database
-│   ├── admin_server.js         # Express server
-│   ├── api.js                  # Database API layer
-│   ├── database.js             # SQLite connection
-│   ├── ecommerce.db           # SQLite database
-│   ├── seed.js                # Database seeding
-│   └── emailService.js        # Email functionality
-├── src/                        # Frontend React App
-│   ├── admin/                 # Admin panel components
-│   ├── components/            # React components
-│   ├── context/              # React context providers
-│   ├── pages/                # Page components
-│   ├── services/             # API services
-│   ├── styles/               # CSS files
-│   └── data/                 # Static data
-├── public/                    # Public assets
-├── tests/                     # Test files
-└── package.json              # Dependencies
-```
-
-## 🎯 Features
-
-### Customer Features
-- ✅ Product browsing with search & filters
-- ✅ Shopping cart management
-- ✅ User authentication (login/register)
-- ✅ Order placement & tracking
-- ✅ Wishlist functionality
-- ✅ Address management
-- ✅ Profile management
-- ✅ Product reviews
-- ✅ Live chat assistant
-
-### Admin Features
-- ✅ Complete dashboard with analytics
-- ✅ Product management (CRUD)
-- ✅ Order management
-- ✅ User management
-- ✅ Warehouse management
-- ✅ Courier partner management
-- ✅ Return request handling
-- ✅ Support ticket system
-- ✅ Loyalty program management
-- ✅ Payment settlements
-
-## 🔧 Technology Stack
-
-### Frontend
-- React 18
-- React Router v6
-- Context API for state management
-- Recharts for analytics
-- CSS3 with modern design
-
-### Backend
-- Node.js
-- Express.js
-- SQLite3
-- JWT authentication
-- bcrypt for password hashing
-- Nodemailer for emails
-
-## 📊 Database Schema
-
-The application uses SQLite with the following main tables:
-- `products` - Product catalog
-- `users` - User accounts
-- `orders` - Order records
-- `order_items` - Order line items
-- `addresses` - User addresses
-- `categories` - Product categories
-- `warehouses` - Warehouse locations
-- `courier_partners` - Shipping partners
-- `return_requests` - Product returns
-- `support_tickets` - Customer support
-- And more...
-
-## 🧪 Testing
-
-Run tests:
-```bash
-npm test
-```
-
-Test files are located in the `tests/` directory.
-
-## 🔐 Security Features
-
-- ✅ JWT-based authentication
-- ✅ Password hashing with bcrypt
-- ✅ CORS protection
-- ✅ Helmet.js security headers
-- ✅ Rate limiting on auth endpoints
-- ✅ Input validation & sanitization
-- ✅ SQL injection prevention
-
-## 📝 API Endpoints
-
-### Public Endpoints
-- `GET /api/products` - Get all products
-- `GET /api/products/:id` - Get single product
-- `GET /api/categories` - Get categories
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/login` - User login
-
-### Protected Endpoints (Require Authentication)
-- `GET /api/users/:userId/profile` - Get user profile
-- `GET /api/users/:userId/orders` - Get user orders
-- `POST /api/orders` - Create order
-- `GET /api/users/:userId/addresses` - Get addresses
-- And more...
-
-### Admin Endpoints (Require Admin Role)
-- `GET /api/admin/products` - Manage products
-- `GET /api/admin/orders` - Manage orders
-- `GET /api/admin/users` - Manage users
-- `GET /api/admin/analytics` - View analytics
-- And more...
-
-## 🐛 Troubleshooting
-
-### Database Issues
-If you encounter database errors:
-```bash
-# Re-seed the database
-node db/seed.js
-```
-
-### Port Already in Use
-If ports 3000 or 5000 are in use:
-```bash
-# Kill processes on Windows
-npx kill-port 3000 5000
-
-# Or change ports in:
-# - Backend: db/admin_server.js (line 18)
-# - Frontend: package.json (add "PORT=3001" to start script)
-```
-
-### Module Not Found
-```bash
-# Clear cache and reinstall
-rm -rf node_modules package-lock.json
-npm install
-```
-
-## 📦 Build for Production
-
-```bash
-npm run build
-```
-
-This creates an optimized production build in the `build/` folder.
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is private and proprietary.
-
-## 👥 Authors
-
-- **Om Ninave** - Initial work
-
-## 🙏 Acknowledgments
-
-- Built as part of an internship project
-- Demonstrates full-stack development capabilities
-- Implements professional e-commerce workflows
-
-## 📞 Support
-
-For issues or questions:
-- Create an issue in the repository
-- Contact: [Your Email]
-
----
-
-**Last Updated:** November 2025
-**Version:** 1.0.0
-**Status:** ✅ Production Ready
+</div>
