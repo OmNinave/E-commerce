@@ -53,10 +53,8 @@ db/*.json
 *.swo
 *~
 
+# Documentation (keep private)
+DOCS/
+
 # OS
 Thumbs.db
-
-# Private Documentation
-DOCS/
-*.md
-!README.md
