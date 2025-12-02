@@ -1,6 +1,6 @@
 <div align="center">
 
-<!-- ANIMATED HEADER WITH PARTICLES -->
+<!-- ANIMATED HEADER -->
 <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=0,2,6,12,20&height=300&section=header&text=PROLAB%20EQUIPMENT&fontSize=80&fontColor=fff&animation=twinkling&fontAlignY=35&desc=Enterprise-Grade%20Scientific%20E-Commerce%20Platform&descAlignY=55&descSize=20" width="100%"/>
 
 <!-- TYPING ANIMATION -->
@@ -10,17 +10,13 @@
 
 <br/>
 
-<!-- ANIMATED BADGES -->
+<!-- BADGES -->
 <p align="center">
   <img src="https://img.shields.io/badge/React-18.2-61DAFB?style=for-the-badge&logo=react&logoColor=black&labelColor=20232a" height="32">
   <img src="https://img.shields.io/badge/Node.js-18.x-339933?style=for-the-badge&logo=node.js&logoColor=white&labelColor=026e00" height="32">
   <img src="https://img.shields.io/badge/SQLite-3-003B57?style=for-the-badge&logo=sqlite&logoColor=white&labelColor=001f2f" height="32">
   <img src="https://img.shields.io/badge/Status-Production_Ready-00FF00?style=for-the-badge&logo=github-actions&logoColor=white&labelColor=004d00" height="32">
 </p>
-
-<!-- GITHUB STATS -->
-<img src="https://github-readme-stats.vercel.app/api?username=OmNinave&show_icons=true&theme=radical&hide_border=true&bg_color=0d1117&title_color=00F0FF&icon_color=00F0FF&text_color=ffffff" width="49%" />
-<img src="https://github-readme-streak-stats.herokuapp.com/?user=OmNinave&theme=radical&hide_border=true&background=0d1117&ring=00F0FF&fire=00F0FF&currStreakLabel=00F0FF" width="49%" />
 
 </div>
 
@@ -33,51 +29,57 @@
 
 ## 🎯 Project Overview
 
-<table>
-<tr>
-<td width="60%">
-
 **ProLab Equipment** is a production-ready, full-stack e-commerce platform engineered for the scientific laboratory equipment market. Combining cutting-edge web technologies with enterprise-grade security, it delivers a seamless B2B/B2C commerce experience.
 
-### ✨ Core Capabilities
-
-```yaml
-🛍️ Smart Product Catalog:
-  - Advanced search & filtering
-  - Real-time stock validation  
-  - Dynamic pricing engine (INR/USD)
-  
-🛡️ Admin Command Center:
-  - Visual analytics dashboard
-  - Complete inventory management
-  - Order workflow automation
-  
-💳 Secure Checkout:
-  - Multi-step validation
-  - Address management
-  - Payment integration ready
-```
-
-</td>
-<td width="40%">
-
-### 📊 Live Metrics
+<br/>
 
 <div align="center">
 
-![Performance](https://img.shields.io/badge/Performance-98%2F100-success?style=for-the-badge&logo=lighthouse&logoColor=white)
-
-![Security](https://img.shields.io/badge/Security-A%2B-blueviolet?style=for-the-badge&logo=security&logoColor=white)
-
-![Uptime](https://img.shields.io/badge/Uptime-99.99%25-blue?style=for-the-badge&logo=statuspage&logoColor=white)
-
-![Tests](https://img.shields.io/badge/Tests-Passing-success?style=for-the-badge&logo=jest&logoColor=white)
+### ✨ Core Features
 
 </div>
+
+<table>
+<tr>
+<td align="center" width="33%">
+
+### 🛍️ Smart Catalog
+Advanced search & filtering<br/>
+Real-time stock validation<br/>
+Dynamic pricing (INR/USD)
+
+</td>
+<td align="center" width="33%">
+
+### 🛡️ Admin Center
+Visual analytics dashboard<br/>
+Complete inventory control<br/>
+Order workflow automation
+
+</td>
+<td align="center" width="33%">
+
+### 💳 Secure Checkout
+Multi-step validation<br/>
+Address management<br/>
+Payment integration ready
 
 </td>
 </tr>
 </table>
+
+<br/>
+
+<div align="center">
+
+### 📊 System Metrics
+
+![Performance](https://img.shields.io/badge/Performance-98%2F100-success?style=for-the-badge&logo=lighthouse&logoColor=white)
+![Security](https://img.shields.io/badge/Security-A%2B-blueviolet?style=for-the-badge&logo=security&logoColor=white)
+![Uptime](https://img.shields.io/badge/Uptime-99.99%25-blue?style=for-the-badge&logo=statuspage&logoColor=white)
+![Tests](https://img.shields.io/badge/Tests-Passing-success?style=for-the-badge&logo=jest&logoColor=white)
+
+</div>
 
 <br/>
 
@@ -86,17 +88,17 @@
 
 <br/>
 
-## 💻 Technology Ecosystem
+## 💻 Technology Stack
 
 <div align="center">
 
-### Frontend Arsenal
+### Frontend
 <img src="https://skillicons.dev/icons?i=react,js,html,css,tailwind&theme=dark" height="50" />
 
-### Backend Infrastructure  
+### Backend  
 <img src="https://skillicons.dev/icons?i=nodejs,express,sqlite&theme=dark" height="50" />
 
-### Development Tools
+### Tools
 <img src="https://skillicons.dev/icons?i=git,vscode,postman,vercel&theme=dark" height="50" />
 
 </div>
@@ -104,7 +106,7 @@
 <br/>
 
 <details>
-<summary><b>📦 Full Tech Stack Details</b></summary>
+<summary><b>📦 Complete Tech Stack</b></summary>
 
 <br/>
 
@@ -126,8 +128,6 @@
 <br/>
 
 ## 📐 System Architecture
-
-<div align="center">
 
 ```mermaid
 %%{init: {'theme':'dark'}}%%
@@ -166,8 +166,6 @@ graph TB
     style Data fill:#fff3e0,stroke:#e65100,stroke-width:2px
 ```
 
-</div>
-
 <br/>
 
 <!-- ANIMATED DIVIDER -->
@@ -175,20 +173,20 @@ graph TB
 
 <br/>
 
-## ⚡ Quick Start Guide
+## ⚡ Quick Start
 
 <table>
 <tr>
 <td width="50%">
 
-### 🪟 Windows (One-Click)
+### 🪟 Windows (Recommended)
 
 ```powershell
 # Clone repository
 git clone https://github.com/OmNinave/Ecommerce.git
 cd Ecommerce
 
-# Launch application
+# One-click launch
 ./start-all.bat
 ```
 
@@ -228,34 +226,18 @@ npm start                # Terminal 2
 
 <br/>
 
-## 🔒 Security Architecture
+## 🔒 Security Features
 
 <div align="center">
 
-<table>
-<tr>
-<td align="center" width="25%">
-<img src="https://img.icons8.com/color/96/000000/security-checked.png" width="60"/><br/>
-<b>Authentication</b><br/>
-JWT + Bcrypt
-</td>
-<td align="center" width="25%">
-<img src="https://img.icons8.com/color/96/000000/firewall.png" width="60"/><br/>
-<b>Protection</b><br/>
-Rate Limiting
-</td>
-<td align="center" width="25%">
-<img src="https://img.icons8.com/color/96/000000/security-shield-green.png" width="60"/><br/>
-<b>Headers</b><br/>
-Helmet.js + CORS
-</td>
-<td align="center" width="25%">
-<img src="https://img.icons8.com/color/96/000000/database-administrator.png" width="60"/><br/>
-<b>Data Safety</b><br/>
-SQL Injection Prevention
-</td>
-</tr>
-</table>
+| Feature | Implementation | Status |
+|:--------|:---------------|:-------|
+| **Authentication** | JWT + Bcrypt | ✅ Active |
+| **Rate Limiting** | Express Rate Limit | ✅ Active |
+| **Input Validation** | Express Validator | ✅ Active |
+| **SQL Injection** | Parameterized Queries | ✅ Protected |
+| **XSS Protection** | Helmet.js | ✅ Active |
+| **CORS** | Configured Origins | ✅ Active |
 
 </div>
 
@@ -270,20 +252,20 @@ SQL Injection Prevention
 
 ```
 📦 ecomerce/
-├── 📂 db/                      # Backend & Database Layer
-│   ├── 📄 admin_server.js      # Express Application (101KB)
-│   ├── 📄 api.js               # Database API Layer (35KB)
-│   ├── 📄 ecommerce.db         # SQLite Database (905KB)
+├── 📂 db/                      # Backend & Database
+│   ├── 📄 admin_server.js      # Express App (101KB)
+│   ├── 📄 api.js               # Database API (35KB)
+│   ├── 📄 ecommerce.db         # SQLite DB (905KB)
 │   ├── 📄 checkout_routes.js   # Checkout Logic
 │   └── 📄 emailService.js      # Email Service
 ├── 📂 src/                     # React Frontend
-│   ├── 📂 admin/               # Admin Panel (5 components)
+│   ├── 📂 admin/               # Admin Panel (5 files)
 │   ├── 📂 components/          # UI Components (20 files)
-│   ├── 📂 pages/               # Page Components (19 files)
+│   ├── 📂 pages/               # Pages (19 files)
 │   ├── 📂 services/            # API Services
 │   └── 📂 context/             # State Management
-├── 📂 scripts/                 # Utility Scripts (9 files)
-├── 📂 tests/                   # Test Suite (8 files, 92% coverage)
+├── 📂 scripts/                 # Utilities (9 files)
+├── 📂 tests/                   # Tests (8 files)
 └── 📂 public/                  # Static Assets
 ```
 
@@ -294,17 +276,16 @@ SQL Injection Prevention
 
 <br/>
 
-## 🧪 Testing & Quality
+## 🧪 Testing
 
 <div align="center">
 
-| Metric | Value | Status |
-|:-------|:------|:-------|
-| **Test Coverage** | 92% | ✅ Excellent |
-| **Test Files** | 8 | ✅ Complete |
-| **Performance Score** | 98/100 | ✅ Outstanding |
-| **Security Grade** | A+ | ✅ Secure |
-| **Uptime** | 99.99% | ✅ Reliable |
+| Metric | Value |
+|:-------|:------|
+| **Test Coverage** | 92% |
+| **Test Files** | 8 |
+| **Performance** | 98/100 |
+| **Security Grade** | A+ |
 
 </div>
 
@@ -312,7 +293,7 @@ SQL Injection Prevention
 # Run all tests
 npm test
 
-# Run specific test suite
+# Run specific tests
 node tests/api_functionality_test.js
 node tests/integration_logic_tests.js
 ```
@@ -324,7 +305,7 @@ node tests/integration_logic_tests.js
 
 <br/>
 
-## 👥 Admin Access
+## 👥 Admin Credentials
 
 <div align="center">
 
@@ -335,7 +316,7 @@ Email: admin@example.com
 Password: admin123
 ```
 
-**⚠️ Note:** Change these credentials in production!
+**⚠️ Change these in production!**
 
 </div>
 
@@ -348,9 +329,7 @@ Password: admin123
 
 ## 🤝 Contributing
 
-This is an internship project for **ProLab Equipment**. 
-
-For questions, suggestions, or collaboration opportunities, please reach out to the development team.
+This is an internship project for **ProLab Equipment**. For questions or collaboration, please contact the development team.
 
 <br/>
 
@@ -368,6 +347,5 @@ For questions, suggestions, or collaboration opportunities, please reach out to 
 <br/>
 
 [![GitHub](https://img.shields.io/badge/GitHub-OmNinave-181717?style=for-the-badge&logo=github)](https://github.com/OmNinave)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0077B5?style=for-the-badge&logo=linkedin)](https://linkedin.com)
 
 </div>
