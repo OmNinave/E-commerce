@@ -25,10 +25,20 @@ import ResetPassword from './pages/ResetPassword';
 import Terms from './pages/Legal/Terms';
 import Privacy from './pages/Legal/Privacy';
 
+// New Checkout Pages
+import CheckoutAddress from './pages/CheckoutAddress';
+import CheckoutPayment from './pages/CheckoutPayment';
+import CheckoutReview from './pages/CheckoutReview';
+import PaymentGateway from './pages/PaymentGateway';
+import OrderSuccess from './pages/OrderSuccess';
+
 import Settings from './pages/Settings';
 import Notifications from './pages/Notifications';
 import Reviews from './pages/Reviews';
 import Contact from './pages/Contact';
+import About from './pages/About';
+import Solutions from './pages/Solutions';
+import ContactSales from './pages/ContactSales';
 import NotFound from './pages/NotFound';
 import ErrorBoundary from './components/ErrorBoundary';
 import { initializeCSRF } from './utils/csrf';
@@ -37,8 +47,8 @@ import './styles/ResponsiveFixes.css';
 
 function AppContent() {
   const location = useLocation();
-  const hideFooter = location.pathname === '/products' || location.pathname === '/login' || location.pathname === '/register' || location.pathname === '/admin';
-  const hideNavigation = location.pathname === '/login' || location.pathname === '/register' || location.pathname === '/admin';
+  const hideFooter = location.pathname === '/products' || location.pathname === '/login' || location.pathname === '/register' || location.pathname === '/admin' || location.pathname.startsWith('/checkout');
+  const hideNavigation = location.pathname === '/login' || location.pathname === '/register' || location.pathname === '/admin' || location.pathname.startsWith('/checkout');
 
   // Initialize CSRF token on app load
   React.useEffect(() => {
@@ -60,11 +70,39 @@ function AppContent() {
                 <Cart />
               </PrivateRoute>
             } />
+
+            {/* Checkout Flow Routes */}
             <Route path="/checkout" element={
               <PrivateRoute>
                 <Checkout />
               </PrivateRoute>
             } />
+            <Route path="/checkout/address" element={
+              <PrivateRoute>
+                <CheckoutAddress />
+              </PrivateRoute>
+            } />
+            <Route path="/checkout/payment" element={
+              <PrivateRoute>
+                <CheckoutPayment />
+              </PrivateRoute>
+            } />
+            <Route path="/checkout/review" element={
+              <PrivateRoute>
+                <CheckoutReview />
+              </PrivateRoute>
+            } />
+            <Route path="/checkout/payment-gateway" element={
+              <PrivateRoute>
+                <PaymentGateway />
+              </PrivateRoute>
+            } />
+            <Route path="/checkout/success/:orderId" element={
+              <PrivateRoute>
+                <OrderSuccess />
+              </PrivateRoute>
+            } />
+
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/admin" element={<AdminApp />} />
@@ -119,6 +157,11 @@ function AppContent() {
             {/* Legal Routes */}
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
+
+            {/* Public Pages */}
+            <Route path="/about" element={<About />} />
+            <Route path="/solutions" element={<Solutions />} />
+            <Route path="/contact-sales" element={<ContactSales />} />
 
             {/* 404 Route - Must be last */}
             <Route path="*" element={<NotFound />} />

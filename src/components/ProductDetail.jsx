@@ -43,6 +43,7 @@ const ProductDetail = () => {
   const [userComment, setUserComment] = useState('');
 
   useEffect(() => {
+    setActiveImage(0);
     const fetchData = async () => {
       try {
         setIsLoading(true);
@@ -76,6 +77,15 @@ const ProductDetail = () => {
   if (isLoading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div></div>;
   if (error || !product) return <div className="min-h-screen flex items-center justify-center text-xl font-semibold text-gray-900">Product not found</div>;
 
+  // Safe data parsing
+  const features = typeof product.features === 'string' ? JSON.parse(product.features) : (product.features || []);
+  const specifications = typeof product.specifications === 'string' ? JSON.parse(product.specifications) : (product.specifications || {});
+  const shippingInfo = typeof product.shipping_info === 'string' ? JSON.parse(product.shipping_info) : (product.shipping_info || {});
+
+  const productImages = product.images && product.images.length > 0
+    ? product.images
+    : [{ image_url: getProductImage(product) }];
+
   const averageRating = reviews.length > 0 ? reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length : 0;
 
   return (
@@ -103,7 +113,7 @@ const ProductDetail = () => {
               className="aspect-[4/5] bg-gray-50 rounded-3xl overflow-hidden relative group"
             >
               <img
-                src={getProductImage(product)}
+                src={productImages[activeImage]?.image_url}
                 alt={product.name}
                 className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700"
               />
@@ -115,13 +125,13 @@ const ProductDetail = () => {
             </motion.div>
 
             <div className="grid grid-cols-4 gap-4">
-              {[0, 1, 2, 3].map((idx) => (
+              {productImages.map((img, idx) => (
                 <button
                   key={idx}
                   onClick={() => setActiveImage(idx)}
                   className={`aspect-square rounded-xl overflow-hidden border-2 transition-all ${activeImage === idx ? 'border-indigo-600 ring-2 ring-indigo-100' : 'border-transparent hover:border-gray-200'}`}
                 >
-                  <img src={product.image} alt="Thumbnail" className="w-full h-full object-cover" />
+                  <img src={img.image_url} alt="Thumbnail" className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>
@@ -235,7 +245,7 @@ const ProductDetail = () => {
                 <div className="bg-gray-50/50 rounded-2xl p-6 mt-6 border border-gray-100">
                   <TabsContent value="features" className="mt-0 space-y-4">
                     <ul className="space-y-3">
-                      {product.features?.map((feature, i) => (
+                      {features.map((feature, i) => (
                         <li key={i} className="flex items-start gap-3 text-gray-600">
                           <div className="mt-1 w-5 h-5 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
                             <Check className="w-3 h-3 text-green-600" />
@@ -249,7 +259,7 @@ const ProductDetail = () => {
                     <div className="border rounded-xl overflow-hidden bg-white">
                       <table className="w-full text-sm text-left">
                         <tbody className="divide-y divide-gray-100">
-                          {product.specifications && Object.entries(product.specifications).map(([key, value]) => (
+                          {Object.entries(specifications).map(([key, value]) => (
                             <tr key={key} className="bg-white hover:bg-gray-50">
                               <td className="px-4 py-3 font-medium text-gray-900 bg-gray-50/50 w-1/3">
                                 {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
@@ -262,11 +272,22 @@ const ProductDetail = () => {
                     </div>
                   </TabsContent>
                   <TabsContent value="shipping" className="mt-0 text-gray-600 leading-relaxed">
-                    <p>
-                      We offer <strong>free expedited shipping</strong> on all orders over $5,000.
-                      Most instruments ship within 24-48 hours.
-                      White-glove delivery and installation services are available for sensitive equipment.
-                    </p>
+                    {Object.keys(shippingInfo).length > 0 ? (
+                      <div className="grid gap-4">
+                        {Object.entries(shippingInfo).map(([key, value]) => (
+                          <div key={key} className="flex justify-between border-b border-gray-100 pb-2 last:border-0">
+                            <span className="font-medium text-gray-900">{key}</span>
+                            <span>{value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p>
+                        We offer <strong>free expedited shipping</strong> on all orders over $5,000.
+                        Most instruments ship within 24-48 hours.
+                        White-glove delivery and installation services are available for sensitive equipment.
+                      </p>
+                    )}
                   </TabsContent>
                 </div>
               </Tabs>

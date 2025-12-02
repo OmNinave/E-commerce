@@ -28,6 +28,7 @@ const ProductList = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const [products, setProducts] = useState([]);
+    const [categories, setCategories] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
 
@@ -48,10 +49,14 @@ const ProductList = () => {
     }, [searchParams]);
 
     useEffect(() => {
-        const fetchProducts = async () => {
+        const fetchData = async () => {
             try {
                 setIsLoading(true);
-                // Fetch up to 100 products to show full catalog
+                // Fetch categories
+                const fetchedCategories = await apiService.getCategories();
+                setCategories(fetchedCategories || []);
+
+                // Fetch products
                 const fetchedProducts = await apiService.getProducts(1, 100);
                 if (fetchedProducts && fetchedProducts.length > 0) {
                     setProducts(fetchedProducts);
@@ -59,25 +64,22 @@ const ProductList = () => {
                     setProducts(staticProducts || []);
                 }
             } catch (error) {
-                console.error('Failed to fetch products:', error);
+                console.error('Failed to fetch data:', error);
                 setProducts(staticProducts || []);
+                setCategories([]);
             } finally {
                 setIsLoading(false);
             }
         };
-        fetchProducts();
+        fetchData();
     }, []);
-
-    // Derived Data
-    const categories = useMemo(() => {
-        const cats = ['All', ...new Set(products.map(p => p.category).filter(Boolean))];
-        return cats;
-    }, [products]);
 
     const filteredProducts = useMemo(() => {
         return products.filter(product => {
             const matchesSearch = (product.name || '').toLowerCase().includes(searchTerm.toLowerCase());
-            const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
+            const matchesCategory = selectedCategory === 'All' ||
+                product.category === selectedCategory ||
+                (product.category_id && categories.find(c => c.id === product.category_id)?.name === selectedCategory);
 
             return matchesSearch && matchesCategory;
         }).sort((a, b) => {
@@ -122,16 +124,28 @@ const ProductList = () => {
                     <LayoutGrid className="w-4 h-4" /> Categories
                 </h3>
                 <div className="space-y-2">
+                    {/* All Category */}
+                    <button
+                        onClick={() => setSelectedCategory('All')}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${selectedCategory === 'All'
+                            ? 'bg-indigo-50 text-indigo-600 font-medium'
+                            : 'text-gray-600 hover:bg-gray-50'
+                            }`}
+                    >
+                        All Products
+                    </button>
+
+                    {/* Database Categories */}
                     {categories.map((category) => (
                         <button
-                            key={category}
-                            onClick={() => setSelectedCategory(category)}
-                            className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${selectedCategory === category
+                            key={category.id}
+                            onClick={() => setSelectedCategory(category.name)}
+                            className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${selectedCategory === category.name
                                 ? 'bg-indigo-50 text-indigo-600 font-medium'
                                 : 'text-gray-600 hover:bg-gray-50'
                                 }`}
                         >
-                            {category}
+                            {category.name}
                         </button>
                     ))}
                 </div>

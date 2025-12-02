@@ -1,0 +1,56 @@
+flowchart TD
+    A([User Starts Checkout]) --> B{User Logged In?}
+    B -->|No| C[Redirect to Login]
+    C --> A
+    B -->|Yes| D[Load Cart Items]
+    
+    D --> E[Validate Cart with Backend]
+    E --> F{Stock Available?}
+    F -->|No| G[Show Error Messages]
+    G --> H[User Updates Cart]
+    H --> E
+    
+    F -->|Yes| I[Display Checkout Form]
+    I --> J[User Enters/Selects Address]
+    J --> K[Select Shipping Method]
+    K --> L[Calculate Total with Shipping]
+    
+    L --> M[User Confirms Order]
+    M --> N[Send Order Request to Backend]
+    
+    N --> O{Backend Validates Data}
+    O -->|Invalid| P[Return Validation Errors]
+    P --> I
+    
+    O -->|Valid| Q[Start Database Transaction]
+    Q --> R[Create/Update Address Record]
+    R --> S[Insert Order Record]
+    S --> T[Insert Order Items]
+    T --> U[Update Product Stock]
+    
+    U --> V{All Successful?}
+    V -->|No| W[Rollback Transaction]
+    W --> X[Return Error to Frontend]
+    X --> I
+    
+    V -->|Yes| Y[Commit Transaction]
+    Y --> Z[Process Payment]
+    
+    Z --> AA{Payment Success?}
+    AA -->|No| AB[Mark Payment Failed]
+    AB --> AC[Notify User of Failure]
+    AC --> I
+    
+    AA -->|Yes| AD[Mark Payment Successful]
+    AD --> AE[Queue Confirmation Email]
+    AE --> AF[Return Order Confirmation]
+    AF --> AG([Order Success Page])
+    
+    style A fill:#90EE90
+    style AG fill:#90EE90
+    style G fill:#FFB6C1
+    style P fill:#FFB6C1
+    style X fill:#FFB6C1
+    style AC fill:#FFB6C1
+    style Q fill:#FFD700
+    style Y fill:#87CEEB

@@ -96,6 +96,7 @@ const Home = () => {
                                 <Button
                                     variant="outline"
                                     size="lg"
+                                    onClick={() => navigate('/solutions')}
                                     className="h-14 px-8 rounded-full border-gray-200 text-gray-600 hover:border-gray-900 hover:text-gray-900 transition-all duration-300"
                                 >
                                     View Solutions
@@ -140,13 +141,25 @@ const Home = () => {
                                 </div>
 
                                 <div className="h-48 bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl mb-6 flex items-center justify-center relative overflow-hidden group">
-                                    <Atom className="w-24 h-24 text-indigo-200 group-hover:scale-110 transition-transform duration-500" />
+                                    <img
+                                        src="https://images.unsplash.com/photo-1530210124550-912dc1381cb8?auto=format&fit=crop&q=80&w=400"
+                                        alt="ProLab Microscope"
+                                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                    />
                                     <div className="absolute inset-0 bg-gradient-to-t from-white/50 to-transparent"></div>
                                 </div>
 
                                 <div className="space-y-3">
-                                    <div className="h-2 bg-gray-100 rounded-full w-3/4"></div>
-                                    <div className="h-2 bg-gray-100 rounded-full w-1/2"></div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-sm font-semibold text-gray-900">Advanced Optics</span>
+                                        <span className="text-sm font-bold text-indigo-600">₹2,48,156</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                            <div className="h-full w-4/5 bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full"></div>
+                                        </div>
+                                        <span className="text-xs text-gray-500">80% sold</span>
+                                    </div>
                                 </div>
                             </motion.div>
 
@@ -182,7 +195,7 @@ const Home = () => {
                         You can also checkout our products on
                     </p>
                     <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16">
-                        {['Amazon', 'Flipkart', 'IndiaMart', 'Ativeer Solutions'].map((platform) => (
+                        {['Amazon', 'Flipkart', 'IndiaMart'].map((platform) => (
                             <motion.div
                                 key={platform}
                                 whileHover={{ scale: 1.05, color: '#4F46E5' }}
@@ -203,7 +216,7 @@ const Home = () => {
                             <div className="absolute -top-4 -left-4 w-24 h-24 bg-indigo-100 rounded-full -z-10"></div>
                             <div className="absolute -bottom-4 -right-4 w-32 h-32 bg-purple-100 rounded-full -z-10"></div>
                             <img
-                                src="https://images.unsplash.com/photo-1581093458791-9f302e683800?auto=format&fit=crop&q=80&w=800"
+                                src="https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&q=80&w=800"
                                 alt="Modern Laboratory"
                                 className="rounded-3xl shadow-2xl w-full object-cover h-[500px]"
                             />
@@ -220,7 +233,7 @@ const Home = () => {
                                 Empowering Discovery Through <span className="text-indigo-600">Innovation</span>
                             </h2>
                             <p className="text-lg text-gray-500 leading-relaxed">
-                                At ProLab (an initiative by Ativeer Solutions), we understand that precision is the heartbeat of every experiment.
+                                At ProLab, we understand that precision is the heartbeat of every experiment.
                                 Since our inception, we have been dedicated to bridging the gap between cutting-edge technology and practical laboratory needs.
                             </p>
                             <div className="space-y-4">
@@ -243,7 +256,11 @@ const Home = () => {
                                     </div>
                                 </div>
                             </div>
-                            <Button variant="outline" className="rounded-full px-8 border-gray-300 hover:border-indigo-600 hover:text-indigo-600">
+                            <Button
+                                variant="outline"
+                                onClick={() => navigate('/about')}
+                                className="rounded-full px-8 border-gray-300 hover:border-indigo-600 hover:text-indigo-600"
+                            >
                                 Learn More About Us
                             </Button>
                         </div>
@@ -381,6 +398,7 @@ const Home = () => {
                                 <Button
                                     size="lg"
                                     variant="outline"
+                                    onClick={() => navigate('/contact-sales')}
                                     className="h-14 px-8 rounded-full border-gray-700 text-gray-300 hover:border-white hover:text-white"
                                 >
                                     Contact Sales

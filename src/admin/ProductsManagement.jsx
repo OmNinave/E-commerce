@@ -10,6 +10,15 @@ const ProductsManagement = () => {
     const [showAddModal, setShowAddModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState(null);
+    const [productImages, setProductImages] = useState([]);
+    const [newImageUrl, setNewImageUrl] = useState('');
+    const [discountData, setDiscountData] = useState({
+        has_discount: false,
+        discount_type: 'percentage',
+        discount_value: 0,
+        start_date: '',
+        end_date: ''
+    });
     const [formData, setFormData] = useState({
         name: '',
         slug: '',
@@ -21,18 +30,20 @@ const ProductsManagement = () => {
         sku: '',
         base_price: '',
         selling_price: '',
+        cost_price: '',
         stock_quantity: '',
+        low_stock_threshold: 10,
         weight: '',
-        is_featured: false
+        dimensions: '',
+        is_featured: false,
+        features: '[]',
+        specifications: '{}',
+        shipping_info: '{}'
     });
 
     useEffect(() => {
         loadProducts();
     }, []);
-
-    useEffect(() => {
-        console.log('🟢 showAddModal state changed to:', showAddModal);
-    }, [showAddModal]);
 
     const loadProducts = async () => {
         try {
@@ -84,8 +95,13 @@ const ProductsManagement = () => {
                 sku: formData.sku || generateSKU(),
                 base_price: parseFloat(formData.base_price),
                 selling_price: parseFloat(formData.selling_price),
+                cost_price: formData.cost_price ? parseFloat(formData.cost_price) : null,
                 stock_quantity: parseInt(formData.stock_quantity) || 0,
-                is_featured: formData.is_featured ? 1 : 0
+                low_stock_threshold: parseInt(formData.low_stock_threshold) || 10,
+                is_featured: formData.is_featured ? 1 : 0,
+                features: JSON.parse(formData.features || '[]'),
+                specifications: JSON.parse(formData.specifications || '{}'),
+                shipping_info: JSON.parse(formData.shipping_info || '{}')
             };
 
             await api.createProduct(productData);
@@ -107,8 +123,13 @@ const ProductsManagement = () => {
                 ...formData,
                 base_price: parseFloat(formData.base_price),
                 selling_price: parseFloat(formData.selling_price),
+                cost_price: formData.cost_price ? parseFloat(formData.cost_price) : null,
                 stock_quantity: parseInt(formData.stock_quantity) || 0,
-                is_featured: formData.is_featured ? 1 : 0
+                low_stock_threshold: parseInt(formData.low_stock_threshold) || 10,
+                is_featured: formData.is_featured ? 1 : 0,
+                features: JSON.parse(formData.features || '[]'),
+                specifications: JSON.parse(formData.specifications || '{}'),
+                shipping_info: JSON.parse(formData.shipping_info || '{}')
             };
 
             await api.updateProduct(selectedProduct.id, productData);
@@ -137,7 +158,7 @@ const ProductsManagement = () => {
         }
     };
 
-    const openEditModal = (product) => {
+    const openEditModal = async (product) => {
         setSelectedProduct(product);
         setFormData({
             name: product.name || '',
@@ -150,11 +171,80 @@ const ProductsManagement = () => {
             sku: product.sku || '',
             base_price: product.base_price || '',
             selling_price: product.selling_price || '',
+            cost_price: product.cost_price || '',
             stock_quantity: product.stock_quantity || '',
+            low_stock_threshold: product.low_stock_threshold || 10,
             weight: product.weight || '',
-            is_featured: product.is_featured === 1
+            dimensions: product.dimensions || '',
+            is_featured: product.is_featured === 1,
+            features: JSON.stringify(product.features || [], null, 2),
+            specifications: JSON.stringify(product.specifications || {}, null, 2),
+            shipping_info: JSON.stringify(product.shipping_info || {}, null, 2)
         });
+
+        // Product data now includes images from the enriched endpoint
+        if (product && product.images) {
+            setProductImages(product.images);
+        } else {
+            setProductImages([]);
+        }
+
+        // Set discount data if product has an active discount
+        if (product.discount) {
+            setDiscountData({
+                has_discount: true,
+                discount_type: product.discount.discount_type || 'percentage',
+                discount_value: product.discount.discount_value || 0,
+                start_date: product.discount.start_date || '',
+                end_date: product.discount.end_date || ''
+            });
+        } else {
+            setDiscountData({
+                has_discount: false,
+                discount_type: 'percentage',
+                discount_value: 0,
+                start_date: '',
+                end_date: ''
+            });
+        }
+
         setShowEditModal(true);
+    };
+
+    const handleAddImage = async () => {
+        if (!newImageUrl) return;
+        try {
+            const updatedImages = await api.addProductImage(selectedProduct.id, {
+                image_url: newImageUrl,
+                is_primary: productImages.length === 0
+            });
+            setProductImages(updatedImages);
+            setNewImageUrl('');
+        } catch (error) {
+            console.error('Failed to add image:', error);
+            alert('Failed to add image');
+        }
+    };
+
+    const handleDeleteImage = async (imageId) => {
+        if (!window.confirm('Delete this image?')) return;
+        try {
+            const updatedImages = await api.deleteProductImage(selectedProduct.id, imageId);
+            setProductImages(updatedImages);
+        } catch (error) {
+            console.error('Failed to delete image:', error);
+            alert('Failed to delete image');
+        }
+    };
+
+    const handleSetPrimaryImage = async (imageId) => {
+        try {
+            const updatedImages = await api.setPrimaryProductImage(selectedProduct.id, imageId);
+            setProductImages(updatedImages);
+        } catch (error) {
+            console.error('Failed to set primary image:', error);
+            alert('Failed to set primary image');
+        }
     };
 
     const resetForm = () => {
@@ -169,11 +259,26 @@ const ProductsManagement = () => {
             sku: '',
             base_price: '',
             selling_price: '',
+            cost_price: '',
             stock_quantity: '',
+            low_stock_threshold: 10,
             weight: '',
-            is_featured: false
+            dimensions: '',
+            is_featured: false,
+            features: '[]',
+            specifications: '{}',
+            shipping_info: '{}'
         });
         setSelectedProduct(null);
+        setProductImages([]);
+        setNewImageUrl('');
+        setDiscountData({
+            has_discount: false,
+            discount_type: 'percentage',
+            discount_value: 0,
+            start_date: '',
+            end_date: ''
+        });
     };
 
     const closeModals = () => {
@@ -186,12 +291,7 @@ const ProductsManagement = () => {
         <div className="products-management">
             <div className="products-header">
                 <h1>Products Management</h1>
-                <button className="btn-primary" onClick={() => {
-                    console.log('🔵 Add Product button clicked!');
-                    console.log('🔵 Current showAddModal:', showAddModal);
-                    setShowAddModal(true);
-                    console.log('🔵 setShowAddModal(true) called');
-                }}>
+                <button className="btn-primary" onClick={() => setShowAddModal(true)}>
                     + Add New Product
                 </button>
             </div>
@@ -281,8 +381,8 @@ const ProductsManagement = () => {
             )}
 
             {/* Add Product Modal */}
-            {showAddModal && (
-                <div className="modal-overlay" onClick={closeModals} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999 }}>
+            {showAddModal && ReactDOM.createPortal(
+                <div className="modal-overlay" onClick={closeModals}>
                     <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
                             <h2>Add New Product</h2>
@@ -302,6 +402,17 @@ const ProductsManagement = () => {
                                 </div>
 
                                 <div className="form-group">
+                                    <label>Slug</label>
+                                    <input
+                                        type="text"
+                                        name="slug"
+                                        value={formData.slug}
+                                        onChange={handleInputChange}
+                                        placeholder="Auto-generated if empty"
+                                    />
+                                </div>
+
+                                <div className="form-group">
                                     <label>Model</label>
                                     <input
                                         type="text"
@@ -317,6 +428,16 @@ const ProductsManagement = () => {
                                         type="text"
                                         name="brand"
                                         value={formData.brand}
+                                        onChange={handleInputChange}
+                                    />
+                                </div>
+
+                                <div className="form-group">
+                                    <label>Category ID</label>
+                                    <input
+                                        type="number"
+                                        name="category_id"
+                                        value={formData.category_id}
                                         onChange={handleInputChange}
                                     />
                                 </div>
@@ -357,12 +478,35 @@ const ProductsManagement = () => {
                                 </div>
 
                                 <div className="form-group">
+                                    <label>Cost Price</label>
+                                    <input
+                                        type="number"
+                                        name="cost_price"
+                                        value={formData.cost_price}
+                                        onChange={handleInputChange}
+                                        step="0.01"
+                                        placeholder="Internal cost"
+                                    />
+                                </div>
+
+                                <div className="form-group">
                                     <label>Stock Quantity</label>
                                     <input
                                         type="number"
                                         name="stock_quantity"
                                         value={formData.stock_quantity}
                                         onChange={handleInputChange}
+                                    />
+                                </div>
+
+                                <div className="form-group">
+                                    <label>Low Stock Threshold</label>
+                                    <input
+                                        type="number"
+                                        name="low_stock_threshold"
+                                        value={formData.low_stock_threshold}
+                                        onChange={handleInputChange}
+                                        placeholder="Alert when stock is low"
                                     />
                                 </div>
 
@@ -374,6 +518,17 @@ const ProductsManagement = () => {
                                         value={formData.weight}
                                         onChange={handleInputChange}
                                         step="0.01"
+                                    />
+                                </div>
+
+                                <div className="form-group">
+                                    <label>Dimensions</label>
+                                    <input
+                                        type="text"
+                                        name="dimensions"
+                                        value={formData.dimensions}
+                                        onChange={handleInputChange}
+                                        placeholder="L x W x H cm"
                                     />
                                 </div>
 
@@ -394,6 +549,42 @@ const ProductsManagement = () => {
                                         value={formData.description}
                                         onChange={handleInputChange}
                                         rows="4"
+                                    />
+                                </div>
+
+                                <div className="form-group full-width">
+                                    <label>Features (JSON Array)</label>
+                                    <textarea
+                                        name="features"
+                                        value={formData.features}
+                                        onChange={handleInputChange}
+                                        rows="4"
+                                        placeholder='["Feature 1", "Feature 2"]'
+                                        className="font-mono text-sm"
+                                    />
+                                </div>
+
+                                <div className="form-group full-width">
+                                    <label>Specifications (JSON Object)</label>
+                                    <textarea
+                                        name="specifications"
+                                        value={formData.specifications}
+                                        onChange={handleInputChange}
+                                        rows="4"
+                                        placeholder='{"Key": "Value"}'
+                                        className="font-mono text-sm"
+                                    />
+                                </div>
+
+                                <div className="form-group full-width">
+                                    <label>Shipping Info (JSON Object)</label>
+                                    <textarea
+                                        name="shipping_info"
+                                        value={formData.shipping_info}
+                                        onChange={handleInputChange}
+                                        rows="4"
+                                        placeholder='{"Dispatch": "24h"}'
+                                        className="font-mono text-sm"
                                     />
                                 </div>
 
@@ -420,7 +611,8 @@ const ProductsManagement = () => {
                             </div>
                         </form>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Edit Product Modal */}
@@ -445,6 +637,16 @@ const ProductsManagement = () => {
                                 </div>
 
                                 <div className="form-group">
+                                    <label>Slug</label>
+                                    <input
+                                        type="text"
+                                        name="slug"
+                                        value={formData.slug}
+                                        onChange={handleInputChange}
+                                    />
+                                </div>
+
+                                <div className="form-group">
                                     <label>Model</label>
                                     <input
                                         type="text"
@@ -460,6 +662,16 @@ const ProductsManagement = () => {
                                         type="text"
                                         name="brand"
                                         value={formData.brand}
+                                        onChange={handleInputChange}
+                                    />
+                                </div>
+
+                                <div className="form-group">
+                                    <label>Category ID</label>
+                                    <input
+                                        type="number"
+                                        name="category_id"
+                                        value={formData.category_id}
                                         onChange={handleInputChange}
                                     />
                                 </div>
@@ -500,12 +712,35 @@ const ProductsManagement = () => {
                                 </div>
 
                                 <div className="form-group">
+                                    <label>Cost Price</label>
+                                    <input
+                                        type="number"
+                                        name="cost_price"
+                                        value={formData.cost_price}
+                                        onChange={handleInputChange}
+                                        step="0.01"
+                                        placeholder="Internal cost"
+                                    />
+                                </div>
+
+                                <div className="form-group">
                                     <label>Stock Quantity</label>
                                     <input
                                         type="number"
                                         name="stock_quantity"
                                         value={formData.stock_quantity}
                                         onChange={handleInputChange}
+                                    />
+                                </div>
+
+                                <div className="form-group">
+                                    <label>Low Stock Threshold</label>
+                                    <input
+                                        type="number"
+                                        name="low_stock_threshold"
+                                        value={formData.low_stock_threshold}
+                                        onChange={handleInputChange}
+                                        placeholder="Alert when stock is low"
                                     />
                                 </div>
 
@@ -517,6 +752,17 @@ const ProductsManagement = () => {
                                         value={formData.weight}
                                         onChange={handleInputChange}
                                         step="0.01"
+                                    />
+                                </div>
+
+                                <div className="form-group">
+                                    <label>Dimensions</label>
+                                    <input
+                                        type="text"
+                                        name="dimensions"
+                                        value={formData.dimensions}
+                                        onChange={handleInputChange}
+                                        placeholder="L x W x H cm"
                                     />
                                 </div>
 
@@ -537,6 +783,74 @@ const ProductsManagement = () => {
                                         value={formData.description}
                                         onChange={handleInputChange}
                                         rows="4"
+                                    />
+                                </div>
+
+                                <div className="form-group full-width">
+                                    <label>Product Images</label>
+                                    <div className="images-manager">
+                                        <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+                                            <input
+                                                type="text"
+                                                placeholder="Paste image URL here..."
+                                                value={newImageUrl}
+                                                onChange={(e) => setNewImageUrl(e.target.value)}
+                                                style={{ flex: 1 }}
+                                            />
+                                            <button type="button" onClick={handleAddImage} className="btn-secondary">Add Image</button>
+                                        </div>
+                                        <div className="images-grid">
+                                            {productImages.map(img => (
+                                                <div key={img.id} className="image-item" style={{ border: img.is_primary ? '2px solid var(--primary-color)' : '1px solid #eee' }}>
+                                                    <img src={img.image_url} alt="Product" />
+                                                    <div className="image-actions">
+                                                        {!img.is_primary ? (
+                                                            <button type="button" className="btn-xs btn-set-primary" onClick={() => handleSetPrimaryImage(img.id)}>Set Primary</button>
+                                                        ) : (
+                                                            <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--primary-color)', padding: '4px' }}>Primary</span>
+                                                        )}
+                                                        <button type="button" className="btn-xs btn-del-image" onClick={() => handleDeleteImage(img.id)}>Delete</button>
+                                                    </div>
+                                                    {img.is_primary && <div className="primary-badge">Primary</div>}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="form-group full-width">
+                                    <label>Features (JSON Array)</label>
+                                    <textarea
+                                        name="features"
+                                        value={formData.features}
+                                        onChange={handleInputChange}
+                                        rows="4"
+                                        placeholder='["Feature 1", "Feature 2"]'
+                                        className="font-mono text-sm"
+                                    />
+                                </div>
+
+                                <div className="form-group full-width">
+                                    <label>Specifications (JSON Object)</label>
+                                    <textarea
+                                        name="specifications"
+                                        value={formData.specifications}
+                                        onChange={handleInputChange}
+                                        rows="4"
+                                        placeholder='{"Key": "Value"}'
+                                        className="font-mono text-sm"
+                                    />
+                                </div>
+
+                                <div className="form-group full-width">
+                                    <label>Shipping Info (JSON Object)</label>
+                                    <textarea
+                                        name="shipping_info"
+                                        value={formData.shipping_info}
+                                        onChange={handleInputChange}
+                                        rows="4"
+                                        placeholder='{"Dispatch": "24h"}'
+                                        className="font-mono text-sm"
                                     />
                                 </div>
 

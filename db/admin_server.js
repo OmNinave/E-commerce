@@ -28,10 +28,14 @@ const {
   validateReview
 } = require('./middleware/validation');
 
+
 const app = express();
 // Use fixed port for consistency
-const PORT = 5000; // process.env.PORT || 5000;
+const PORT = 5000;
 console.log('Using port:', PORT);
+
+
+
 
 try {
   migrateToProfessionalWorkflow();
@@ -1199,15 +1203,22 @@ app.get('/api/admin/products', requireAuth, requireAdmin, (req, res) => {
     const filters = {
       search: req.query.search,
       category_id: req.query.category,
-      limit: req.query.limit ? parseInt(req.query.limit) : null
+      limit: req.query.limit ? parseInt(req.query.limit) : null,
+      include_inactive: true
     };
 
     const products = dbAPI.getAllProducts(filters);
 
+    // Enrich each product with full details (images, parsed JSON fields, discounts)
+    const enrichedProducts = products.map(product => {
+      const fullProduct = dbAPI.getProductById(product.id);
+      return fullProduct;
+    });
+
     res.json({
       success: true,
-      products,
-      total: products.length
+      products: enrichedProducts,
+      total: enrichedProducts.length
     });
   } catch (error) {
     console.error('Error fetching products:', error);
@@ -1298,6 +1309,76 @@ app.delete('/api/admin/products/:id', requireAuth, requireAdmin, (req, res) => {
   } catch (error) {
     console.error('Error deleting product:', error);
     res.status(500).json({ error: 'Failed to delete product' });
+  }
+});
+
+// Add product image
+app.post('/api/admin/products/:id/images', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const productId = req.params.id;
+    const { image_url, alt_text, is_primary, display_order } = req.body;
+
+    if (!image_url) {
+      return res.status(400).json({ error: 'Image URL is required' });
+    }
+
+    dbAPI.addProductImage(productId, {
+      image_url,
+      alt_text,
+      is_primary: is_primary || 0,
+      display_order: display_order || 0
+    });
+
+    const images = dbAPI.getProductImages(productId);
+
+    res.status(201).json({
+      success: true,
+      images,
+      message: 'Image added successfully'
+    });
+  } catch (error) {
+    console.error('Error adding product image:', error);
+    res.status(500).json({ error: 'Failed to add product image' });
+  }
+});
+
+// Delete product image
+app.delete('/api/admin/products/:id/images/:imageId', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const { id, imageId } = req.params;
+
+    dbAPI.deleteProductImage(imageId);
+
+    const images = dbAPI.getProductImages(id);
+
+    res.json({
+      success: true,
+      images,
+      message: 'Image deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting product image:', error);
+    res.status(500).json({ error: 'Failed to delete product image' });
+  }
+});
+
+// Set primary product image
+app.put('/api/admin/products/:id/images/:imageId/primary', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const { id, imageId } = req.params;
+
+    dbAPI.setPrimaryProductImage(id, imageId);
+
+    const images = dbAPI.getProductImages(id);
+
+    res.json({
+      success: true,
+      images,
+      message: 'Primary image updated successfully'
+    });
+  } catch (error) {
+    console.error('Error setting primary image:', error);
+    res.status(500).json({ error: 'Failed to set primary image' });
   }
 });
 
@@ -1422,8 +1503,182 @@ app.get('/api/admin/users/:id', requireAuth, requireAdmin, (req, res) => {
   }
 });
 
-// Featured products endpoint removed (duplicate) - see line 1674
 
+// ==================== ANALYTICS ROUTES ====================
+
+// General Analytics (Dashboard)
+app.get('/api/admin/analytics', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const { timeRange } = req.query;
+    let startDate;
+    const now = new Date();
+
+    if (timeRange === 'week') {
+      startDate = new Date(now.setDate(now.getDate() - 7)).toISOString();
+    } else if (timeRange === 'month') {
+      startDate = new Date(now.setMonth(now.getMonth() - 1)).toISOString();
+    } else if (timeRange === 'year') {
+      startDate = new Date(now.setFullYear(now.getFullYear() - 1)).toISOString();
+    } else {
+      startDate = new Date(0).toISOString();
+    }
+
+    // Summary Stats
+    const totalUsers = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
+    const newUsers = db.prepare('SELECT COUNT(*) as count FROM users WHERE created_at >= ?').get(startDate).count;
+    const oldUsers = totalUsers - newUsers;
+
+    // Sales & Orders
+    const salesData = db.prepare(`
+      SELECT 
+        DATE(created_at) as date, 
+        COUNT(*) as count, 
+        SUM(total_amount) as revenue 
+      FROM orders 
+      WHERE created_at >= ? 
+      GROUP BY DATE(created_at)
+    `).all(startDate);
+
+    const totalRevenue = salesData.reduce((sum, day) => sum + (day.revenue || 0), 0);
+    const totalOrders = salesData.reduce((sum, day) => sum + day.count, 0);
+
+    // User Registrations Chart
+    const userRegistrations = db.prepare(`
+      SELECT 
+        DATE(created_at) as date, 
+        COUNT(*) as count 
+      FROM users 
+      WHERE created_at >= ? 
+      GROUP BY DATE(created_at)
+    `).all(startDate);
+
+    // Recent Orders (for dashboard list)
+    const recentOrders = db.prepare(`
+      SELECT 
+        o.id as orderId, 
+        o.total_amount as totalAmount, 
+        o.status, 
+        o.created_at as orderDate,
+        u.email as userEmail,
+        u.first_name || ' ' || u.last_name as userName
+      FROM orders o
+      LEFT JOIN users u ON o.user_id = u.id
+      ORDER BY o.created_at DESC
+      LIMIT 10
+    `).all();
+
+    // Add item counts to recent orders
+    const enrichedRecentOrders = recentOrders.map(order => {
+      const itemCount = db.prepare('SELECT COUNT(*) as count FROM order_items WHERE order_id = ?').get(order.orderId).count;
+      return { ...order, items: { length: itemCount } };
+    });
+
+    res.json({
+      summary: {
+        totalUserTraffic: totalUsers,
+        newUsers,
+        oldUsers,
+        sales: totalRevenue,
+        orders: totalOrders
+      },
+      charts: {
+        sales: salesData.map(d => ({ date: d.date, sales: d.revenue, quantity: d.count })),
+        userDates: userRegistrations.map(d => d.date),
+        userCounts: userRegistrations.map(d => d.count)
+      },
+      orders: enrichedRecentOrders
+    });
+
+  } catch (error) {
+    console.error('Analytics error:', error);
+    res.status(500).json({ error: 'Failed to fetch analytics' });
+  }
+});
+
+// Orders Analytics & List
+app.get('/api/admin/analytics/orders', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const { timeRange } = req.query;
+    let startDate;
+    const now = new Date();
+
+    if (timeRange === 'week') {
+      startDate = new Date(now.setDate(now.getDate() - 7)).toISOString();
+    } else if (timeRange === 'month') {
+      startDate = new Date(now.setMonth(now.getMonth() - 1)).toISOString();
+    } else if (timeRange === 'year') {
+      startDate = new Date(now.setFullYear(now.getFullYear() - 1)).toISOString();
+    } else {
+      startDate = new Date(0).toISOString();
+    }
+
+    // Chart Data
+    const chartData = db.prepare(`
+      SELECT 
+        DATE(created_at) as date, 
+        COUNT(*) as count, 
+        SUM(total_amount) as revenue 
+      FROM orders 
+      WHERE created_at >= ? 
+      GROUP BY DATE(created_at)
+    `).all(startDate);
+
+    // Full Orders List
+    const orders = db.prepare(`
+      SELECT 
+        o.id as orderId, 
+        o.total_amount as totalAmount, 
+        o.status, 
+        o.created_at as date,
+        u.email as userEmail,
+        u.first_name || ' ' || u.last_name as userName
+      FROM orders o
+      LEFT JOIN users u ON o.user_id = u.id
+      WHERE o.created_at >= ?
+      ORDER BY o.created_at DESC
+    `).all(startDate);
+
+    // Add item counts
+    const ordersWithItems = orders.map(order => {
+      const itemCount = db.prepare('SELECT COUNT(*) as count FROM order_items WHERE order_id = ?').get(order.orderId).count;
+      return { ...order, items: { length: itemCount } };
+    });
+
+    res.json({
+      chartData,
+      orders: ordersWithItems
+    });
+
+  } catch (error) {
+    console.error('Orders analytics error:', error);
+    res.status(500).json({ error: 'Failed to fetch orders analytics' });
+  }
+});
+
+
+
+// Update Order Status
+app.put('/api/admin/orders/:id/status', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const { status } = req.body;
+    const { id } = req.params;
+
+    if (!['pending', 'processing', 'shipped', 'delivered', 'cancelled'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    db.prepare('UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+      .run(status, id);
+
+    res.json({
+      success: true,
+      message: `Order status updated to ${status}`
+    });
+  } catch (error) {
+    console.error('Error updating order status:', error);
+    res.status(500).json({ error: 'Failed to update order status' });
+  }
+});
 
 // ==================== WISHLIST ROUTES ====================
 
@@ -2605,6 +2860,13 @@ VALUES(?, ?, ?, ?, ?)
   }
 });
 
+
+// ==================== CHECKOUT FLOW ROUTES ====================
+// Import and register checkout routes
+const registerCheckoutRoutes = require('./checkout_routes');
+registerCheckoutRoutes(app, requireAuth);
+console.log('✅ Checkout routes registered');
+
 // ==================== ERROR HANDLING ====================
 
 // 404 handler
@@ -2617,6 +2879,7 @@ app.use((err, req, res, next) => {
   console.error('Global error:', err);
   res.status(500).json({ error: 'Internal server error' });
 });
+
 
 // ==================== SERVER START ====================
 
@@ -2966,8 +3229,5 @@ app.delete('/api/users/:userId/wishlist/:productId', requireAuth, (req, res) => 
 // ==================== REVIEWS & FEATURED ROUTES ====================
 // NOTE: These endpoints are already defined earlier in the file (lines 873, 1730, 1759)
 // Duplicates removed to avoid conflicts
-
-// Duplicate server start removed
-
 
 module.exports = app;

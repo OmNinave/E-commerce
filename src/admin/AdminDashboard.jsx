@@ -243,6 +243,33 @@ const AdminDashboard = ({ admin, onLogout }) => {
     }
   }, [ordersTimeRange]);
 
+  const handleUpdateOrderStatus = async (orderId, newStatus) => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_URL}/api/admin/orders/${orderId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (response.ok) {
+        // Refresh orders
+        fetchOrdersAnalytics();
+        // Also refresh dashboard analytics if needed
+        fetchAnalytics();
+      } else {
+        const error = await response.json();
+        alert('Failed to update status: ' + error.error);
+      }
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      alert('Failed to update order status');
+    }
+  };
+
   const fetchProducts = async () => {
     try {
       const token = localStorage.getItem('adminToken');
@@ -1083,6 +1110,7 @@ const AdminDashboard = ({ admin, onLogout }) => {
                     <th>Items</th>
                     <th>Total Amount</th>
                     <th>Status</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1095,6 +1123,21 @@ const AdminDashboard = ({ admin, onLogout }) => {
                         <td>{order.items?.length || 0} items</td>
                         <td className="price-cell">₹{order.totalAmount?.toLocaleString() || 0}</td>
                         <td><span className={`status-badge ${order.status || 'completed'}`}>{order.status || 'completed'}</span></td>
+                        <td>
+                          <select
+                            value={order.status || 'pending'}
+                            onChange={(e) => handleUpdateOrderStatus(order.orderId, e.target.value)}
+                            className="status-select"
+                            onClick={(e) => e.stopPropagation()}
+                            style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #ddd', fontSize: '12px' }}
+                          >
+                            <option value="pending">Pending</option>
+                            <option value="processing">Processing</option>
+                            <option value="shipped">Shipped</option>
+                            <option value="delivered">Delivered</option>
+                            <option value="cancelled">Cancelled</option>
+                          </select>
+                        </td>
                       </tr>
                     ))
                   ) : analytics?.orders && analytics.orders.length > 0 ? (
@@ -1106,11 +1149,26 @@ const AdminDashboard = ({ admin, onLogout }) => {
                         <td>{order.items?.length || 0} items</td>
                         <td className="price-cell">₹{order.totalAmount?.toLocaleString() || 0}</td>
                         <td><span className={`status-badge ${order.status}`}>{order.status}</span></td>
+                        <td>
+                          <select
+                            value={order.status || 'pending'}
+                            onChange={(e) => handleUpdateOrderStatus(order.orderId, e.target.value)}
+                            className="status-select"
+                            onClick={(e) => e.stopPropagation()}
+                            style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #ddd', fontSize: '12px' }}
+                          >
+                            <option value="pending">Pending</option>
+                            <option value="processing">Processing</option>
+                            <option value="shipped">Shipped</option>
+                            <option value="delivered">Delivered</option>
+                            <option value="cancelled">Cancelled</option>
+                          </select>
+                        </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="6" style={{ textAlign: 'center', padding: '40px', color: '#6c757d' }}>
+                      <td colSpan="7" style={{ textAlign: 'center', padding: '40px', color: '#6c757d' }}>
                         No orders found for selected period
                       </td>
                     </tr>

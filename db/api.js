@@ -15,8 +15,12 @@ class DatabaseAPI {
              (SELECT COUNT(*) FROM product_images WHERE product_id = p.id) as image_count
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
-      WHERE p.is_active = 1
+      WHERE 1=1
     `;
+
+        if (!filters.include_inactive) {
+            query += ' AND p.is_active = 1';
+        }
 
         const params = [];
 
@@ -87,8 +91,12 @@ class DatabaseAPI {
       SELECT COUNT(*) as count
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
-      WHERE p.is_active = 1
+      WHERE 1=1
     `;
+
+        if (!filters.include_inactive) {
+            query += ' AND p.is_active = 1';
+        }
 
         const params = [];
 
@@ -131,6 +139,11 @@ class DatabaseAPI {
         if (product) {
             product.images = this.getProductImages(id);
             product.discount = this.getActiveDiscount(id);
+
+            // Parse JSON fields
+            try { product.features = JSON.parse(product.features || '[]'); } catch (e) { product.features = []; }
+            try { product.specifications = JSON.parse(product.specifications || '{}'); } catch (e) { product.specifications = {}; }
+            try { product.shipping_info = JSON.parse(product.shipping_info || '{}'); } catch (e) { product.shipping_info = {}; }
         }
 
         return product;
@@ -141,8 +154,8 @@ class DatabaseAPI {
       INSERT INTO products (
         name, slug, model, tagline, description, category_id, brand, sku,
         base_price, selling_price, cost_price, stock_quantity, low_stock_threshold,
-        weight, dimensions, is_active, is_featured, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        weight, dimensions, is_active, is_featured, features, specifications, shipping_info, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
         const now = new Date().toISOString();
@@ -164,6 +177,9 @@ class DatabaseAPI {
             productData.dimensions || null,
             productData.is_active !== undefined ? productData.is_active : 1,
             productData.is_featured || 0,
+            JSON.stringify(productData.features || []),
+            JSON.stringify(productData.specifications || {}),
+            JSON.stringify(productData.shipping_info || {}),
             now,
             now
         );
@@ -178,13 +194,17 @@ class DatabaseAPI {
         const allowedFields = [
             'name', 'slug', 'model', 'tagline', 'description', 'category_id', 'brand', 'sku',
             'base_price', 'selling_price', 'cost_price', 'stock_quantity', 'low_stock_threshold',
-            'weight', 'dimensions', 'is_active', 'is_featured'
+            'weight', 'dimensions', 'is_active', 'is_featured', 'features', 'specifications', 'shipping_info'
         ];
 
         for (const field of allowedFields) {
             if (productData[field] !== undefined) {
                 fields.push(`${field} = ?`);
-                values.push(productData[field]);
+                if (['features', 'specifications', 'shipping_info'].includes(field) && typeof productData[field] === 'object') {
+                    values.push(JSON.stringify(productData[field]));
+                } else {
+                    values.push(productData[field]);
+                }
             }
         }
 
@@ -227,6 +247,19 @@ class DatabaseAPI {
 
     deleteProductImage(imageId) {
         return db.prepare('DELETE FROM product_images WHERE id = ?').run(imageId);
+    }
+
+    setPrimaryProductImage(productId, imageId) {
+        const transaction = db.transaction(() => {
+            // Reset all images for this product to not be primary
+            db.prepare('UPDATE product_images SET is_primary = 0 WHERE product_id = ?').run(productId);
+
+            // Set the selected image as primary
+            db.prepare('UPDATE product_images SET is_primary = 1 WHERE id = ? AND product_id = ?').run(imageId, productId);
+        });
+
+        transaction();
+        return true;
     }
 
     // ==================== CATEGORIES ====================

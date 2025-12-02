@@ -62,6 +62,13 @@ class ApiService {
         const error = await response.json().catch(() => ({ error: 'Request failed' }));
         const errorMessage = error.error || `HTTP error! status: ${response.status}`;
         console.error(`❌ API Error: ${errorMessage}`);
+        console.error('📋 Error Details:', error.details);
+        console.error('📚 Error Stack:', error.stack);
+        console.error('🔍 Full Error Object:', error);
+
+        if (error.details) {
+          throw new Error(`${errorMessage}: ${error.details}`);
+        }
         throw new Error(errorMessage);
       }
 
@@ -202,6 +209,32 @@ class ApiService {
     return data;
   }
 
+  async createOrderWithPayment(orderData) {
+    const data = await this.request('/api/orders/create-with-payment', {
+      method: 'POST',
+      body: JSON.stringify(orderData)
+    });
+    return data;
+  }
+
+  async confirmPayment(paymentData) {
+    const { orderId, ...rest } = paymentData;
+    const data = await this.request(`/api/orders/${orderId}/confirm-payment`, {
+      method: 'POST',
+      body: JSON.stringify(rest)
+    });
+    return data;
+  }
+
+  async reportPaymentFailure(failureData) {
+    const { orderId, reason } = failureData;
+    const data = await this.request(`/api/orders/${orderId}/payment-failed`, {
+      method: 'POST',
+      body: JSON.stringify({ reason })
+    });
+    return data;
+  }
+
   async validateCart(items, shippingMethod = 'standard') {
     return this.request('/api/cart/validate', {
       method: 'POST',
@@ -212,6 +245,29 @@ class ApiService {
   async getOrders() {
     const data = await this.request('/api/orders');
     return data.orders || [];
+  }
+
+  async getOrderDetails(orderId) {
+    return this.request(`/api/orders/${orderId}/details`);
+  }
+
+  // Checkout endpoints
+  async getPaymentMethods() {
+    return this.request('/api/payment-methods');
+  }
+
+  async validateGiftCard(code) {
+    return this.request('/api/gift-cards/validate', {
+      method: 'POST',
+      body: JSON.stringify({ code })
+    });
+  }
+
+  async calculateOrderFees(orderData) {
+    return this.request('/api/orders/calculate-fees', {
+      method: 'POST',
+      body: JSON.stringify(orderData)
+    });
   }
 
   // Wishlist endpoints
@@ -247,14 +303,13 @@ class ApiService {
     if (filters.search) queryParams.append('search', filters.search);
     if (filters.category) queryParams.append('category', filters.category);
 
-    // Admin sees all products, potentially with different query params if needed
-    // For now, reuse the public endpoint but with admin token it might return more data if backend is configured
-    const data = await this.request(`/api/products?${queryParams.toString()}`);
+    // Admin endpoint returns ALL products (active and inactive)
+    const data = await this.request(`/api/admin/products?${queryParams.toString()}`);
     return data.products || [];
   }
 
   async createProduct(productData) {
-    const data = await this.request('/api/products', {
+    const data = await this.request('/api/admin/products', {
       method: 'POST',
       body: JSON.stringify(productData)
     });
@@ -262,7 +317,7 @@ class ApiService {
   }
 
   async updateProduct(id, productData) {
-    const data = await this.request(`/api/products/${id}`, {
+    const data = await this.request(`/api/admin/products/${id}`, {
       method: 'PUT',
       body: JSON.stringify(productData)
     });
@@ -270,9 +325,31 @@ class ApiService {
   }
 
   async deleteProduct(id) {
-    await this.request(`/api/products/${id}`, {
+    await this.request(`/api/admin/products/${id}`, {
       method: 'DELETE'
     });
+  }
+
+  async addProductImage(productId, imageData) {
+    const data = await this.request(`/api/admin/products/${productId}/images`, {
+      method: 'POST',
+      body: JSON.stringify(imageData)
+    });
+    return data.images;
+  }
+
+  async deleteProductImage(productId, imageId) {
+    const data = await this.request(`/api/admin/products/${productId}/images/${imageId}`, {
+      method: 'DELETE'
+    });
+    return data.images;
+  }
+
+  async setPrimaryProductImage(productId, imageId) {
+    const data = await this.request(`/api/admin/products/${productId}/images/${imageId}/primary`, {
+      method: 'PUT'
+    });
+    return data.images;
   }
 
   async getUsers() {

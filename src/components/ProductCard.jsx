@@ -30,10 +30,29 @@ const ProductCard = ({ product }) => {
   const rating = generateConsistentRating(product.id);
   const reviewCount = generateConsistentReviewCount(product.id);
 
-  // Calculate discount
-  const discount = product.originalPrice && product.price
-    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
-    : 0;
+  // Calculate discount - use backend discount data if available
+  // The backend might return 'price' (selling price) and 'originalPrice' (base price)
+  // OR 'selling_price' and 'base_price'
+  // OR a 'discount' object
+
+  const originalPrice = Number(product.base_price || product.originalPrice || 0);
+  const currentPrice = Number(product.selling_price || product.price || 0);
+
+  let discountPercentage = 0;
+
+  if (product.discount && product.discount.is_active) {
+    if (product.discount.discount_type === 'percentage') {
+      discountPercentage = Math.round(product.discount.discount_value);
+    } else {
+      // Fixed amount discount
+      if (originalPrice > 0) {
+        discountPercentage = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
+      }
+    }
+  } else if (originalPrice > currentPrice && originalPrice > 0) {
+    // Fallback calculation if discount object is missing but prices differ
+    discountPercentage = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
+  }
 
   const handleAddToCart = (e) => {
     e.preventDefault();
@@ -67,9 +86,9 @@ const ProductCard = ({ product }) => {
 
         {/* Image Container */}
         <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
-          {discount > 0 && (
-            <div className="absolute top-3 left-3 z-10 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-sm">
-              {discount}% OFF
+          {discountPercentage > 0 && (
+            <div className="absolute top-3 left-3 z-10 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
+              {discountPercentage}% OFF
             </div>
           )}
 
@@ -114,13 +133,13 @@ const ProductCard = ({ product }) => {
 
           <div className="mt-auto space-y-4">
             {/* Price */}
-            <div className="flex items-baseline gap-2">
+            <div className="flex items-baseline gap-2 flex-wrap">
               <span className="text-xl font-bold text-gray-900">
-                {formatPrice(product.price)}
+                {formatPrice(currentPrice)}
               </span>
-              {product.originalPrice > product.price && (
-                <span className="text-sm text-gray-400 line-through decoration-gray-400">
-                  {formatPrice(product.originalPrice)}
+              {discountPercentage > 0 && originalPrice > currentPrice && (
+                <span className="text-sm text-gray-400 line-through decoration-2 decoration-gray-400">
+                  {formatPrice(originalPrice)}
                 </span>
               )}
             </div>

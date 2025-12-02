@@ -14,9 +14,11 @@ import {
     Trash2,
     Lock,
     Palette,
-    Languages
+    Languages,
+    MapPin
 } from 'lucide-react';
 import EditProfile from './EditProfile';
+import ManageAddresses from './ManageAddresses';
 import PageLayout from '../components/PageLayout';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -37,11 +39,10 @@ const Settings = () => {
 
     const tabs = [
         { id: 'account', label: 'Account', icon: User },
-        { id: 'preferences', label: 'Preferences', icon: Palette },
-        { id: 'notifications', label: 'Notifications', icon: Bell },
+        { id: 'appearance', label: 'Appearance', icon: Palette },
+        { id: 'region', label: 'Region & Language', icon: Globe },
+        { id: 'addresses', label: 'Address Management', icon: MapPin },
         { id: 'security', label: 'Security', icon: Shield },
-        { id: 'billing', label: 'Billing', icon: CreditCard },
-        { id: 'help', label: 'Help & Support', icon: HelpCircle },
     ];
 
     return (
@@ -119,8 +120,8 @@ const Settings = () => {
                                 </div>
                             )}
 
-                            {/* PREFERENCES TAB */}
-                            {activeTab === 'preferences' && (
+                            {/* APPEARANCE TAB */}
+                            {activeTab === 'appearance' && (
                                 <div className="space-y-6">
                                     <Card className="p-6 border-none shadow-lg shadow-indigo-100/50">
                                         <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center gap-2">
@@ -140,7 +141,12 @@ const Settings = () => {
                                             <Switch />
                                         </div>
                                     </Card>
+                                </div>
+                            )}
 
+                            {/* REGION & LANGUAGE TAB */}
+                            {activeTab === 'region' && (
+                                <div className="space-y-6">
                                     <Card className="p-6 border-none shadow-lg shadow-indigo-100/50">
                                         <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center gap-2">
                                             <Globe className="w-5 h-5 text-indigo-600" />
@@ -191,27 +197,10 @@ const Settings = () => {
                                 </div>
                             )}
 
-                            {/* NOTIFICATIONS TAB */}
-                            {activeTab === 'notifications' && (
+                            {/* ADDRESS MANAGEMENT TAB */}
+                            {activeTab === 'addresses' && (
                                 <div className="space-y-6">
-                                    <Card className="p-6 border-none shadow-lg shadow-indigo-100/50">
-                                        <h3 className="text-lg font-semibold text-gray-900 mb-6">Email Notifications</h3>
-                                        <div className="space-y-6">
-                                            {[
-                                                { id: 'orders', label: 'Order Updates', desc: 'Get notified about your order status' },
-                                                { id: 'promos', label: 'Promotions & Offers', desc: 'Receive emails about new sales' },
-                                                { id: 'security', label: 'Security Alerts', desc: 'Get notified about login attempts' }
-                                            ].map((item) => (
-                                                <div key={item.id} className="flex items-center justify-between">
-                                                    <div>
-                                                        <p className="font-medium text-gray-900">{item.label}</p>
-                                                        <p className="text-sm text-gray-500">{item.desc}</p>
-                                                    </div>
-                                                    <Switch checked={true} onCheckedChange={() => { }} />
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </Card>
+                                    <ManageAddresses standalone={false} />
                                 </div>
                             )}
 
@@ -262,39 +251,6 @@ const Settings = () => {
                                 </div>
                             )}
 
-                            {/* BILLING TAB */}
-                            {activeTab === 'billing' && (
-                                <div className="space-y-6">
-                                    <Card className="p-6 border-none shadow-lg shadow-indigo-100/50">
-                                        <h3 className="text-lg font-semibold text-gray-900 mb-6">Payment Methods</h3>
-                                        <div className="bg-gray-50 rounded-xl p-8 text-center">
-                                            <CreditCard className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                                            <p className="text-gray-900 font-medium mb-2">No payment methods saved</p>
-                                            <p className="text-sm text-gray-500 mb-6">Save your credit card for faster checkout</p>
-                                            <Button>Add Payment Method</Button>
-                                        </div>
-                                    </Card>
-                                </div>
-                            )}
-
-                            {/* HELP TAB */}
-                            {activeTab === 'help' && (
-                                <div className="space-y-6">
-                                    <Card className="p-6 border-none shadow-lg shadow-indigo-100/50">
-                                        <h3 className="text-lg font-semibold text-gray-900 mb-6">Support Center</h3>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <Button variant="outline" className="h-auto py-4 flex flex-col gap-2">
-                                                <HelpCircle className="w-6 h-6 text-indigo-600" />
-                                                <span>FAQs</span>
-                                            </Button>
-                                            <Button variant="outline" className="h-auto py-4 flex flex-col gap-2">
-                                                <User className="w-6 h-6 text-indigo-600" />
-                                                <span>Contact Support</span>
-                                            </Button>
-                                        </div>
-                                    </Card>
-                                </div>
-                            )}
                         </motion.div>
                     </AnimatePresence>
                 </div>

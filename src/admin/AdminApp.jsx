@@ -8,10 +8,8 @@ import AdminDashboard from './AdminDashboard';
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const AdminApp = () => {
-  // Initialize state from localStorage to persist across remounts
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return Boolean(localStorage.getItem('adminToken'));
-  });
+  // Don't initialize as authenticated - wait for verification to complete
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [admin, setAdmin] = useState(() => {
     const saved = localStorage.getItem('adminUser');
     return saved ? JSON.parse(saved) : null;
@@ -63,12 +61,15 @@ const AdminApp = () => {
           console.log('❌ Session invalid, clearing storage');
           localStorage.removeItem('adminToken');
           localStorage.removeItem('adminUser');
+          setIsAuthenticated(false);
         }
       } catch (err) {
         console.error('❌ Session verification failed:', err);
+        setIsAuthenticated(false);
       }
     } else {
       console.log('ℹ️ No existing session');
+      setIsAuthenticated(false);
     }
     setLoading(false);
   };

@@ -5,7 +5,6 @@ import { ShoppingBag, Trash2, ArrowRight, Minus, Plus, AlertCircle, CheckCircle2
 import { useCart } from '../context/CartContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { useAuth } from '../context/AuthContext';
-import apiService from '../services/api';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { getProductImage } from '../utils/imageUtils';
@@ -36,21 +35,9 @@ const Cart = () => {
     }
   };
 
-  const handleCheckout = async () => {
+  const handleCheckout = () => {
     if (!isAuthenticated || !user) {
       navigate('/login');
-      return;
-    }
-
-    const invalidItems = cartItems.filter(item =>
-      item.price === undefined ||
-      item.price === null ||
-      item.price <= 0 ||
-      isNaN(item.price)
-    );
-
-    if (invalidItems.length > 0) {
-      setOrderMessage('Error: Some items have invalid prices. Please refresh the cart.');
       return;
     }
 
@@ -59,61 +46,8 @@ const Cart = () => {
       return;
     }
 
-    setIsCreatingOrder(true);
-    setOrderMessage('');
-
-    try {
-      const orderData = {
-        userId: user.id,
-        items: cartItems.map(item => ({
-          productId: item.id,
-          quantity: item.quantity,
-          price: item.price
-        })),
-        totalAmount: getCartSubtotal(),
-        shippingMethod: 'standard',
-        shippingAddress: {
-          fullName: user.fullName || user.email || 'Guest',
-          addressLine1: 'To be updated',
-          city: 'Mumbai',
-          state: 'Maharashtra',
-          pincode: '400001',
-          phone: '9999999999'
-        }
-      };
-
-      const response = await apiService.createOrder(orderData);
-      console.log('Order creation response:', response);
-
-      // Backend returns { success: true, order_id: 123, message: "..." }
-      if (!response || !response.success || !response.order_id) {
-        const serverMessage = response?.message || 'Failed to create order.';
-        throw new Error(serverMessage);
-      }
-
-      clearCart();
-      setOrderMessage(`Order #${response.order_id} created successfully!`);
-
-      setTimeout(() => {
-        navigate('/orders');
-      }, 1500);
-    } catch (error) {
-      console.error('Failed to create order:', error);
-
-      if (error.message && (error.message.includes('Invalid token') || error.message.includes('Unauthorized') || error.message.includes('jwt expired'))) {
-        setOrderMessage('Your session has expired. Please log in again.');
-        localStorage.removeItem('token');
-        localStorage.removeItem('prolab_auth_current_user');
-
-        setTimeout(() => {
-          navigate('/login', { state: { from: '/cart', message: 'Session expired. Please login again.' } });
-        }, 2000);
-      } else {
-        setOrderMessage(error.message || 'Failed to create order. Please try again.');
-      }
-    } finally {
-      setIsCreatingOrder(false);
-    }
+    // Navigate to the new checkout flow
+    navigate('/checkout/address');
   };
 
   if (cartItems.length === 0) {
@@ -194,8 +128,15 @@ const Cart = () => {
                       <div className="flex-1 text-left w-full">
                         <div className="flex flex-col sm:flex-row justify-between mb-2">
                           <h3 className="text-lg font-bold text-gray-900 mb-1 sm:mb-0">{item.name}</h3>
-                          <div className="text-lg font-bold text-indigo-600">
-                            {item.price ? formatPrice(item.price * item.quantity) : '-'}
+                          <div className="text-right">
+                            <div className="text-lg font-bold text-indigo-600">
+                              {item.price ? formatPrice(item.price * item.quantity) : '-'}
+                            </div>
+                            {item.originalPrice > item.price && (
+                              <div className="text-sm text-gray-400 line-through">
+                                {formatPrice(item.originalPrice * item.quantity)}
+                              </div>
+                            )}
                           </div>
                         </div>
 
@@ -276,13 +217,20 @@ const Cart = () => {
                   <div className="space-y-4 mb-6">
                     <div className="flex justify-between text-gray-600">
                       <span>Subtotal ({getCartTotal()} items)</span>
-                      <span className="font-medium text-gray-900">{formatPrice(getCartSubtotal())}</span>
+                      <div className="text-right">
+                        {getCartOriginalTotal() > getCartSubtotal() && (
+                          <span className="text-sm text-gray-400 line-through block">
+                            {formatPrice(getCartOriginalTotal())}
+                          </span>
+                        )}
+                        <span className="font-medium text-gray-900">{formatPrice(getCartSubtotal())}</span>
+                      </div>
                     </div>
 
-                    {getCartOriginalTotal() > 0 && getTotalSavings() > 0 && (
-                      <div className="flex justify-between text-green-600 text-sm">
-                        <span>Total Savings</span>
-                        <span className="font-medium">-{formatPrice(getTotalSavings())}</span>
+                    {getCartOriginalTotal() > getCartSubtotal() && (
+                      <div className="flex justify-between text-green-600 text-sm bg-green-50 p-2 rounded-lg border border-green-100">
+                        <span className="font-medium">Total Savings</span>
+                        <span className="font-bold">-{formatPrice(getCartOriginalTotal() - getCartSubtotal())}</span>
                       </div>
                     )}
 
@@ -294,7 +242,7 @@ const Cart = () => {
                     <div className="h-px bg-gray-100 my-4"></div>
 
                     <div className="flex justify-between items-end">
-                      <span className="text-lg font-bold text-gray-900">Total</span>
+                      <span className="text-lg font-bold text-gray-900">Total Payable</span>
                       <div className="text-right">
                         <span className="text-2xl font-bold text-indigo-600 block leading-none">
                           {formatPrice(getCartSubtotal())}
@@ -331,17 +279,23 @@ const Cart = () => {
                   )}
                 </div>
 
-                <div className="bg-gray-50 p-4 space-y-3">
+                <div className="bg-gray-50 p-6 space-y-4 border-t border-gray-100">
                   <div className="flex items-center gap-3 text-sm text-gray-600">
-                    <ShieldCheck className="w-4 h-4 text-indigo-500" />
-                    <span>Secure Checkout</span>
+                    <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                      <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                    </div>
+                    <span>Secure Checkout with SSL</span>
                   </div>
                   <div className="flex items-center gap-3 text-sm text-gray-600">
-                    <Truck className="w-4 h-4 text-indigo-500" />
+                    <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                      <Truck className="w-4 h-4 text-indigo-600" />
+                    </div>
                     <span>Free Shipping on all orders</span>
                   </div>
                   <div className="flex items-center gap-3 text-sm text-gray-600">
-                    <CreditCard className="w-4 h-4 text-indigo-500" />
+                    <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                      <CreditCard className="w-4 h-4 text-indigo-600" />
+                    </div>
                     <span>All major cards accepted</span>
                   </div>
                 </div>

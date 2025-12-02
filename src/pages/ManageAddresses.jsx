@@ -11,7 +11,7 @@ import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import '../styles/ManageAddresses.css';
 
-export default function ManageAddresses() {
+export default function ManageAddresses({ standalone = true }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [addresses, setAddresses] = useState([]);
@@ -172,7 +172,9 @@ export default function ManageAddresses() {
     });
     setIsEditing(true);
     setShowForm(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (standalone) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const resetForm = () => {
@@ -192,196 +194,203 @@ export default function ManageAddresses() {
     setCurrentAddress(null);
   };
 
-  return (
-    <PageLayout
-      title="Manage Addresses"
-      subtitle="Add and update your delivery locations"
-      loading={loading && !addresses.length}
-      error={error}
-    >
-      <div className="max-w-5xl mx-auto space-y-8">
+  const Content = () => (
+    <div className={standalone ? "max-w-5xl mx-auto space-y-8" : "space-y-8"}>
+      {/* Header Actions */}
+      {!showForm && (
+        <div className="flex justify-end">
+          <Button
+            onClick={() => { resetForm(); setShowForm(true); }}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white hover-lift"
+          >
+            <Plus className="w-4 h-4 mr-2" /> Add New Address
+          </Button>
+        </div>
+      )}
 
-        {/* Header Actions */}
-        {!showForm && (
-          <div className="flex justify-end">
-            <Button
-              onClick={() => { resetForm(); setShowForm(true); }}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white hover-lift"
-            >
-              <Plus className="w-4 h-4 mr-2" /> Add New Address
-            </Button>
-          </div>
-        )}
+      {/* Form Section */}
+      <AnimatePresence>
+        {showForm && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <Card className="border-none shadow-xl shadow-indigo-100/50 bg-white/80 backdrop-blur-md mb-8">
+              <CardContent className="p-8">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-bold text-gray-900">{isEditing ? 'Edit Address' : 'Add New Address'}</h2>
+                  <Button variant="ghost" size="sm" onClick={() => setShowForm(false)}>Cancel</Button>
+                </div>
 
-        {/* Form Section */}
-        <AnimatePresence>
-          {showForm && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="overflow-hidden"
-            >
-              <Card className="border-none shadow-xl shadow-indigo-100/50 bg-white/80 backdrop-blur-md mb-8">
-                <CardContent className="p-8">
-                  <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-xl font-bold text-gray-900">{isEditing ? 'Edit Address' : 'Add New Address'}</h2>
-                    <Button variant="ghost" size="sm" onClick={() => setShowForm(false)}>Cancel</Button>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label>Full Name</Label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                        <Input name="fullName" value={formData.fullName} onChange={handleInputChange} className="pl-10" required />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Phone Number</Label>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                        <Input name="phone" value={formData.phone} onChange={handleInputChange} className="pl-10" required />
+                      </div>
+                    </div>
                   </div>
 
-                  <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <Label>Full Name</Label>
-                        <div className="relative">
-                          <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                          <Input name="fullName" value={formData.fullName} onChange={handleInputChange} className="pl-10" required />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Phone Number</Label>
-                        <div className="relative">
-                          <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                          <Input name="phone" value={formData.phone} onChange={handleInputChange} className="pl-10" required />
-                        </div>
-                      </div>
+                  <div className="space-y-2">
+                    <Label>Address Line 1</Label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input name="addressLine1" value={formData.addressLine1} onChange={handleInputChange} className="pl-10" required />
                     </div>
+                  </div>
 
+                  <div className="space-y-2">
+                    <Label>Address Line 2 (Optional)</Label>
+                    <Input name="addressLine2" value={formData.addressLine2} onChange={handleInputChange} />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="space-y-2">
-                      <Label>Address Line 1</Label>
-                      <div className="relative">
-                        <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input name="addressLine1" value={formData.addressLine1} onChange={handleInputChange} className="pl-10" required />
-                      </div>
+                      <Label>City</Label>
+                      <Input name="city" value={formData.city} onChange={handleInputChange} required />
                     </div>
-
                     <div className="space-y-2">
-                      <Label>Address Line 2 (Optional)</Label>
-                      <Input name="addressLine2" value={formData.addressLine2} onChange={handleInputChange} />
+                      <Label>State</Label>
+                      <Input name="state" value={formData.state} onChange={handleInputChange} required />
                     </div>
+                    <div className="space-y-2">
+                      <Label>Pincode</Label>
+                      <Input name="pincode" value={formData.pincode} onChange={handleInputChange} required />
+                    </div>
+                  </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="space-y-2">
-                        <Label>City</Label>
-                        <Input name="city" value={formData.city} onChange={handleInputChange} required />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>State</Label>
-                        <Input name="state" value={formData.state} onChange={handleInputChange} required />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Pincode</Label>
-                        <Input name="pincode" value={formData.pincode} onChange={handleInputChange} required />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label>Address Type</Label>
+                      <div className="flex gap-4">
+                        {['Home', 'Work', 'Other'].map(type => (
+                          <button
+                            key={type}
+                            type="button"
+                            onClick={() => setFormData(prev => ({ ...prev, addressType: type }))}
+                            className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-all ${formData.addressType === type ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                          >
+                            {type}
+                          </button>
+                        ))}
                       </div>
                     </div>
+                    <div className="flex items-center space-x-2 pt-8">
+                      <input
+                        type="checkbox"
+                        id="isDefault"
+                        name="isDefault"
+                        checked={formData.isDefault}
+                        onChange={handleInputChange}
+                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                      />
+                      <Label htmlFor="isDefault" className="cursor-pointer">Set as Default Address</Label>
+                    </div>
+                  </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <Label>Address Type</Label>
-                        <div className="flex gap-4">
-                          {['Home', 'Work', 'Other'].map(type => (
-                            <button
-                              key={type}
-                              type="button"
-                              onClick={() => setFormData(prev => ({ ...prev, addressType: type }))}
-                              className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-all ${formData.addressType === type ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-                            >
-                              {type}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2 pt-8">
-                        <input
-                          type="checkbox"
-                          id="isDefault"
-                          name="isDefault"
-                          checked={formData.isDefault}
-                          onChange={handleInputChange}
-                          className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                        />
-                        <Label htmlFor="isDefault" className="cursor-pointer">Set as Default Address</Label>
-                      </div>
-                    </div>
+                  <div className="pt-4">
+                    <Button type="submit" className="w-full bg-gray-900 hover:bg-indigo-600 text-white h-11">
+                      {isEditing ? 'Update Address' : 'Save Address'}
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-                    <div className="pt-4">
-                      <Button type="submit" className="w-full bg-gray-900 hover:bg-indigo-600 text-white h-11">
-                        {isEditing ? 'Update Address' : 'Save Address'}
-                      </Button>
+      {/* Address List */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <AnimatePresence>
+          {addresses.map((addr, index) => (
+            <motion.div
+              key={addr.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ delay: index * 0.1 }}
+            >
+              <Card className={`h-full border-none shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 group relative overflow-hidden ${addr.is_default ? 'ring-2 ring-indigo-100' : ''}`}>
+                {addr.is_default === 1 && (
+                  <div className="absolute top-0 right-0 bg-indigo-600 text-white text-xs px-3 py-1 rounded-bl-lg font-medium z-10">
+                    Default
+                  </div>
+                )}
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${addr.address_type === 'Home' ? 'bg-blue-50 text-blue-600' : addr.address_type === 'Work' ? 'bg-orange-50 text-orange-600' : 'bg-gray-50 text-gray-600'}`}>
+                        {addr.address_type === 'Home' ? <Home className="w-5 h-5" /> : addr.address_type === 'Work' ? <Briefcase className="w-5 h-5" /> : <MapPin className="w-5 h-5" />}
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-gray-900">{addr.full_name}</h3>
+                        <p className="text-xs text-gray-500">{addr.address_type}</p>
+                      </div>
                     </div>
-                  </form>
+                  </div>
+
+                  <div className="space-y-2 text-sm text-gray-600 mb-6">
+                    <p>{addr.address_line1}</p>
+                    {addr.address_line2 && <p>{addr.address_line2}</p>}
+                    <p>{addr.city}, {addr.state} - {addr.pincode}</p>
+                    <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-50">
+                      <Phone className="w-3 h-3 text-gray-400" />
+                      <span>{addr.phone}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    <Button variant="outline" size="sm" onClick={() => handleEdit(addr)} className="flex-1 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200">
+                      <Edit2 className="w-3 h-3 mr-2" /> Edit
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => handleDelete(addr.id)} className="flex-1 hover:bg-red-50 hover:text-red-600 hover:border-red-200">
+                      <Trash2 className="w-3 h-3 mr-2" /> Delete
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             </motion.div>
-          )}
+          ))}
         </AnimatePresence>
 
-        {/* Address List */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <AnimatePresence>
-            {addresses.map((addr, index) => (
-              <motion.div
-                key={addr.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <Card className={`h-full border-none shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 group relative overflow-hidden ${addr.is_default ? 'ring-2 ring-indigo-100' : ''}`}>
-                  {addr.is_default === 1 && (
-                    <div className="absolute top-0 right-0 bg-indigo-600 text-white text-xs px-3 py-1 rounded-bl-lg font-medium z-10">
-                      Default
-                    </div>
-                  )}
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${addr.address_type === 'Home' ? 'bg-blue-50 text-blue-600' : addr.address_type === 'Work' ? 'bg-orange-50 text-orange-600' : 'bg-gray-50 text-gray-600'}`}>
-                          {addr.address_type === 'Home' ? <Home className="w-5 h-5" /> : addr.address_type === 'Work' ? <Briefcase className="w-5 h-5" /> : <MapPin className="w-5 h-5" />}
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-gray-900">{addr.full_name}</h3>
-                          <p className="text-xs text-gray-500">{addr.address_type}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2 text-sm text-gray-600 mb-6">
-                      <p>{addr.address_line1}</p>
-                      {addr.address_line2 && <p>{addr.address_line2}</p>}
-                      <p>{addr.city}, {addr.state} - {addr.pincode}</p>
-                      <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-50">
-                        <Phone className="w-3 h-3 text-gray-400" />
-                        <span>{addr.phone}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                      <Button variant="outline" size="sm" onClick={() => handleEdit(addr)} className="flex-1 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200">
-                        <Edit2 className="w-3 h-3 mr-2" /> Edit
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleDelete(addr.id)} className="flex-1 hover:bg-red-50 hover:text-red-600 hover:border-red-200">
-                        <Trash2 className="w-3 h-3 mr-2" /> Delete
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-
-          {!loading && addresses.length === 0 && !showForm && (
-            <div className="col-span-full text-center py-12 bg-white rounded-2xl border border-dashed border-gray-200">
-              <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                <MapPin className="w-8 h-8 text-gray-400" />
-              </div>
-              <h3 className="text-lg font-medium text-gray-900">No addresses found</h3>
-              <p className="text-gray-500 mb-6">Add a new address to manage your deliveries.</p>
-              <Button onClick={() => setShowForm(true)} variant="outline">Add Address</Button>
+        {!loading && addresses.length === 0 && !showForm && (
+          <div className="col-span-full text-center py-12 bg-white rounded-2xl border border-dashed border-gray-200">
+            <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <MapPin className="w-8 h-8 text-gray-400" />
             </div>
-          )}
-        </div>
+            <h3 className="text-lg font-medium text-gray-900">No addresses found</h3>
+            <p className="text-gray-500 mb-6">Add a new address to manage your deliveries.</p>
+            <Button onClick={() => setShowForm(true)} variant="outline">Add Address</Button>
+          </div>
+        )}
       </div>
-    </PageLayout>
+    </div>
   );
+
+  if (standalone) {
+    return (
+      <PageLayout
+        title="Manage Addresses"
+        subtitle="Add and update your delivery locations"
+        loading={loading && !addresses.length}
+        error={error}
+      >
+        <Content />
+      </PageLayout>
+    );
+  }
+
+  return <Content />;
 }

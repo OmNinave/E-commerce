@@ -4,7 +4,16 @@
 export const getProductImage = (product) => {
     if (!product) return 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=600&q=80';
 
-    // If product has a valid image URL, use it
+    // 1. Check for primary_image (from getAllProducts)
+    if (product.primary_image) return product.primary_image;
+
+    // 2. Check for images array (from getProductById)
+    if (product.images && product.images.length > 0) {
+        const primary = product.images.find(img => img.is_primary) || product.images[0];
+        if (primary && primary.image_url) return primary.image_url;
+    }
+
+    // 3. Check for legacy image field
     if (product.image && product.image !== 'placeholder.jpg' && product.image.startsWith('http')) {
         return product.image;
     }
