@@ -81,6 +81,52 @@ async function ensureUserProfileColumns() {
       await db.prepare(sql).run();
       console.log('✅ Added is_featured column');
     }
+
+    // Ensure category_id exists in products
+    if (!productColumns.includes('category_id')) {
+      console.log('🔄 Adding category_id to products table...');
+      const sql = 'ALTER TABLE products ADD COLUMN category_id INTEGER';
+      await db.prepare(sql).run();
+      console.log('✅ Added category_id column');
+    }
+
+    // Ensure categories table exists
+    const categoriesTableExists = usePostgres
+      ? (await db.prepare("SELECT table_name FROM information_schema.tables WHERE table_name = 'categories'").get())
+      : (await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='categories'").get());
+
+    if (!categoriesTableExists) {
+      console.log('🔄 Creating categories table...');
+      const createCategoriesSql = usePostgres ? `
+            CREATE TABLE IF NOT EXISTS categories (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                slug VARCHAR(255) UNIQUE NOT NULL,
+                description TEXT,
+                parent_id INTEGER,
+                image_url TEXT,
+                display_order INTEGER DEFAULT 0,
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        ` : `
+            CREATE TABLE IF NOT EXISTS categories (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name VARCHAR(255) NOT NULL,
+                slug VARCHAR(255) UNIQUE NOT NULL,
+                description TEXT,
+                parent_id INTEGER,
+                image_url TEXT,
+                display_order INTEGER DEFAULT 0,
+                is_active INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `;
+      await db.prepare(createCategoriesSql).run();
+      console.log('✅ Created categories table');
+    }
   } catch (error) {
     console.error('Failed to ensure user profile columns:', error);
   }
