@@ -192,8 +192,17 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Cookie parsing (required for CSRF)
 app.use(cookieParser());
 
+// Trust proxy (required for Render/Heroku)
+app.enable('trust proxy');
+
 // CSRF Protection
-const csrfProtection = csrf({ cookie: true });
+const csrfProtection = csrf({
+  cookie: {
+    secure: true, // Required for SameSite: None
+    sameSite: 'none', // Required for cross-site cookies
+    httpOnly: true
+  }
+});
 
 // Logging
 app.use(morgan('combined'));
@@ -3398,6 +3407,9 @@ app.use(async (req, res) => {
 
 // Global error handler
 app.use((err, req, res, next) => {
+  if (err.code === 'EBADCSRFTOKEN') {
+    return res.status(403).json({ error: 'Invalid or missing CSRF token' });
+  }
   console.error('Global error:', err);
   res.status(500).json({ error: 'Internal server error' });
 });
