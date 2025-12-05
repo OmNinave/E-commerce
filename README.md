@@ -584,6 +584,7 @@ This is an internship project for **ProLab Equipment**. For questions or collabo
 <br/>
 
 [![GitHub](https://img.shields.io/badge/GitHub-OmNinave-181717?style=for-the-badge&logo=github)](https://github.com/OmNinave)
+[![GitHub](https://img.shields.io/badge/GitHub-Lavish911-181717?style=for-the-badge&logo=github)](https://github.com/Lavish911)
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0077B5?style=for-the-badge&logo=linkedin)](https://linkedin.com)
 [![Portfolio](https://img.shields.io/badge/Portfolio-Visit-FF6B00?style=for-the-badge&logo=google-chrome&logoColor=white)](https://portfolio.com)
 
