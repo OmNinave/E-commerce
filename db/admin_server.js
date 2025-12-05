@@ -109,6 +109,7 @@ const allowedOrigins = [
   'http://localhost:3002',
   'http://localhost:3003',
   'http://localhost:5173', // Vite default
+  'https://e-commerce-mi1n.onrender.com', // Live Frontend
   process.env.FRONTEND_URL
 ].filter(Boolean);
 
