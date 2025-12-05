@@ -62,6 +62,25 @@ async function ensureUserProfileColumns() {
       const sql = 'ALTER TABLE users ADD COLUMN bio TEXT';
       usePostgres ? await db.prepare(sql).run() : await db.prepare(sql).run();
     }
+
+    // Ensure products table has is_featured
+    let productColumns = [];
+    if (usePostgres) {
+      const result = await db.prepare("SELECT column_name FROM information_schema.columns WHERE table_name = 'products'").all();
+      productColumns = result.map(row => row.column_name);
+    } else {
+      const columns = await db.prepare("PRAGMA table_info('products')").all();
+      productColumns = columns.map((col) => col.name);
+    }
+
+    if (!productColumns.includes('is_featured')) {
+      console.log('🔄 Adding is_featured to products table...');
+      const sql = usePostgres
+        ? 'ALTER TABLE products ADD COLUMN is_featured BOOLEAN DEFAULT FALSE'
+        : 'ALTER TABLE products ADD COLUMN is_featured INTEGER DEFAULT 0';
+      await db.prepare(sql).run();
+      console.log('✅ Added is_featured column');
+    }
   } catch (error) {
     console.error('Failed to ensure user profile columns:', error);
   }
