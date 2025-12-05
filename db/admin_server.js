@@ -54,17 +54,17 @@ async function ensureUserProfileColumns() {
       columnNames = result.map(row => row.column_name);
     } else {
       // SQLite
-      const columns = db.prepare("PRAGMA table_info('users')").all();
+      const columns = await db.prepare("PRAGMA table_info('users')").all();
       columnNames = columns.map((col) => col.name);
     }
 
     if (!columnNames.includes('company')) {
       const sql = 'ALTER TABLE users ADD COLUMN company TEXT';
-      usePostgres ? await db.prepare(sql).run() : db.prepare(sql).run();
+      usePostgres ? await db.prepare(sql).run() : await db.prepare(sql).run();
     }
     if (!columnNames.includes('bio')) {
       const sql = 'ALTER TABLE users ADD COLUMN bio TEXT';
-      usePostgres ? await db.prepare(sql).run() : db.prepare(sql).run();
+      usePostgres ? await db.prepare(sql).run() : await db.prepare(sql).run();
     }
   } catch (error) {
     console.error('Failed to ensure user profile columns:', error);
@@ -197,15 +197,15 @@ function requireAdmin(req, res, next) {
  * Load main database in JSON format (compatibility layer for analytics)
  * Converts SQLite data to JSON structure expected by analytics endpoint
  */
-function loadMainDb() {
+async function loadMainDb() {
   try {
     // Get all data from SQLite and convert to JSON format
-    const products = dbAPI.getAllProducts();
-    const orders = dbAPI.getAllOrders();
-    const users = db.prepare('SELECT * FROM users').all();
+    const products = await dbAPI.getAllProducts();
+    const orders = await dbAPI.getAllOrders();
+    const users = await db.prepare('SELECT * FROM users').all();
 
     // Get purchase history from order_items joined with orders
-    const purchaseHistory = db.prepare(`
+    const purchaseHistory = await db.prepare(`
       SELECT 
         oi.order_id as orderId,
         o.user_id as userId,
@@ -319,13 +319,13 @@ function queueOrderStatusEmail(orderId, status) {
     return;
   }
 
-  setImmediate(() => {
+  setImmediate(async () => {
     try {
-      const order = dbAPI.getOrderById(orderId);
+      const order = await dbAPI.getOrderById(orderId);
       if (!order) {
         return;
       }
-      const user = dbAPI.getUserById(order.user_id);
+      const user = await dbAPI.getUserById(order.user_id);
       if (!user?.email) {
         return;
       }
@@ -400,7 +400,7 @@ function calculateFinalPrice(product, discount) {
   return Number(Math.max(0, finalPrice).toFixed(2));
 }
 
-function validateCartItems(items = []) {
+async function validateCartItems(items = []) {
   const sanitizedItems = [];
   const errors = [];
   let subtotal = 0;
@@ -412,7 +412,7 @@ function validateCartItems(items = []) {
       errors.push(`Maximum ${MAX_ITEM_QUANTITY} units allowed per product. Quantity adjusted for ${item.product_id}.`);
     }
 
-    const product = dbAPI.getProductById(item.product_id);
+    const product = await dbAPI.getProductById(item.product_id);
 
     if (!product) {
       errors.push(`Product not found: ${item.product_id}`);
@@ -435,7 +435,7 @@ function validateCartItems(items = []) {
     }
 
     const safeQuantity = Math.min(item.quantity, availableStock, MAX_ITEM_QUANTITY);
-    const discount = dbAPI.getActiveDiscount(product.id);
+    const discount = await dbAPI.getActiveDiscount(product.id);
     let finalPrice;
 
     try {
@@ -472,7 +472,7 @@ function createOrderNumber() {
   return `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 }
 
-function createOrUpdateAddress(userId, addressPayload = {}) {
+async function createOrUpdateAddress(userId, addressPayload = {}) {
   if (!addressPayload) return null;
 
   if (addressPayload.id) {
@@ -497,7 +497,7 @@ function createOrUpdateAddress(userId, addressPayload = {}) {
     isDefault: Boolean(addressPayload.isDefault)
   };
 
-  const stmt = db.prepare(`
+  const stmt = await db.prepare(`
     INSERT INTO addresses (
       user_id, address_type, full_name, phone,
       address_line1, address_line2, city, state,
@@ -505,7 +505,7 @@ function createOrUpdateAddress(userId, addressPayload = {}) {
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
-  const result = stmt.run(
+  const result = await stmt.run(
     userId,
     safeAddress.addressType,
     safeAddress.fullName,
@@ -529,7 +529,7 @@ function createOrUpdateAddress(userId, addressPayload = {}) {
 // User Login (moved to auth routes section below)
 
 // Get all products
-app.get('/api/products', (req, res) => {
+app.get('/api/products', async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 12;
@@ -547,14 +547,14 @@ app.get('/api/products', (req, res) => {
     };
 
     // Get total count for pagination
-    const totalProducts = dbAPI.getProductsCount(filters);
+    const totalProducts = await dbAPI.getProductsCount(filters);
     const totalPages = Math.ceil(totalProducts / limit);
 
-    const products = dbAPI.getAllProducts(filters);
+    const products = await dbAPI.getAllProducts(filters);
 
     // Add active discounts to products
     const productsWithDiscounts = products.map(product => {
-      const discount = dbAPI.getActiveDiscount(product.id);
+      const discount = await dbAPI.getActiveDiscount(product.id);
 
       // Add price field for frontend compatibility
       const baseProduct = {
@@ -595,16 +595,16 @@ app.get('/api/products', (req, res) => {
 });
 
 // Get single product
-app.get('/api/products/:id', (req, res) => {
+app.get('/api/products/:id', async (req, res) => {
   try {
-    const product = dbAPI.getProductById(req.params.id);
+    const product = await dbAPI.getProductById(req.params.id);
 
     if (!product) {
       return res.status(404).json({ error: 'Product not found' });
     }
 
     // Apply discount logic and field mapping
-    const discount = dbAPI.getActiveDiscount(product.id);
+    const discount = await dbAPI.getActiveDiscount(product.id);
 
     // Add price field for frontend compatibility
     const baseProduct = {
@@ -636,9 +636,9 @@ app.get('/api/products/:id', (req, res) => {
 });
 
 // Get categories
-app.get('/api/categories', (req, res) => {
+app.get('/api/categories', async (req, res) => {
   try {
-    const categories = dbAPI.getAllCategories();
+    const categories = await dbAPI.getAllCategories();
     res.json({ success: true, categories });
   } catch (error) {
     console.error('Error fetching categories:', error);
@@ -647,7 +647,7 @@ app.get('/api/categories', (req, res) => {
 });
 
 // Chat Assistant API
-app.post('/api/chat/messages', (req, res) => {
+app.post('/api/chat/messages', async (req, res) => {
   try {
     const { message } = req.body;
     let responseText = "I'm here to help! Please contact support@ecommerce.com for further assistance.";
@@ -690,7 +690,7 @@ app.post('/api/chat/messages', (req, res) => {
 // ==================== ADDRESS ROUTES ====================
 
 // Get user addresses
-app.get('/api/users/:userId/addresses', requireAuth, (req, res) => {
+app.get('/api/users/:userId/addresses', requireAuth, async (req, res) => {
   try {
     // Ensure user is accessing their own addresses or is admin
     if (req.userId !== parseInt(req.params.userId) && !req.isAdmin) {
@@ -706,7 +706,7 @@ app.get('/api/users/:userId/addresses', requireAuth, (req, res) => {
 });
 
 // Add new address
-app.post('/api/users/:userId/addresses', requireAuth, (req, res) => {
+app.post('/api/users/:userId/addresses', requireAuth, async (req, res) => {
   try {
     if (req.userId !== parseInt(req.params.userId) && !req.isAdmin) {
       return res.status(403).json({ error: 'Forbidden' });
@@ -723,10 +723,10 @@ app.post('/api/users/:userId/addresses', requireAuth, (req, res) => {
 
     // If setting as default, unset other defaults
     if (isDefault) {
-      db.prepare('UPDATE addresses SET is_default = 0 WHERE user_id = ?').run(req.params.userId);
+      await db.prepare('UPDATE addresses SET is_default = 0 WHERE user_id = ?').run(req.params.userId);
     }
 
-    const result = db.prepare(`
+    const result = await db.prepare(`
       INSERT INTO addresses (
         user_id, full_name, phone, address_line1, address_line2,
         city, state, pincode, landmark, is_default, address_type
@@ -736,7 +736,7 @@ app.post('/api/users/:userId/addresses', requireAuth, (req, res) => {
       city, state, pincode, landmark || '', isDefault ? 1 : 0, addressType || 'Home'
     );
 
-    const newAddress = db.prepare('SELECT * FROM addresses WHERE id = ?').get(result.lastInsertRowid);
+    const newAddress = await db.prepare('SELECT * FROM addresses WHERE id = ?').get(result.lastInsertRowid);
     res.status(201).json({ success: true, address: newAddress });
   } catch (error) {
     console.error('Error adding address:', error);
@@ -745,7 +745,7 @@ app.post('/api/users/:userId/addresses', requireAuth, (req, res) => {
 });
 
 // Update address
-app.put('/api/users/:userId/addresses/:addressId', requireAuth, (req, res) => {
+app.put('/api/users/:userId/addresses/:addressId', requireAuth, async (req, res) => {
   try {
     if (req.userId !== parseInt(req.params.userId) && !req.isAdmin) {
       return res.status(403).json({ error: 'Forbidden' });
@@ -757,17 +757,17 @@ app.put('/api/users/:userId/addresses/:addressId', requireAuth, (req, res) => {
     } = req.body;
 
     // Check if address belongs to user
-    const address = db.prepare('SELECT * FROM addresses WHERE id = ? AND user_id = ?').get(req.params.addressId, req.params.userId);
+    const address = await db.prepare('SELECT * FROM addresses WHERE id = ? AND user_id = ?').get(req.params.addressId, req.params.userId);
     if (!address) {
       return res.status(404).json({ error: 'Address not found' });
     }
 
     // If setting as default, unset other defaults
     if (isDefault) {
-      db.prepare('UPDATE addresses SET is_default = 0 WHERE user_id = ?').run(req.params.userId);
+      await db.prepare('UPDATE addresses SET is_default = 0 WHERE user_id = ?').run(req.params.userId);
     }
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE addresses SET
         full_name = ?, phone = ?, address_line1 = ?, address_line2 = ?,
         city = ?, state = ?, pincode = ?, landmark = ?, is_default = ?, address_type = ?
@@ -778,7 +778,7 @@ app.put('/api/users/:userId/addresses/:addressId', requireAuth, (req, res) => {
       req.params.addressId
     );
 
-    const updatedAddress = db.prepare('SELECT * FROM addresses WHERE id = ?').get(req.params.addressId);
+    const updatedAddress = await db.prepare('SELECT * FROM addresses WHERE id = ?').get(req.params.addressId);
     res.json({ success: true, address: updatedAddress });
   } catch (error) {
     console.error('Error updating address:', error);
@@ -787,13 +787,13 @@ app.put('/api/users/:userId/addresses/:addressId', requireAuth, (req, res) => {
 });
 
 // Delete address
-app.delete('/api/users/:userId/addresses/:addressId', requireAuth, (req, res) => {
+app.delete('/api/users/:userId/addresses/:addressId', requireAuth, async (req, res) => {
   try {
     if (req.userId !== parseInt(req.params.userId) && !req.isAdmin) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    const result = db.prepare('DELETE FROM addresses WHERE id = ? AND user_id = ?').run(req.params.addressId, req.params.userId);
+    const result = await db.prepare('DELETE FROM addresses WHERE id = ? AND user_id = ?').run(req.params.addressId, req.params.userId);
 
     if (result.changes === 0) {
       return res.status(404).json({ error: 'Address not found' });
@@ -807,13 +807,13 @@ app.delete('/api/users/:userId/addresses/:addressId', requireAuth, (req, res) =>
 });
 
 // User profile
-app.get('/api/users/:userId/profile', requireAuth, (req, res) => {
+app.get('/api/users/:userId/profile', requireAuth, async (req, res) => {
   try {
     if (req.userId !== parseInt(req.params.userId) && !req.isAdmin) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    const user = dbAPI.getUserById(req.params.userId);
+    const user = await dbAPI.getUserById(req.params.userId);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -826,7 +826,7 @@ app.get('/api/users/:userId/profile', requireAuth, (req, res) => {
   }
 });
 
-app.put('/api/users/:userId/profile', requireAuth, (req, res) => {
+app.put('/api/users/:userId/profile', requireAuth, async (req, res) => {
   try {
     if (req.userId !== parseInt(req.params.userId) && !req.isAdmin) {
       return res.status(403).json({ error: 'Forbidden' });
@@ -837,7 +837,7 @@ app.put('/api/users/:userId/profile', requireAuth, (req, res) => {
     const firstName = nameParts.shift() || '';
     const lastName = nameParts.join(' ');
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE users SET
         first_name = ?, last_name = ?, email = ?, phone = ?, company = ?, bio = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
@@ -851,7 +851,7 @@ app.put('/api/users/:userId/profile', requireAuth, (req, res) => {
       req.params.userId
     );
 
-    const updatedUser = dbAPI.getUserById(req.params.userId);
+    const updatedUser = await dbAPI.getUserById(req.params.userId);
     delete updatedUser.password_hash;
 
     res.json({ success: true, user: updatedUser });
@@ -872,7 +872,7 @@ app.put('/api/users/:userId/password', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Both current and new passwords are required' });
     }
 
-    const user = dbAPI.getUserById(req.params.userId);
+    const user = await dbAPI.getUserById(req.params.userId);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -888,7 +888,7 @@ app.put('/api/users/:userId/password', requireAuth, async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    db.prepare('UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+    await db.prepare('UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
       .run(hashedPassword, req.params.userId);
 
     res.json({ success: true, message: 'Password updated successfully' });
@@ -903,14 +903,14 @@ app.put('/api/users/:userId/password', requireAuth, async (req, res) => {
 
 
 // Email availability check
-app.get('/api/auth/check-email', (req, res) => {
+app.get('/api/auth/check-email', async (req, res) => {
   try {
     const email = (req.query.email || '').toLowerCase().trim();
     if (!email || !email.includes('@')) {
       return res.status(400).json({ error: 'Valid email required' });
     }
 
-    const existingUser = dbAPI.getUserByEmail(email);
+    const existingUser = await dbAPI.getUserByEmail(email);
     res.json({
       email,
       available: !existingUser
@@ -922,7 +922,7 @@ app.get('/api/auth/check-email', (req, res) => {
 });
 
 // CSRF Token Endpoint (must be called before any protected requests)
-app.get('/api/csrf-token', csrfProtection, (req, res) => {
+app.get('/api/csrf-token', csrfProtection, async (req, res) => {
   res.json({ csrfToken: req.csrfToken() });
 });
 
@@ -939,7 +939,7 @@ app.post('/api/auth/register', authLimiter, csrfProtection, validateRegistration
 
     // Check if user exists
     console.log('Checking if user exists:', email.toLowerCase());
-    const existingUser = dbAPI.getUserByEmail(email.toLowerCase());
+    const existingUser = await dbAPI.getUserByEmail(email.toLowerCase());
     console.log('Existing user check result:', existingUser);
     if (existingUser) {
       console.log('Email already registered:', email);
@@ -960,7 +960,7 @@ app.post('/api/auth/register', authLimiter, csrfProtection, validateRegistration
       email_verified: 0,
       is_admin: 0
     });
-    const result = dbAPI.createUser({
+    const result = await dbAPI.createUser({
       email: email.toLowerCase(),
       password_hash: passwordHash,
       first_name: firstName || '',
@@ -971,7 +971,7 @@ app.post('/api/auth/register', authLimiter, csrfProtection, validateRegistration
     });
     console.log('User creation result:', result);
 
-    const user = dbAPI.getUserById(result.lastInsertRowid);
+    const user = await dbAPI.getUserById(result.lastInsertRowid);
     console.log('Retrieved created user:', user);
     const token = generateJWT(user.id, false);
     console.log('Generated JWT token');
@@ -1015,7 +1015,7 @@ app.post('/api/auth/login', authLimiter, csrfProtection, validateLogin, async (r
     }
 
     console.log('User Login Attempt:', email.toLowerCase());
-    const user = dbAPI.getUserByEmail(email.toLowerCase());
+    const user = await dbAPI.getUserByEmail(email.toLowerCase());
 
     if (!user) {
       console.log('User not found:', email);
@@ -1052,7 +1052,7 @@ app.post('/api/auth/login', authLimiter, csrfProtection, validateLogin, async (r
 app.post('/api/auth/change-password', requireAuth, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    const user = dbAPI.getUserById(req.userId);
+    const user = await dbAPI.getUserById(req.userId);
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -1082,7 +1082,7 @@ app.post('/api/auth/change-password', requireAuth, async (req, res) => {
 app.delete('/api/auth/delete-account', requireAuth, async (req, res) => {
   try {
     const { password } = req.body;
-    const user = dbAPI.getUserById(req.userId);
+    const user = await dbAPI.getUserById(req.userId);
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -1105,17 +1105,17 @@ app.delete('/api/auth/delete-account', requireAuth, async (req, res) => {
 });
 
 // Forgot Password
-app.post('/api/auth/forgot-password', (req, res) => {
+app.post('/api/auth/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
-    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+    const user = await db.prepare('SELECT * FROM users WHERE email = ?').get(email);
 
     if (user) {
       // Generate reset token
       const resetToken = crypto.randomBytes(32).toString('hex');
       const resetTokenExpiry = Date.now() + 3600000; // 1 hour
 
-      db.prepare('UPDATE users SET reset_token = ?, reset_token_expiry = ? WHERE id = ?')
+      await db.prepare('UPDATE users SET reset_token = ?, reset_token_expiry = ? WHERE id = ?')
         .run(resetToken, resetTokenExpiry, user.id);
 
       // In a real app, send email here. For now, log to console.
@@ -1167,7 +1167,7 @@ app.post('/api/admin/login', async (req, res) => {
     }
 
     console.log('Admin Login Attempt:', email);
-    const user = dbAPI.getUserByEmail(email.toLowerCase());
+    const user = await dbAPI.getUserByEmail(email.toLowerCase());
 
     if (!user) {
       console.log('User not found');
@@ -1205,9 +1205,9 @@ app.post('/api/admin/login', async (req, res) => {
 });
 
 // Verify Admin Token
-app.get('/api/admin/verify', requireAuth, requireAdmin, (req, res) => {
+app.get('/api/admin/verify', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const user = dbAPI.getUserById(req.userId);
+    const user = await dbAPI.getUserById(req.userId);
     delete user.password_hash;
 
     res.json({
@@ -1222,7 +1222,7 @@ app.get('/api/admin/verify', requireAuth, requireAdmin, (req, res) => {
 // ==================== ADMIN PRODUCT ROUTES ====================
 
 // Get all products (admin)
-app.get('/api/admin/products', requireAuth, requireAdmin, (req, res) => {
+app.get('/api/admin/products', requireAuth, requireAdmin, async (req, res) => {
   try {
     const filters = {
       search: req.query.search,
@@ -1231,11 +1231,11 @@ app.get('/api/admin/products', requireAuth, requireAdmin, (req, res) => {
       include_inactive: true
     };
 
-    const products = dbAPI.getAllProducts(filters);
+    const products = await dbAPI.getAllProducts(filters);
 
     // Enrich each product with full details (images, parsed JSON fields, discounts)
     const enrichedProducts = products.map(product => {
-      const fullProduct = dbAPI.getProductById(product.id);
+      const fullProduct = await dbAPI.getProductById(product.id);
       return fullProduct;
     });
 
@@ -1251,7 +1251,7 @@ app.get('/api/admin/products', requireAuth, requireAdmin, (req, res) => {
 });
 
 // Create product
-app.post('/api/admin/products', requireAuth, requireAdmin, validateProduct, (req, res) => {
+app.post('/api/admin/products', requireAuth, requireAdmin, validateProduct, async (req, res) => {
   try {
     const productData = req.body;
 
@@ -1273,12 +1273,12 @@ app.post('/api/admin/products', requireAuth, requireAdmin, validateProduct, (req
       productData.sku = `PRD-${timestamp}`;
     }
 
-    const productId = dbAPI.createProduct(productData);
+    const productId = await dbAPI.createProduct(productData);
 
     // Add images if provided
     if (productData.images && Array.isArray(productData.images)) {
       productData.images.forEach((img, index) => {
-        dbAPI.addProductImage(productId, {
+        await dbAPI.addProductImage(productId, {
           image_url: img.url || img.image_url,
           alt_text: img.alt_text || productData.name,
           is_primary: index === 0 ? 1 : 0,
@@ -1287,7 +1287,7 @@ app.post('/api/admin/products', requireAuth, requireAdmin, validateProduct, (req
       });
     }
 
-    const product = dbAPI.getProductById(productId);
+    const product = await dbAPI.getProductById(productId);
 
     res.status(201).json({
       success: true,
@@ -1301,14 +1301,14 @@ app.post('/api/admin/products', requireAuth, requireAdmin, validateProduct, (req
 });
 
 // Update product
-app.put('/api/admin/products/:id', requireAuth, requireAdmin, validateProduct, (req, res) => {
+app.put('/api/admin/products/:id', requireAuth, requireAdmin, validateProduct, async (req, res) => {
   try {
     const productId = req.params.id;
     const updates = req.body;
 
-    dbAPI.updateProduct(productId, updates);
+    await dbAPI.updateProduct(productId, updates);
 
-    const product = dbAPI.getProductById(productId);
+    const product = await dbAPI.getProductById(productId);
 
     res.json({
       success: true,
@@ -1322,9 +1322,9 @@ app.put('/api/admin/products/:id', requireAuth, requireAdmin, validateProduct, (
 });
 
 // Delete product
-app.delete('/api/admin/products/:id', requireAuth, requireAdmin, (req, res) => {
+app.delete('/api/admin/products/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
-    dbAPI.deleteProduct(req.params.id);
+    await dbAPI.deleteProduct(req.params.id);
 
     res.json({
       success: true,
@@ -1337,7 +1337,7 @@ app.delete('/api/admin/products/:id', requireAuth, requireAdmin, (req, res) => {
 });
 
 // Add product image
-app.post('/api/admin/products/:id/images', requireAuth, requireAdmin, (req, res) => {
+app.post('/api/admin/products/:id/images', requireAuth, requireAdmin, async (req, res) => {
   try {
     const productId = req.params.id;
     const { image_url, alt_text, is_primary, display_order } = req.body;
@@ -1346,14 +1346,14 @@ app.post('/api/admin/products/:id/images', requireAuth, requireAdmin, (req, res)
       return res.status(400).json({ error: 'Image URL is required' });
     }
 
-    dbAPI.addProductImage(productId, {
+    await dbAPI.addProductImage(productId, {
       image_url,
       alt_text,
       is_primary: is_primary || 0,
       display_order: display_order || 0
     });
 
-    const images = dbAPI.getProductImages(productId);
+    const images = await dbAPI.getProductImages(productId);
 
     res.status(201).json({
       success: true,
@@ -1367,13 +1367,13 @@ app.post('/api/admin/products/:id/images', requireAuth, requireAdmin, (req, res)
 });
 
 // Delete product image
-app.delete('/api/admin/products/:id/images/:imageId', requireAuth, requireAdmin, (req, res) => {
+app.delete('/api/admin/products/:id/images/:imageId', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { id, imageId } = req.params;
 
-    dbAPI.deleteProductImage(imageId);
+    await dbAPI.deleteProductImage(imageId);
 
-    const images = dbAPI.getProductImages(id);
+    const images = await dbAPI.getProductImages(id);
 
     res.json({
       success: true,
@@ -1387,13 +1387,13 @@ app.delete('/api/admin/products/:id/images/:imageId', requireAuth, requireAdmin,
 });
 
 // Set primary product image
-app.put('/api/admin/products/:id/images/:imageId/primary', requireAuth, requireAdmin, (req, res) => {
+app.put('/api/admin/products/:id/images/:imageId/primary', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { id, imageId } = req.params;
 
-    dbAPI.setPrimaryProductImage(id, imageId);
+    await dbAPI.setPrimaryProductImage(id, imageId);
 
-    const images = dbAPI.getProductImages(id);
+    const images = await dbAPI.getProductImages(id);
 
     res.json({
       success: true,
@@ -1409,14 +1409,14 @@ app.put('/api/admin/products/:id/images/:imageId/primary', requireAuth, requireA
 // ==================== ADMIN DISCOUNT ROUTES ====================
 
 // Create discount
-app.post('/api/admin/discounts', requireAuth, requireAdmin, (req, res) => {
+app.post('/api/admin/discounts', requireAuth, requireAdmin, async (req, res) => {
   try {
     const discountData = {
       ...req.body,
       created_by: req.userId
     };
 
-    const result = dbAPI.createDiscount(discountData);
+    const result = await dbAPI.createDiscount(discountData);
 
     res.status(201).json({
       success: true,
@@ -1430,9 +1430,9 @@ app.post('/api/admin/discounts', requireAuth, requireAdmin, (req, res) => {
 });
 
 // Delete discount
-app.delete('/api/admin/discounts/:id', requireAuth, requireAdmin, (req, res) => {
+app.delete('/api/admin/discounts/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
-    dbAPI.deleteDiscount(req.params.id);
+    await dbAPI.deleteDiscount(req.params.id);
 
     res.json({
       success: true,
@@ -1445,7 +1445,7 @@ app.delete('/api/admin/discounts/:id', requireAuth, requireAdmin, (req, res) => 
 });
 
 // Admin logout
-app.post('/api/admin/logout', requireAuth, (req, res) => {
+app.post('/api/admin/logout', requireAuth, async (req, res) => {
   const authHeader = req.headers.authorization;
 
   if (authHeader && !authHeader.startsWith('Bearer ')) {
@@ -1461,7 +1461,7 @@ app.post('/api/admin/logout', requireAuth, (req, res) => {
 // ==================== ADMIN USER ROUTES ====================
 
 // Get all users
-app.get('/api/admin/users', requireAuth, requireAdmin, (req, res) => {
+app.get('/api/admin/users', requireAuth, requireAdmin, async (req, res) => {
   try {
     const users = db.prepare(`
       SELECT 
@@ -1490,9 +1490,9 @@ app.get('/api/admin/users', requireAuth, requireAdmin, (req, res) => {
 });
 
 // Get single user
-app.get('/api/admin/users/:id', requireAuth, requireAdmin, (req, res) => {
+app.get('/api/admin/users/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const user = db.prepare(`
+    const user = await db.prepare(`
       SELECT
         id,
         email,
@@ -1510,7 +1510,7 @@ app.get('/api/admin/users/:id', requireAuth, requireAdmin, (req, res) => {
     }
 
     // Get user's orders
-    const orders = db.prepare(`
+    const orders = await db.prepare(`
       SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC
       `).all(req.params.id);
 
@@ -1531,7 +1531,7 @@ app.get('/api/admin/users/:id', requireAuth, requireAdmin, (req, res) => {
 // ==================== ANALYTICS ROUTES ====================
 
 // General Analytics (Dashboard)
-app.get('/api/admin/analytics', requireAuth, requireAdmin, (req, res) => {
+app.get('/api/admin/analytics', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { timeRange } = req.query;
     let startDate;
@@ -1548,12 +1548,12 @@ app.get('/api/admin/analytics', requireAuth, requireAdmin, (req, res) => {
     }
 
     // Summary Stats
-    const totalUsers = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
-    const newUsers = db.prepare('SELECT COUNT(*) as count FROM users WHERE created_at >= ?').get(startDate).count;
+    const totalUsers = await db.prepare('SELECT COUNT(*) as count FROM users').get().count;
+    const newUsers = await db.prepare('SELECT COUNT(*) as count FROM users WHERE created_at >= ?').get(startDate).count;
     const oldUsers = totalUsers - newUsers;
 
     // Sales & Orders
-    const salesData = db.prepare(`
+    const salesData = await db.prepare(`
       SELECT 
         DATE(created_at) as date, 
         COUNT(*) as count, 
@@ -1567,7 +1567,7 @@ app.get('/api/admin/analytics', requireAuth, requireAdmin, (req, res) => {
     const totalOrders = salesData.reduce((sum, day) => sum + day.count, 0);
 
     // User Registrations Chart
-    const userRegistrations = db.prepare(`
+    const userRegistrations = await db.prepare(`
       SELECT 
         DATE(created_at) as date, 
         COUNT(*) as count 
@@ -1577,7 +1577,7 @@ app.get('/api/admin/analytics', requireAuth, requireAdmin, (req, res) => {
     `).all(startDate);
 
     // Recent Orders (for dashboard list)
-    const recentOrders = db.prepare(`
+    const recentOrders = await db.prepare(`
       SELECT 
         o.id as orderId, 
         o.total_amount as totalAmount, 
@@ -1593,7 +1593,7 @@ app.get('/api/admin/analytics', requireAuth, requireAdmin, (req, res) => {
 
     // Add item counts to recent orders
     const enrichedRecentOrders = recentOrders.map(order => {
-      const itemCount = db.prepare('SELECT COUNT(*) as count FROM order_items WHERE order_id = ?').get(order.orderId).count;
+      const itemCount = await db.prepare('SELECT COUNT(*) as count FROM order_items WHERE order_id = ?').get(order.orderId).count;
       return { ...order, items: { length: itemCount } };
     });
 
@@ -1620,7 +1620,7 @@ app.get('/api/admin/analytics', requireAuth, requireAdmin, (req, res) => {
 });
 
 // Orders Analytics & List
-app.get('/api/admin/analytics/orders', requireAuth, requireAdmin, (req, res) => {
+app.get('/api/admin/analytics/orders', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { timeRange } = req.query;
     let startDate;
@@ -1637,7 +1637,7 @@ app.get('/api/admin/analytics/orders', requireAuth, requireAdmin, (req, res) => 
     }
 
     // Chart Data
-    const chartData = db.prepare(`
+    const chartData = await db.prepare(`
       SELECT 
         DATE(created_at) as date, 
         COUNT(*) as count, 
@@ -1648,7 +1648,7 @@ app.get('/api/admin/analytics/orders', requireAuth, requireAdmin, (req, res) => 
     `).all(startDate);
 
     // Full Orders List
-    const orders = db.prepare(`
+    const orders = await db.prepare(`
       SELECT 
         o.id as orderId, 
         o.total_amount as totalAmount, 
@@ -1664,7 +1664,7 @@ app.get('/api/admin/analytics/orders', requireAuth, requireAdmin, (req, res) => 
 
     // Add full item details for each order
     const ordersWithItems = orders.map(order => {
-      const items = dbAPI.getOrderItems(order.orderId);
+      const items = await dbAPI.getOrderItems(order.orderId);
       return { ...order, items: items || [] };
     });
 
@@ -1682,7 +1682,7 @@ app.get('/api/admin/analytics/orders', requireAuth, requireAdmin, (req, res) => 
 
 
 // Update Order Status
-app.put('/api/admin/orders/:id/status', requireAuth, requireAdmin, (req, res) => {
+app.put('/api/admin/orders/:id/status', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { status } = req.body;
     const { id } = req.params;
@@ -1691,7 +1691,7 @@ app.put('/api/admin/orders/:id/status', requireAuth, requireAdmin, (req, res) =>
       return res.status(400).json({ error: 'Invalid status' });
     }
 
-    db.prepare('UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+    await db.prepare('UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
       .run(status, id);
 
     res.json({
@@ -1707,7 +1707,7 @@ app.put('/api/admin/orders/:id/status', requireAuth, requireAdmin, (req, res) =>
 // ==================== WISHLIST ROUTES ====================
 
 // Get Wishlist
-app.get('/api/users/:userId/wishlist', requireAuth, (req, res) => {
+app.get('/api/users/:userId/wishlist', requireAuth, async (req, res) => {
   try {
     if (req.params.userId != req.userId && !req.isAdmin) {
       return res.status(403).json({ error: 'Access denied' });
@@ -1729,7 +1729,7 @@ app.get('/api/users/:userId/wishlist', requireAuth, (req, res) => {
 });
 
 // Add to Wishlist
-app.post('/api/users/:userId/wishlist', requireAuth, (req, res) => {
+app.post('/api/users/:userId/wishlist', requireAuth, async (req, res) => {
   try {
     if (req.params.userId != req.userId && !req.isAdmin) {
       return res.status(403).json({ error: 'Access denied' });
@@ -1738,7 +1738,7 @@ app.post('/api/users/:userId/wishlist', requireAuth, (req, res) => {
     const { productId } = req.body;
 
     // Check if already exists
-    const existing = db.prepare('SELECT * FROM wishlist WHERE user_id = ? AND product_id = ?')
+    const existing = await db.prepare('SELECT * FROM wishlist WHERE user_id = ? AND product_id = ?')
       .get(req.params.userId, productId);
 
     if (existing) {
@@ -1756,7 +1756,7 @@ app.post('/api/users/:userId/wishlist', requireAuth, (req, res) => {
 });
 
 // Remove from Wishlist
-app.delete('/api/users/:userId/wishlist/:productId', requireAuth, (req, res) => {
+app.delete('/api/users/:userId/wishlist/:productId', requireAuth, async (req, res) => {
   try {
     if (req.params.userId != req.userId && !req.isAdmin) {
       return res.status(403).json({ error: 'Access denied' });
@@ -1775,7 +1775,7 @@ app.delete('/api/users/:userId/wishlist/:productId', requireAuth, (req, res) => 
 // ==================== USER ORDER ROUTES ====================
 
 // Create Order (Checkout)
-app.post('/api/orders', requireAuth, csrfProtection, validateOrder, (req, res) => {
+app.post('/api/orders', requireAuth, csrfProtection, validateOrder, async (req, res) => {
   try {
     // Debug: Log incoming request body
     console.log('DEBUG /api/orders request body:', JSON.stringify(req.body, null, 2));
@@ -1788,7 +1788,7 @@ app.post('/api/orders', requireAuth, csrfProtection, validateOrder, (req, res) =
     // Create Address if needed
     let shippingAddressId = shippingAddress.id;
     if (!shippingAddressId && typeof shippingAddress === 'object') {
-      shippingAddressId = createOrUpdateAddress(req.userId, shippingAddress);
+      shippingAddressId = await createOrUpdateAddress(req.userId, shippingAddress);
     }
 
     // Debug: Log order data before DB insert
@@ -1805,7 +1805,7 @@ app.post('/api/orders', requireAuth, csrfProtection, validateOrder, (req, res) =
     console.log('DEBUG /api/orders orderDataForDb:', JSON.stringify(orderDataForDb, null, 2));
 
     // Create Order
-    const orderId = dbAPI.createOrder(orderDataForDb);
+    const orderId = await dbAPI.createOrder(orderDataForDb);
 
     // Add Items
     console.log('DEBUG: Items array:', JSON.stringify(items, null, 2));
@@ -1813,7 +1813,7 @@ app.post('/api/orders', requireAuth, csrfProtection, validateOrder, (req, res) =
       console.log(`DEBUG: Processing item ${index}:`, JSON.stringify(item, null, 2));
       console.log(`DEBUG: item.productId = ${item.productId}, item.id = ${item.id}`);
 
-      dbAPI.addOrderItem({
+      await dbAPI.addOrderItem({
         order_id: orderId,
         product_id: item.productId || item.id, // Try both fields
         product_name: item.name || '',
@@ -1840,13 +1840,13 @@ app.post('/api/orders', requireAuth, csrfProtection, validateOrder, (req, res) =
 });
 
 // Cancel Order (User)
-app.put('/api/orders/:id/cancel', requireAuth, (req, res) => {
+app.put('/api/orders/:id/cancel', requireAuth, async (req, res) => {
   try {
     const orderId = req.params.id;
     const userId = req.userId;
 
     // Verify order belongs to user
-    const order = dbAPI.getOrderById(orderId);
+    const order = await dbAPI.getOrderById(orderId);
     if (!order) {
       return res.status(404).json({ error: 'Order not found' });
     }
@@ -1861,7 +1861,7 @@ app.put('/api/orders/:id/cancel', requireAuth, (req, res) => {
       return res.status(400).json({ error: 'Cannot cancel order that is not pending' });
     }
 
-    dbAPI.updateOrderStatus(orderId, 'cancelled');
+    await dbAPI.updateOrderStatus(orderId, 'cancelled');
 
     // Log the cancellation
     console.log(`Order #${orderId} cancelled by user ${userId}`);
@@ -1874,13 +1874,13 @@ app.put('/api/orders/:id/cancel', requireAuth, (req, res) => {
 });
 
 // Get User Orders
-app.get('/api/orders', requireAuth, (req, res) => {
+app.get('/api/orders', requireAuth, async (req, res) => {
   try {
-    const orders = dbAPI.getAllOrders({ user_id: req.userId });
+    const orders = await dbAPI.getAllOrders({ user_id: req.userId });
 
     // Fetch items for each order
     const ordersWithItems = orders.map(order => {
-      const items = dbAPI.getOrderItems(order.id);
+      const items = await dbAPI.getOrderItems(order.id);
       return { ...order, items };
     });
 
@@ -1895,9 +1895,9 @@ app.get('/api/orders', requireAuth, (req, res) => {
 });
 
 // Get Single Order
-app.get('/api/orders/:id', requireAuth, (req, res) => {
+app.get('/api/orders/:id', requireAuth, async (req, res) => {
   try {
-    const order = dbAPI.getOrderById(req.params.id);
+    const order = await dbAPI.getOrderById(req.params.id);
 
     if (!order) {
       return res.status(404).json({ error: 'Order not found' });
@@ -1921,14 +1921,14 @@ app.get('/api/orders/:id', requireAuth, (req, res) => {
 // ==================== ADMIN ORDER ROUTES ====================
 
 // Get all orders
-app.get('/api/admin/orders', requireAuth, requireAdmin, (req, res) => {
+app.get('/api/admin/orders', requireAuth, requireAdmin, async (req, res) => {
   try {
     const filters = {
       status: req.query.status,
       limit: req.query.limit ? parseInt(req.query.limit) : null
     };
 
-    const orders = dbAPI.getAllOrders(filters);
+    const orders = await dbAPI.getAllOrders(filters);
 
     res.json({
       success: true,
@@ -1942,9 +1942,9 @@ app.get('/api/admin/orders', requireAuth, requireAdmin, (req, res) => {
 });
 
 // Get single order
-app.get('/api/admin/orders/:id', requireAuth, requireAdmin, (req, res) => {
+app.get('/api/admin/orders/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const order = dbAPI.getOrderById(req.params.id);
+    const order = await dbAPI.getOrderById(req.params.id);
 
     if (!order) {
       return res.status(404).json({ error: 'Order not found' });
@@ -1958,7 +1958,7 @@ app.get('/api/admin/orders/:id', requireAuth, requireAdmin, (req, res) => {
 });
 
 // Update order status
-app.put('/api/admin/orders/:id/status', requireAuth, requireAdmin, (req, res) => {
+app.put('/api/admin/orders/:id/status', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { status, notes } = req.body;
 
@@ -1966,12 +1966,12 @@ app.put('/api/admin/orders/:id/status', requireAuth, requireAdmin, (req, res) =>
       return res.status(400).json({ error: 'Status required' });
     }
 
-    dbAPI.updateOrderStatus(req.params.id, status, notes, req.userId);
+    await dbAPI.updateOrderStatus(req.params.id, status, notes, req.userId);
 
     // Create notification for user
-    const order = dbAPI.getOrderById(req.params.id);
+    const order = await dbAPI.getOrderById(req.params.id);
     if (order) {
-      dbAPI.createNotification({
+      await dbAPI.createNotification({
         user_id: order.user_id,
         type: 'order_status_update',
         title: `Order ${status} `,
@@ -1997,9 +1997,9 @@ app.put('/api/admin/orders/:id/status', requireAuth, requireAdmin, (req, res) =>
 // ==================== ADMIN ANALYTICS ROUTES ====================
 
 // Get dashboard analytics with time filtering
-app.get('/api/admin/analytics', requireAuth, requireAdmin, (req, res) => {
+app.get('/api/admin/analytics', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const mainDb = loadMainDb();
+    const mainDb = await loadMainDb();
     const { timeRange = 'month', year, month, week } = req.query;
 
     // Use provided year/month/week or default to current
@@ -2332,10 +2332,10 @@ app.get('/api/admin/analytics', requireAuth, requireAdmin, (req, res) => {
 });
 
 // Orders Analytics Endpoint (for Orders tab)
-app.get('/api/admin/analytics/orders', requireAuth, requireAdmin, (req, res) => {
+app.get('/api/admin/analytics/orders', requireAuth, requireAdmin, async (req, res) => {
   try {
     const timeRange = req.query.timeRange || 'month';
-    const mainDb = loadMainDb();
+    const mainDb = await loadMainDb();
 
     // Get date range
     const now = new Date();
@@ -2418,9 +2418,9 @@ app.get('/api/admin/analytics/orders', requireAuth, requireAdmin, (req, res) => 
 // ==================== ADMIN NOTIFICATION ROUTES ====================
 
 // Get unread notifications
-app.get('/api/admin/notifications', requireAuth, requireAdmin, (req, res) => {
+app.get('/api/admin/notifications', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const notifications = dbAPI.getUnreadNotifications(null); // null = admin notifications
+    const notifications = await dbAPI.getUnreadNotifications(null); // null = admin notifications
 
     res.json({
       success: true,
@@ -2433,9 +2433,9 @@ app.get('/api/admin/notifications', requireAuth, requireAdmin, (req, res) => {
 });
 
 // Mark notification as read
-app.put('/api/admin/notifications/:id/read', requireAuth, requireAdmin, (req, res) => {
+app.put('/api/admin/notifications/:id/read', requireAuth, requireAdmin, async (req, res) => {
   try {
-    dbAPI.markNotificationAsRead(req.params.id);
+    await dbAPI.markNotificationAsRead(req.params.id);
 
     res.json({
       success: true,
@@ -2546,10 +2546,10 @@ app.post('/api/payment/verify-payment', requireAuth, async (req, res) => {
       // Update order status in database
       if (order_id) {
         try {
-          dbAPI.updateOrderStatus(order_id, 'paid', `Payment ID: ${razorpay_payment_id} `);
+          await dbAPI.updateOrderStatus(order_id, 'paid', `Payment ID: ${razorpay_payment_id} `);
 
           // Create notification for admin
-          dbAPI.createNotification({
+          await dbAPI.createNotification({
             user_id: null,
             type: 'new_order', // or 'payment_received'
             title: 'Payment Received',
@@ -2580,10 +2580,10 @@ app.post('/api/payment/verify-payment', requireAuth, async (req, res) => {
 
 // ==================== ORDER ROUTES ====================
 
-app.post('/api/cart/validate', requireAuth, csrfProtection, validateCart, (req, res) => {
+app.post('/api/cart/validate', requireAuth, csrfProtection, validateCart, async (req, res) => {
   try {
     const { items, shippingMethod } = req.body;
-    const { sanitizedItems, subtotal, errors } = validateCartItems(items);
+    const { sanitizedItems, subtotal, errors } = await validateCartItems(items);
 
     if (sanitizedItems.length === 0) {
       return res.status(400).json({
@@ -2629,7 +2629,7 @@ app.post('/api/orders', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'No items in order' });
     }
 
-    const { sanitizedItems, subtotal, errors } = validateCartItems(items);
+    const { sanitizedItems, subtotal, errors } = await validateCartItems(items);
 
     if (!sanitizedItems.length) {
       return res.status(400).json({ error: 'Unable to build order from cart items', details: errors });
@@ -2647,7 +2647,7 @@ app.post('/api/orders', requireAuth, async (req, res) => {
     let shippingAddressId = null;
     try {
       console.log('Creating address with payload:', JSON.stringify(shippingAddress, null, 2));
-      shippingAddressId = createOrUpdateAddress(userId, shippingAddress);
+      shippingAddressId = await createOrUpdateAddress(userId, shippingAddress);
       console.log('Address created with ID:', shippingAddressId);
     } catch (addressError) {
       console.error('Address creation failed:', addressError);
@@ -2656,7 +2656,7 @@ app.post('/api/orders', requireAuth, async (req, res) => {
 
     const orderNumber = createOrderNumber();
 
-    const runTransaction = db.transaction(() => {
+    const runTransaction = db.transaction(async () => {
       for (const item of sanitizedItems) {
         const stockRow = db
           .prepare('SELECT stock_quantity FROM products WHERE id = ?')
@@ -2692,7 +2692,7 @@ app.post('/api/orders', requireAuth, async (req, res) => {
         notes || null
       );
 
-      const insertItem = db.prepare(`
+      const insertItem = await db.prepare(`
         INSERT INTO order_items (
           order_id, product_id, product_name, product_sku, quantity, unit_price, total_price
         ) VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -2719,14 +2719,14 @@ app.post('/api/orders', requireAuth, async (req, res) => {
     });
 
     const newOrderId = runTransaction();
-    const newOrder = dbAPI.getOrderById(newOrderId);
-    const user = dbAPI.getUserById(userId);
+    const newOrder = await dbAPI.getOrderById(newOrderId);
+    const user = await dbAPI.getUserById(userId);
     if (user) {
       delete user.password_hash;
     }
     const shippingDetails = resolveShippingMethod(newOrder.shipping_method);
 
-    dbAPI.createNotification({
+    await dbAPI.createNotification({
       user_id: null,
       type: 'new_order',
       title: 'New Order Placed',
@@ -2755,9 +2755,9 @@ app.post('/api/orders', requireAuth, async (req, res) => {
 });
 
 // Get user orders
-app.get('/api/orders', requireAuth, (req, res) => {
+app.get('/api/orders', requireAuth, async (req, res) => {
   try {
-    const orders = dbAPI.getAllOrders({ user_id: req.userId });
+    const orders = await dbAPI.getAllOrders({ user_id: req.userId });
 
     res.json({
       success: true,
@@ -2770,14 +2770,14 @@ app.get('/api/orders', requireAuth, (req, res) => {
 });
 
 // Get user orders (alias for frontend compatibility)
-app.get('/api/users/:userId/orders', requireAuth, (req, res) => {
+app.get('/api/users/:userId/orders', requireAuth, async (req, res) => {
   try {
     // Ensure user is accessing their own orders
     if (req.userId !== parseInt(req.params.userId) && !req.isAdmin) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    const orders = dbAPI.getAllOrders({ user_id: req.params.userId });
+    const orders = await dbAPI.getAllOrders({ user_id: req.params.userId });
 
     res.json({
       success: true,
@@ -2792,10 +2792,10 @@ app.get('/api/users/:userId/orders', requireAuth, (req, res) => {
 // ==================== REVIEWS & FEATURED ROUTES ====================
 
 // Get featured products
-app.get('/api/products/featured', (req, res) => {
+app.get('/api/products/featured', async (req, res) => {
   try {
     // Get 4 random active products with images
-    const products = db.prepare(`
+    const products = await db.prepare(`
       SELECT p.*,
   (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = 1 LIMIT 1) as primary_image
       FROM products p
@@ -2812,10 +2812,10 @@ app.get('/api/products/featured', (req, res) => {
 });
 
 // Get product reviews
-app.get('/api/products/:productId/reviews', (req, res) => {
+app.get('/api/products/:productId/reviews', async (req, res) => {
   try {
     const { productId } = req.params;
-    const reviews = db.prepare(`
+    const reviews = await db.prepare(`
       SELECT r.*, u.first_name || ' ' || u.last_name as author, r.created_at as date
       FROM reviews r
       JOIN users u ON r.user_id = u.id
@@ -2841,7 +2841,7 @@ app.get('/api/products/:productId/reviews', (req, res) => {
 });
 
 // Add review
-app.post('/api/products/:productId/reviews', requireAuth, (req, res) => {
+app.post('/api/products/:productId/reviews', requireAuth, async (req, res) => {
   try {
     const { productId } = req.params;
     const { rating, comment } = req.body;
@@ -2852,7 +2852,7 @@ app.post('/api/products/:productId/reviews', requireAuth, (req, res) => {
     }
 
     // Check if user bought the product (for verified badge)
-    const orderItem = db.prepare(`
+    const orderItem = await db.prepare(`
       SELECT oi.id 
       FROM order_items oi
       JOIN orders o ON oi.order_id = o.id
@@ -2861,12 +2861,12 @@ app.post('/api/products/:productId/reviews', requireAuth, (req, res) => {
 
     const isVerified = !!orderItem;
 
-    const result = db.prepare(`
+    const result = await db.prepare(`
       INSERT INTO reviews(product_id, user_id, rating, comment, is_verified_purchase)
 VALUES(?, ?, ?, ?, ?)
     `).run(productId, userId, rating, comment, isVerified ? 1 : 0);
 
-    const user = db.prepare('SELECT first_name, last_name FROM users WHERE id = ?').get(userId);
+    const user = await db.prepare('SELECT first_name, last_name FROM users WHERE id = ?').get(userId);
 
     const newReview = {
       id: result.lastInsertRowid,
@@ -2894,7 +2894,7 @@ console.log('✅ Checkout routes registered');
 // ==================== USER ORDER RETURN/REPLACE ROUTES ====================
 
 // Request Return (User)
-app.put('/api/orders/:id/return', requireAuth, (req, res) => {
+app.put('/api/orders/:id/return', requireAuth, async (req, res) => {
   try {
     const orderId = req.params.id;
     const userId = req.userId;
@@ -2905,7 +2905,7 @@ app.put('/api/orders/:id/return', requireAuth, (req, res) => {
     console.log('User ID from token:', userId, 'Type:', typeof userId);
     console.log('Reason:', reason);
 
-    const order = dbAPI.getOrderById(orderId);
+    const order = await dbAPI.getOrderById(orderId);
 
     if (!order) {
       console.log('❌ Order not found');
@@ -2938,10 +2938,10 @@ app.put('/api/orders/:id/return', requireAuth, (req, res) => {
       return res.status(400).json({ error: 'Only delivered, shipped or pending orders can be returned' });
     }
 
-    dbAPI.updateOrderStatus(orderId, 'return_requested', `Return requested: ${reason}`);
+    await dbAPI.updateOrderStatus(orderId, 'return_requested', `Return requested: ${reason}`);
 
     // Create entry in return_requests table
-    dbAPI.createReturnRequest({
+    await dbAPI.createReturnRequest({
       order_id: orderId,
       user_id: userId,
       reason: reason,
@@ -2950,7 +2950,7 @@ app.put('/api/orders/:id/return', requireAuth, (req, res) => {
     });
 
     // Notify Admin
-    dbAPI.createNotification({
+    await dbAPI.createNotification({
       user_id: null,
       type: 'return_request',
       title: 'Return Requested',
@@ -2966,21 +2966,21 @@ app.put('/api/orders/:id/return', requireAuth, (req, res) => {
 });
 
 // Request Replacement (User)
-app.put('/api/orders/:id/replace', requireAuth, (req, res) => {
+app.put('/api/orders/:id/replace', requireAuth, async (req, res) => {
   try {
     const orderId = req.params.id;
     const userId = req.userId;
     const { reason } = req.body;
 
-    const order = dbAPI.getOrderById(orderId);
+    const order = await dbAPI.getOrderById(orderId);
     if (!order) return res.status(404).json({ error: 'Order not found' });
     if (order.user_id !== userId) return res.status(403).json({ error: 'Unauthorized' });
     if (order.status !== 'delivered' && order.status !== 'pending' && order.status !== 'shipped') return res.status(400).json({ error: 'Only delivered, shipped or pending orders can be replaced' });
 
-    dbAPI.updateOrderStatus(orderId, 'replace_requested', `Replacement requested: ${reason}`);
+    await dbAPI.updateOrderStatus(orderId, 'replace_requested', `Replacement requested: ${reason}`);
 
     // Notify Admin
-    dbAPI.createNotification({
+    await dbAPI.createNotification({
       user_id: null,
       type: 'replace_request',
       title: 'Replacement Requested',
@@ -3000,9 +3000,9 @@ app.put('/api/orders/:id/replace', requireAuth, (req, res) => {
 // ==================== PROFESSIONAL WORKFLOW API ROUTES ====================
 
 // Warehouse Management
-app.get('/api/admin/warehouses', requireAuth, requireAdmin, (req, res) => {
+app.get('/api/admin/warehouses', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const warehouses = dbAPI.getAllWarehouses();
+    const warehouses = await dbAPI.getAllWarehouses();
     res.json({ success: true, warehouses });
   } catch (error) {
     console.error('Get warehouses error:', error);
@@ -3010,10 +3010,10 @@ app.get('/api/admin/warehouses', requireAuth, requireAdmin, (req, res) => {
   }
 });
 
-app.post('/api/admin/warehouses', requireAuth, requireAdmin, (req, res) => {
+app.post('/api/admin/warehouses', requireAuth, requireAdmin, async (req, res) => {
   try {
     const warehouseData = req.body;
-    const warehouse = dbAPI.createWarehouse(warehouseData);
+    const warehouse = await dbAPI.createWarehouse(warehouseData);
     res.json({ success: true, warehouse });
   } catch (error) {
     console.error('Create warehouse error:', error);
@@ -3021,11 +3021,11 @@ app.post('/api/admin/warehouses', requireAuth, requireAdmin, (req, res) => {
   }
 });
 
-app.put('/api/admin/warehouses/:id', requireAuth, requireAdmin, (req, res) => {
+app.put('/api/admin/warehouses/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     const warehouseId = req.params.id;
     const warehouseData = req.body;
-    const warehouse = dbAPI.updateWarehouse(warehouseId, warehouseData);
+    const warehouse = await dbAPI.updateWarehouse(warehouseId, warehouseData);
     res.json({ success: true, warehouse });
   } catch (error) {
     console.error('Update warehouse error:', error);
@@ -3034,17 +3034,17 @@ app.put('/api/admin/warehouses/:id', requireAuth, requireAdmin, (req, res) => {
 });
 
 // Warehouse Inventory Management
-app.get('/api/admin/warehouse-inventory', requireAuth, requireAdmin, (req, res) => {
+app.get('/api/admin/warehouse-inventory', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { warehouseId, productId } = req.query;
     let inventory;
 
     if (warehouseId && productId) {
-      inventory = dbAPI.getWarehouseInventory(warehouseId, productId);
+      inventory = await dbAPI.getWarehouseInventory(warehouseId, productId);
     } else if (warehouseId) {
-      inventory = dbAPI.getWarehouseInventoryByWarehouse(warehouseId);
+      inventory = await dbAPI.getWarehouseInventoryByWarehouse(warehouseId);
     } else {
-      inventory = dbAPI.getAllWarehouseInventory();
+      inventory = await dbAPI.getAllWarehouseInventory();
     }
 
     res.json({ success: true, inventory });
@@ -3054,12 +3054,12 @@ app.get('/api/admin/warehouse-inventory', requireAuth, requireAdmin, (req, res) 
   }
 });
 
-app.put('/api/admin/warehouse-inventory/:warehouseId/:productId', requireAuth, requireAdmin, (req, res) => {
+app.put('/api/admin/warehouse-inventory/:warehouseId/:productId', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { warehouseId, productId } = req.params;
     const { stockQuantity, reservedQuantity } = req.body;
 
-    const inventory = dbAPI.updateWarehouseInventory(warehouseId, productId, {
+    const inventory = await dbAPI.updateWarehouseInventory(warehouseId, productId, {
       stock_quantity: stockQuantity,
       reserved_quantity: reservedQuantity
     });
@@ -3072,9 +3072,9 @@ app.put('/api/admin/warehouse-inventory/:warehouseId/:productId', requireAuth, r
 });
 
 // Courier Partners Management
-app.get('/api/admin/courier-partners', requireAuth, requireAdmin, (req, res) => {
+app.get('/api/admin/courier-partners', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const couriers = dbAPI.getAllCourierPartners();
+    const couriers = await dbAPI.getAllCourierPartners();
     res.json({ success: true, couriers });
   } catch (error) {
     console.error('Get courier partners error:', error);
@@ -3082,10 +3082,10 @@ app.get('/api/admin/courier-partners', requireAuth, requireAdmin, (req, res) => 
   }
 });
 
-app.post('/api/admin/courier-partners', requireAuth, requireAdmin, (req, res) => {
+app.post('/api/admin/courier-partners', requireAuth, requireAdmin, async (req, res) => {
   try {
     const courierData = req.body;
-    const courier = dbAPI.createCourierPartner(courierData);
+    const courier = await dbAPI.createCourierPartner(courierData);
     res.json({ success: true, courier });
   } catch (error) {
     console.error('Create courier partner error:', error);
@@ -3094,10 +3094,10 @@ app.post('/api/admin/courier-partners', requireAuth, requireAdmin, (req, res) =>
 });
 
 // Return Requests Management
-app.get('/api/admin/return-requests', requireAuth, requireAdmin, (req, res) => {
+app.get('/api/admin/return-requests', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { status, page = 1, limit = 20 } = req.query;
-    const returnRequests = dbAPI.getReturnRequests({ status, page, limit });
+    const returnRequests = await dbAPI.getReturnRequests({ status, page, limit });
     res.json({ success: true, returnRequests });
   } catch (error) {
     console.error('Get return requests error:', error);
@@ -3105,11 +3105,11 @@ app.get('/api/admin/return-requests', requireAuth, requireAdmin, (req, res) => {
   }
 });
 
-app.put('/api/admin/return-requests/:id', requireAuth, requireAdmin, (req, res) => {
+app.put('/api/admin/return-requests/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     const returnRequestId = req.params.id;
     const updateData = req.body;
-    const returnRequest = dbAPI.updateReturnRequest(returnRequestId, updateData);
+    const returnRequest = await dbAPI.updateReturnRequest(returnRequestId, updateData);
     res.json({ success: true, returnRequest });
   } catch (error) {
     console.error('Update return request error:', error);
@@ -3118,10 +3118,10 @@ app.put('/api/admin/return-requests/:id', requireAuth, requireAdmin, (req, res) 
 });
 
 // Customer Support Tickets
-app.get('/api/admin/support-tickets', requireAuth, requireAdmin, (req, res) => {
+app.get('/api/admin/support-tickets', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { status, priority, page = 1, limit = 20 } = req.query;
-    const tickets = dbAPI.getSupportTickets({ status, priority, page, limit });
+    const tickets = await dbAPI.getSupportTickets({ status, priority, page, limit });
     res.json({ success: true, tickets });
   } catch (error) {
     console.error('Get support tickets error:', error);
@@ -3129,11 +3129,11 @@ app.get('/api/admin/support-tickets', requireAuth, requireAdmin, (req, res) => {
   }
 });
 
-app.put('/api/admin/support-tickets/:id', requireAuth, requireAdmin, (req, res) => {
+app.put('/api/admin/support-tickets/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     const ticketId = req.params.id;
     const updateData = req.body;
-    const ticket = dbAPI.updateSupportTicket(ticketId, updateData);
+    const ticket = await dbAPI.updateSupportTicket(ticketId, updateData);
     res.json({ success: true, ticket });
   } catch (error) {
     console.error('Update support ticket error:', error);
@@ -3142,10 +3142,10 @@ app.put('/api/admin/support-tickets/:id', requireAuth, requireAdmin, (req, res) 
 });
 
 // Loyalty Points Management
-app.get('/api/admin/loyalty-points', requireAuth, requireAdmin, (req, res) => {
+app.get('/api/admin/loyalty-points', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { userId, page = 1, limit = 20 } = req.query;
-    const loyaltyData = dbAPI.getLoyaltyPoints({ userId, page, limit });
+    const loyaltyData = await dbAPI.getLoyaltyPoints({ userId, page, limit });
     res.json({ success: true, loyaltyData });
   } catch (error) {
     console.error('Get loyalty points error:', error);
@@ -3154,10 +3154,10 @@ app.get('/api/admin/loyalty-points', requireAuth, requireAdmin, (req, res) => {
 });
 
 // Payment Settlements
-app.get('/api/admin/payment-settlements', requireAuth, requireAdmin, (req, res) => {
+app.get('/api/admin/payment-settlements', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { status, page = 1, limit = 20 } = req.query;
-    const settlements = dbAPI.getPaymentSettlements({ status, page, limit });
+    const settlements = await dbAPI.getPaymentSettlements({ status, page, limit });
     res.json({ success: true, settlements });
   } catch (error) {
     console.error('Get payment settlements error:', error);
@@ -3166,12 +3166,12 @@ app.get('/api/admin/payment-settlements', requireAuth, requireAdmin, (req, res) 
 });
 
 // Enhanced Order Management with Warehouse Assignment
-app.put('/api/admin/orders/:id/assign-warehouse', requireAuth, requireAdmin, (req, res) => {
+app.put('/api/admin/orders/:id/assign-warehouse', requireAuth, requireAdmin, async (req, res) => {
   try {
     const orderId = req.params.id;
     const { warehouseId } = req.body;
 
-    const order = dbAPI.assignWarehouseToOrder(orderId, warehouseId);
+    const order = await dbAPI.assignWarehouseToOrder(orderId, warehouseId);
     res.json({ success: true, order });
   } catch (error) {
     console.error('Assign warehouse to order error:', error);
@@ -3180,12 +3180,12 @@ app.put('/api/admin/orders/:id/assign-warehouse', requireAuth, requireAdmin, (re
 });
 
 // Enhanced Order Status Updates with Detailed Status
-app.put('/api/admin/orders/:id/detailed-status', requireAuth, requireAdmin, (req, res) => {
+app.put('/api/admin/orders/:id/detailed-status', requireAuth, requireAdmin, async (req, res) => {
   try {
     const orderId = req.params.id;
     const { detailedStatus, notes } = req.body;
 
-    const order = dbAPI.updateOrderDetailedStatus(orderId, detailedStatus, notes);
+    const order = await dbAPI.updateOrderDetailedStatus(orderId, detailedStatus, notes);
     res.json({ success: true, order });
   } catch (error) {
     console.error('Update order detailed status error:', error);
@@ -3194,7 +3194,7 @@ app.put('/api/admin/orders/:id/detailed-status', requireAuth, requireAdmin, (req
 });
 
 // Extended Admin Return Management
-app.get('/api/admin/return-requests', requireAuth, requireAdmin, (req, res) => {
+app.get('/api/admin/return-requests', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { status, page, limit } = req.query;
     const filters = {
@@ -3203,7 +3203,7 @@ app.get('/api/admin/return-requests', requireAuth, requireAdmin, (req, res) => {
       limit: limit ? parseInt(limit) : 20
     };
 
-    const returnRequests = dbAPI.getReturnRequests(filters);
+    const returnRequests = await dbAPI.getReturnRequests(filters);
     res.json({ success: true, returnRequests });
   } catch (error) {
     console.error('Get return requests error:', error);
@@ -3212,11 +3212,11 @@ app.get('/api/admin/return-requests', requireAuth, requireAdmin, (req, res) => {
 });
 
 // User-facing Return Request Creation
-app.post('/api/returns', requireAuth, (req, res) => {
+app.post('/api/returns', requireAuth, async (req, res) => {
   try {
     const userId = req.userId;
     const returnData = { ...req.body, user_id: userId };
-    const returnRequest = dbAPI.createReturnRequest(returnData);
+    const returnRequest = await dbAPI.createReturnRequest(returnData);
     res.json({ success: true, returnRequest });
   } catch (error) {
     console.error('Create return request error:', error);
@@ -3225,11 +3225,11 @@ app.post('/api/returns', requireAuth, (req, res) => {
 });
 
 // User Support Ticket Creation
-app.post('/api/support/tickets', requireAuth, (req, res) => {
+app.post('/api/support/tickets', requireAuth, async (req, res) => {
   try {
     const userId = req.userId;
     const ticketData = { ...req.body, user_id: userId };
-    const ticket = dbAPI.createSupportTicket(ticketData);
+    const ticket = await dbAPI.createSupportTicket(ticketData);
     res.json({ success: true, ticket });
   } catch (error) {
     console.error('Create support ticket error:', error);
@@ -3238,10 +3238,10 @@ app.post('/api/support/tickets', requireAuth, (req, res) => {
 });
 
 // User Loyalty Points
-app.get('/api/user/loyalty', requireAuth, (req, res) => {
+app.get('/api/user/loyalty', requireAuth, async (req, res) => {
   try {
     const userId = req.userId;
-    const loyaltyData = dbAPI.getUserLoyaltyPoints(userId);
+    const loyaltyData = await dbAPI.getUserLoyaltyPoints(userId);
     res.json({ success: true, loyaltyData });
   } catch (error) {
     console.error('Get user loyalty error:', error);
@@ -3252,7 +3252,7 @@ app.get('/api/user/loyalty', requireAuth, (req, res) => {
 // ==================== WISHLIST ROUTES ====================
 
 // Get user wishlist
-app.get('/api/users/:userId/wishlist', requireAuth, (req, res) => {
+app.get('/api/users/:userId/wishlist', requireAuth, async (req, res) => {
   try {
     const { userId } = req.params;
 
@@ -3261,7 +3261,7 @@ app.get('/api/users/:userId/wishlist', requireAuth, (req, res) => {
       return res.status(403).json({ error: 'Unauthorized access to wishlist' });
     }
 
-    const wishlist = db.prepare(`
+    const wishlist = await db.prepare(`
       SELECT w.*, p.name as product_name, p.selling_price, p.slug,
   (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = 1 LIMIT 1) as image_url
       FROM wishlist w
@@ -3278,7 +3278,7 @@ app.get('/api/users/:userId/wishlist', requireAuth, (req, res) => {
 });
 
 // Add to wishlist
-app.post('/api/users/:userId/wishlist', requireAuth, (req, res) => {
+app.post('/api/users/:userId/wishlist', requireAuth, async (req, res) => {
   try {
     const { userId } = req.params;
     const { productId } = req.body;
@@ -3288,12 +3288,12 @@ app.post('/api/users/:userId/wishlist', requireAuth, (req, res) => {
     }
 
     // Check if already in wishlist
-    const existing = db.prepare('SELECT id FROM wishlist WHERE user_id = ? AND product_id = ?').get(userId, productId);
+    const existing = await db.prepare('SELECT id FROM wishlist WHERE user_id = ? AND product_id = ?').get(userId, productId);
     if (existing) {
       return res.status(400).json({ error: 'Product already in wishlist' });
     }
 
-    const result = db.prepare('INSERT INTO wishlist (user_id, product_id) VALUES (?, ?)').run(userId, productId);
+    const result = await db.prepare('INSERT INTO wishlist (user_id, product_id) VALUES (?, ?)').run(userId, productId);
 
     res.json({ success: true, id: result.lastInsertRowid });
   } catch (error) {
@@ -3303,7 +3303,7 @@ app.post('/api/users/:userId/wishlist', requireAuth, (req, res) => {
 });
 
 // Remove from wishlist
-app.delete('/api/users/:userId/wishlist/:productId', requireAuth, (req, res) => {
+app.delete('/api/users/:userId/wishlist/:productId', requireAuth, async (req, res) => {
   try {
     const { userId, productId } = req.params;
 
@@ -3311,7 +3311,7 @@ app.delete('/api/users/:userId/wishlist/:productId', requireAuth, (req, res) => 
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
-    db.prepare('DELETE FROM wishlist WHERE user_id = ? AND product_id = ?').run(userId, productId);
+    await db.prepare('DELETE FROM wishlist WHERE user_id = ? AND product_id = ?').run(userId, productId);
 
     res.json({ success: true });
   } catch (error) {
@@ -3328,7 +3328,7 @@ app.delete('/api/users/:userId/wishlist/:productId', requireAuth, (req, res) => 
 // ==================== ERROR HANDLING ====================
 
 // 404 handler
-app.use((req, res) => {
+app.use(async (req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 

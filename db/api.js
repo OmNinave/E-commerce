@@ -1,17 +1,18 @@
-const { db } = require('./database');
+const { db, usePostgres } = require('./database');
 
 /**
  * Enterprise E-commerce Database API
  * Complete CRUD operations for all entities
+ * now Fully Async and Postgres Compatible
  */
 
 class DatabaseAPI {
     // ==================== PRODUCTS ====================
 
-    getAllProducts(filters = {}) {
+    async getAllProducts(filters = {}) {
         let query = `
       SELECT p.*, c.name as category_name, 
-             (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = 1 LIMIT 1) as primary_image,
+             (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = ${usePostgres ? 'true' : '1'} LIMIT 1) as primary_image,
              (SELECT COUNT(*) FROM product_images WHERE product_id = p.id) as image_count
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
@@ -19,7 +20,7 @@ class DatabaseAPI {
     `;
 
         if (!filters.include_inactive) {
-            query += ' AND p.is_active = 1';
+            query += usePostgres ? ' AND p.is_active = true' : ' AND p.is_active = 1';
         }
 
         const params = [];
@@ -83,10 +84,11 @@ class DatabaseAPI {
             params.push(filters.offset);
         }
 
-        return db.prepare(query).all(...params);
+        // ASYNC CALL
+        return await db.prepare(query).all(...params);
     }
 
-    getProductsCount(filters = {}) {
+    async getProductsCount(filters = {}) {
         let query = `
       SELECT COUNT(*) as count
       FROM products p
@@ -95,12 +97,11 @@ class DatabaseAPI {
     `;
 
         if (!filters.include_inactive) {
-            query += ' AND p.is_active = 1';
+            query += usePostgres ? ' AND p.is_active = true' : ' AND p.is_active = 1';
         }
 
         const params = [];
 
-        // Support both category_id (numeric) and category (name)
         if (filters.category_id) {
             query += ' AND p.category_id = ?';
             params.push(filters.category_id);
@@ -125,11 +126,14 @@ class DatabaseAPI {
             params.push(filters.max_price);
         }
 
-        return db.prepare(query).get(...params).count;
+        // ASYNC CALL
+        const result = await db.prepare(query).get(...params);
+        return result.count;
     }
 
-    getProductById(id) {
-        const product = db.prepare(`
+    async getProductById(id) {
+        // ASYNC CALL
+        const product = await db.prepare(`
       SELECT p.*, c.name as category_name
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
@@ -137,29 +141,34 @@ class DatabaseAPI {
     `).get(id);
 
         if (product) {
-            product.images = this.getProductImages(id);
-            product.discount = this.getActiveDiscount(id);
+            product.images = await this.getProductImages(id);
+            product.discount = await this.getActiveDiscount(id);
 
             // Parse JSON fields
-            try { product.features = JSON.parse(product.features || '[]'); } catch (e) { product.features = []; }
-            try { product.specifications = JSON.parse(product.specifications || '{}'); } catch (e) { product.specifications = {}; }
-            try { product.shipping_info = JSON.parse(product.shipping_info || '{}'); } catch (e) { product.shipping_info = {}; }
+            try { product.features = typeof product.features === 'string' ? JSON.parse(product.features || '[]') : product.features; } catch (e) { product.features = []; }
+            try { product.specifications = typeof product.specifications === 'string' ? JSON.parse(product.specifications || '{}') : product.specifications; } catch (e) { product.specifications = {}; }
+            try { product.shipping_info = typeof product.shipping_info === 'string' ? JSON.parse(product.shipping_info || '{}') : product.shipping_info; } catch (e) { product.shipping_info = {}; }
         }
 
         return product;
     }
 
-    createProduct(productData) {
-        const stmt = db.prepare(`
+    async createProduct(productData) {
+        let sql = `
       INSERT INTO products (
         name, slug, model, tagline, description, category_id, brand, sku,
         base_price, selling_price, cost_price, stock_quantity, low_stock_threshold,
         weight, dimensions, is_active, is_featured, features, specifications, shipping_info, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+    `;
+
+        if (usePostgres) {
+            sql += ' RETURNING id';
+        }
 
         const now = new Date().toISOString();
-        const result = stmt.run(
+        // ASYNC CALL
+        const result = await db.prepare(sql).run(
             productData.name,
             productData.slug,
             productData.model || '',
@@ -175,7 +184,7 @@ class DatabaseAPI {
             productData.low_stock_threshold || 10,
             productData.weight || null,
             productData.dimensions || null,
-            productData.is_active !== undefined ? productData.is_active : 1,
+            productData.is_active !== undefined ? productData.is_active : (usePostgres ? true : 1),
             productData.is_featured || 0,
             JSON.stringify(productData.features || []),
             JSON.stringify(productData.specifications || {}),
@@ -184,10 +193,10 @@ class DatabaseAPI {
             now
         );
 
-        return result.lastInsertRowid;
+        return result.lastInsertRowid; // Wrapper ensures this exists for both
     }
 
-    updateProduct(id, productData) {
+    async updateProduct(id, productData) {
         const fields = [];
         const values = [];
 
@@ -213,92 +222,87 @@ class DatabaseAPI {
         values.push(id);
 
         const stmt = db.prepare(`UPDATE products SET ${fields.join(', ')} WHERE id = ?`);
-        return stmt.run(...values);
+        return await stmt.run(...values);
     }
 
-    deleteProduct(id) {
-        return db.prepare('UPDATE products SET is_active = 0 WHERE id = ?').run(id);
+    async deleteProduct(id) {
+        return await db.prepare(`UPDATE products SET is_active = ${usePostgres ? 'false' : '0'} WHERE id = ?`).run(id);
     }
 
     // ==================== PRODUCT IMAGES ====================
 
-    getProductImages(productId) {
-        return db.prepare(`
+    async getProductImages(productId) {
+        return await db.prepare(`
       SELECT * FROM product_images
       WHERE product_id = ?
       ORDER BY is_primary DESC, display_order ASC
     `).all(productId);
     }
 
-    addProductImage(productId, imageData) {
-        const stmt = db.prepare(`
+    async addProductImage(productId, imageData) {
+        return await db.prepare(`
       INSERT INTO product_images (product_id, image_url, alt_text, is_primary, display_order)
       VALUES (?, ?, ?, ?, ?)
-    `);
-
-        return stmt.run(
+    `).run(
             productId,
             imageData.image_url,
             imageData.alt_text || '',
-            imageData.is_primary || 0,
+            imageData.is_primary || (usePostgres ? false : 0),
             imageData.display_order || 0
         );
     }
 
-    deleteProductImage(imageId) {
-        return db.prepare('DELETE FROM product_images WHERE id = ?').run(imageId);
+    async deleteProductImage(imageId) {
+        return await db.prepare('DELETE FROM product_images WHERE id = ?').run(imageId);
     }
 
-    setPrimaryProductImage(productId, imageId) {
-        const transaction = db.transaction(() => {
-            // Reset all images for this product to not be primary
-            db.prepare('UPDATE product_images SET is_primary = 0 WHERE product_id = ?').run(productId);
-
-            // Set the selected image as primary
-            db.prepare('UPDATE product_images SET is_primary = 1 WHERE id = ? AND product_id = ?').run(imageId, productId);
+    async setPrimaryProductImage(productId, imageId) {
+        const transaction = db.transaction(async () => {
+            // Reset all images
+            await db.prepare(`UPDATE product_images SET is_primary = ${usePostgres ? 'false' : '0'} WHERE product_id = ?`).run(productId);
+            // Set primary
+            await db.prepare(`UPDATE product_images SET is_primary = ${usePostgres ? 'true' : '1'} WHERE id = ? AND product_id = ?`).run(imageId, productId);
         });
 
-        transaction();
+        await transaction();
         return true;
     }
 
     // ==================== CATEGORIES ====================
 
-    getAllCategories() {
-        return db.prepare(`
+    async getAllCategories() {
+        return await db.prepare(`
       SELECT c.*, 
-             (SELECT COUNT(*) FROM products WHERE category_id = c.id AND is_active = 1) as product_count
+             (SELECT COUNT(*) FROM products WHERE category_id = c.id AND is_active = ${usePostgres ? 'true' : '1'}) as product_count
       FROM categories c
-      WHERE c.is_active = 1
+      WHERE c.is_active = ${usePostgres ? 'true' : '1'}
       ORDER BY c.display_order ASC
     `).all();
     }
 
-    createCategory(categoryData) {
-        const stmt = db.prepare(`
+    async createCategory(categoryData) {
+        return await db.prepare(`
       INSERT INTO categories (name, slug, description, parent_id, image_url, is_active, display_order)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `);
-
-        return stmt.run(
+    `).run(
             categoryData.name,
             categoryData.slug,
             categoryData.description || '',
             categoryData.parent_id || null,
             categoryData.image_url || null,
-            categoryData.is_active !== undefined ? categoryData.is_active : 1,
+            categoryData.is_active !== undefined ? categoryData.is_active : (usePostgres ? true : 1),
             categoryData.display_order || 0
         );
     }
 
     // ==================== DISCOUNTS ====================
 
-    getActiveDiscount(productId) {
+    async getActiveDiscount(productId) {
         const now = new Date().toISOString();
-        return db.prepare(`
+        return await db.prepare(`
       SELECT * FROM discounts
       WHERE product_id = ?
-        AND is_active = 1
+        AND is_active = ${usePostgres ? 'true' : '1'}
         AND (start_date IS NULL OR start_date <= ?)
         AND (end_date IS NULL OR end_date >= ?)
       ORDER BY discount_value DESC
@@ -306,30 +310,28 @@ class DatabaseAPI {
     `).get(productId, now, now);
     }
 
-    createDiscount(discountData) {
-        const stmt = db.prepare(`
+    async createDiscount(discountData) {
+        return await db.prepare(`
       INSERT INTO discounts (product_id, discount_type, discount_value, start_date, end_date, is_active, created_by)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `);
-
-        return stmt.run(
+    `).run(
             discountData.product_id,
             discountData.discount_type,
             discountData.discount_value,
             discountData.start_date || null,
             discountData.end_date || null,
-            discountData.is_active !== undefined ? discountData.is_active : 1,
+            discountData.is_active !== undefined ? discountData.is_active : (usePostgres ? true : 1),
             discountData.created_by || null
         );
     }
 
-    deleteDiscount(id) {
-        return db.prepare('UPDATE discounts SET is_active = 0 WHERE id = ?').run(id);
+    async deleteDiscount(id) {
+        return await db.prepare(`UPDATE discounts SET is_active = ${usePostgres ? 'false' : '0'} WHERE id = ?`).run(id);
     }
 
     // ==================== ORDERS ====================
 
-    getAllOrders(filters = {}) {
+    async getAllOrders(filters = {}) {
         let query = `
       SELECT o.*, u.email as user_email, u.first_name, u.last_name,
              a.city as shipping_city, a.state as shipping_state
@@ -358,11 +360,11 @@ class DatabaseAPI {
             params.push(filters.limit);
         }
 
-        return db.prepare(query).all(...params);
+        return await db.prepare(query).all(...params);
     }
 
-    getOrderById(id) {
-        const order = db.prepare(`
+    async getOrderById(id) {
+        const order = await db.prepare(`
       SELECT 
         sa.full_name, sa.phone, sa.address_line1, sa.address_line2, sa.city, sa.state, sa.pincode, sa.landmark,
         u.email as user_email, u.first_name, u.last_name, u.phone as user_phone,
@@ -374,24 +376,28 @@ class DatabaseAPI {
     `).get(id);
 
         if (order) {
-            order.items = this.getOrderItems(id);
-            order.status_history = this.getOrderStatusHistory(id);
-            order.shipping = this.getOrderShipping(id);
+            order.items = await this.getOrderItems(id);
+            order.status_history = await this.getOrderStatusHistory(id);
+            order.shipping = await this.getOrderShipping(id);
         }
 
         return order;
     }
 
-    createOrder(orderData) {
-        const stmt = db.prepare(`
+    async createOrder(orderData) {
+        let sql = `
       INSERT INTO orders (
         order_number, user_id, status, payment_status, payment_method, payment_id,
         subtotal, discount_amount, shipping_cost, tax_amount, total_amount,
         coupon_code, shipping_address_id, billing_address_id, notes, created_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+    `;
 
-        const result = stmt.run(
+        if (usePostgres) {
+            sql += ' RETURNING id';
+        }
+
+        const result = await db.prepare(sql).run(
             orderData.order_number,
             orderData.user_id,
             orderData.status || 'pending',
@@ -413,37 +419,37 @@ class DatabaseAPI {
         return result.lastInsertRowid;
     }
 
-    updateOrderStatus(orderId, status, notes = null, userId = null) {
-        const transaction = db.transaction(() => {
+    async updateOrderStatus(orderId, status, notes = null, userId = null) {
+        const transaction = db.transaction(async () => {
             // Update order status
-            db.prepare('UPDATE orders SET status = ?, updated_at = ? WHERE id = ?')
+            await db.prepare('UPDATE orders SET status = ?, updated_at = ? WHERE id = ?')
                 .run(status, new Date().toISOString(), orderId);
 
             // Add to status history
-            db.prepare(`
+            await db.prepare(`
         INSERT INTO order_status_history (order_id, status, notes, created_by)
         VALUES (?, ?, ?, ?)
       `).run(orderId, status, notes, userId);
 
             // Update timestamps based on status
             if (status === 'shipped') {
-                db.prepare('UPDATE orders SET shipped_at = ? WHERE id = ?')
+                await db.prepare('UPDATE orders SET shipped_at = ? WHERE id = ?')
                     .run(new Date().toISOString(), orderId);
             } else if (status === 'delivered') {
-                db.prepare('UPDATE orders SET delivered_at = ? WHERE id = ?')
+                await db.prepare('UPDATE orders SET delivered_at = ? WHERE id = ?')
                     .run(new Date().toISOString(), orderId);
             } else if (status === 'cancelled') {
-                db.prepare('UPDATE orders SET cancelled_at = ? WHERE id = ?')
+                await db.prepare('UPDATE orders SET cancelled_at = ? WHERE id = ?')
                     .run(new Date().toISOString(), orderId);
             }
         });
 
-        transaction();
+        await transaction();
         return true;
     }
 
-    getOrderItems(orderId) {
-        return db.prepare(`
+    async getOrderItems(orderId) {
+        return await db.prepare(`
       SELECT oi.*, p.name as product_name, p.sku as product_sku
       FROM order_items oi
       LEFT JOIN products p ON oi.product_id = p.id
@@ -451,13 +457,11 @@ class DatabaseAPI {
     `).all(orderId);
     }
 
-    addOrderItem(orderItemData) {
-        const stmt = db.prepare(`
+    async addOrderItem(orderItemData) {
+        return await db.prepare(`
       INSERT INTO order_items (order_id, product_id, product_name, product_sku, quantity, unit_price, discount_amount, total_price)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-        return stmt.run(
+    `).run(
             orderItemData.order_id,
             orderItemData.product_id,
             orderItemData.product_name,
@@ -469,8 +473,8 @@ class DatabaseAPI {
         );
     }
 
-    getOrderStatusHistory(orderId) {
-        return db.prepare(`
+    async getOrderStatusHistory(orderId) {
+        return await db.prepare(`
       SELECT osh.*, u.first_name, u.last_name
       FROM order_status_history osh
       LEFT JOIN users u ON osh.created_by = u.id
@@ -479,95 +483,109 @@ class DatabaseAPI {
     `).all(orderId);
     }
 
-    getOrderShipping(orderId) {
-        return db.prepare('SELECT * FROM shipping WHERE order_id = ?').get(orderId);
+    async getOrderShipping(orderId) {
+        return await db.prepare('SELECT * FROM shipping WHERE order_id = ?').get(orderId);
     }
 
     // ==================== USERS ====================
 
-    getUserByEmail(email) {
-        return db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+    async getUserByEmail(email) {
+        return await db.prepare('SELECT * FROM users WHERE email = ?').get(email);
     }
 
-    getUserById(id) {
-        return db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+    async getUserById(id) {
+        return await db.prepare('SELECT * FROM users WHERE id = ?').get(id);
     }
 
-    createUser(userData) {
-        const stmt = db.prepare(`
+    async createUser(userData) {
+        let sql = `
       INSERT INTO users (email, password_hash, first_name, last_name, phone, email_verified, is_admin)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `);
+    `;
+        if (usePostgres) sql += ' RETURNING id';
 
-        return stmt.run(
+        return await db.prepare(sql).run(
             userData.email,
             userData.password_hash,
             userData.first_name || '',
             userData.last_name || '',
             userData.phone || '',
-            userData.email_verified || 0,
-            userData.is_admin || 0
+            userData.email_verified || (usePostgres ? false : 0),
+            userData.is_admin || (usePostgres ? false : 0)
         );
     }
 
     // ==================== NOTIFICATIONS ====================
 
-    createNotification(notificationData) {
-        const stmt = db.prepare(`
+    async createNotification(notificationData) {
+        return await db.prepare(`
       INSERT INTO notifications (user_id, type, title, message, link, is_read)
       VALUES (?, ?, ?, ?, ?, ?)
-    `);
-
-        return stmt.run(
+    `).run(
             notificationData.user_id || null,
             notificationData.type,
             notificationData.title,
             notificationData.message,
             notificationData.link || null,
-            0
+            usePostgres ? false : 0
         );
     }
 
-    getUnreadNotifications(userId = null) {
+    async getUnreadNotifications(userId = null) {
         if (userId) {
-            return db.prepare('SELECT * FROM notifications WHERE user_id = ? AND is_read = 0 ORDER BY created_at DESC')
+            return await db.prepare(`SELECT * FROM notifications WHERE user_id = ? AND is_read = ${usePostgres ? 'false' : '0'} ORDER BY created_at DESC`)
                 .all(userId);
         } else {
-            return db.prepare('SELECT * FROM notifications WHERE user_id IS NULL AND is_read = 0 ORDER BY created_at DESC')
+            return await db.prepare(`SELECT * FROM notifications WHERE user_id IS NULL AND is_read = ${usePostgres ? 'false' : '0'} ORDER BY created_at DESC`)
                 .all();
         }
     }
 
-    markNotificationAsRead(id) {
-        return db.prepare('UPDATE notifications SET is_read = 1 WHERE id = ?').run(id);
+    async markNotificationAsRead(id) {
+        return await db.prepare(`UPDATE notifications SET is_read = ${usePostgres ? 'true' : '1'} WHERE id = ?`).run(id);
     }
 
     // ==================== ANALYTICS ====================
 
-    getDashboardStats() {
+    async getDashboardStats() {
         const stats = {};
+        const isActiveTrue = usePostgres ? 'true' : '1';
+
+        // Helper to safely get count
+        const getCount = async (sql, ...params) => {
+            const res = await db.prepare(sql).get(...params);
+            return res ? (parseInt(res.count) || 0) : 0;
+        };
+
+        const getTotal = async (sql, ...params) => {
+            const res = await db.prepare(sql).get(...params);
+            return res ? (parseFloat(res.total) || 0) : 0;
+        };
 
         // Total products
-        stats.total_products = db.prepare('SELECT COUNT(*) as count FROM products WHERE is_active = 1').get().count;
+        stats.total_products = await getCount(`SELECT COUNT(*) as count FROM products WHERE is_active = ${isActiveTrue}`);
 
         // Total orders
-        stats.total_orders = db.prepare('SELECT COUNT(*) as count FROM orders').get().count;
+        stats.total_orders = await getCount('SELECT COUNT(*) as count FROM orders');
 
         // Total revenue
-        stats.total_revenue = db.prepare('SELECT SUM(total_amount) as total FROM orders WHERE payment_status = "paid"').get().total || 0;
+        stats.total_revenue = await getTotal('SELECT SUM(total_amount) as total FROM orders WHERE payment_status = ?', 'paid'); // Assuming 'paid' is string literal
 
         // Pending orders
-        stats.pending_orders = db.prepare('SELECT COUNT(*) as count FROM orders WHERE status = "pending"').get().count;
+        stats.pending_orders = await getCount('SELECT COUNT(*) as count FROM orders WHERE status = ?', 'pending');
 
         // Low stock products
-        stats.low_stock_products = db.prepare('SELECT COUNT(*) as count FROM products WHERE stock_quantity <= low_stock_threshold AND is_active = 1').get().count;
+        stats.low_stock_products = await getCount(`SELECT COUNT(*) as count FROM products WHERE stock_quantity <= low_stock_threshold AND is_active = ${isActiveTrue}`);
 
         // Today's orders
         const today = new Date().toISOString().split('T')[0];
-        stats.today_orders = db.prepare('SELECT COUNT(*) as count FROM orders WHERE DATE(created_at) = ?').get(today).count;
+        // Postgres date functions are different
+        const dateFilter = usePostgres ? "DATE(created_at) = DATE($1)" : "DATE(created_at) = ?";
+
+        stats.today_orders = await getCount(`SELECT COUNT(*) as count FROM orders WHERE ${dateFilter}`, today);
 
         // Today's revenue
-        stats.today_revenue = db.prepare('SELECT SUM(total_amount) as total FROM orders WHERE DATE(created_at) = ? AND payment_status = "paid"').get(today).total || 0;
+        stats.today_revenue = await getTotal(`SELECT SUM(total_amount) as total FROM orders WHERE ${dateFilter} AND payment_status = 'paid'`, today);
 
         return stats;
     }
@@ -575,17 +593,18 @@ class DatabaseAPI {
     // ==================== PROFESSIONAL WORKFLOW API ====================
 
     // Warehouse Management
-    getAllWarehouses() {
-        return db.prepare('SELECT * FROM warehouses WHERE is_active = 1 ORDER BY name').all();
+    async getAllWarehouses() {
+        return await db.prepare(`SELECT * FROM warehouses WHERE is_active = ${usePostgres ? 'true' : '1'} ORDER BY name`).all();
     }
 
-    createWarehouse(warehouseData) {
-        const stmt = db.prepare(`
+    async createWarehouse(warehouseData) {
+        let sql = `
             INSERT INTO warehouses (name, code, address_line1, address_line2, city, state, pincode, phone, email, manager_name, capacity, latitude, longitude, is_active)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `);
+        `;
+        if (usePostgres) sql += ' RETURNING id';
 
-        const result = stmt.run(
+        const result = await db.prepare(sql).run(
             warehouseData.name,
             warehouseData.code,
             warehouseData.address_line1 || null,
@@ -599,17 +618,17 @@ class DatabaseAPI {
             warehouseData.capacity || null,
             warehouseData.latitude || null,
             warehouseData.longitude || null,
-            warehouseData.is_active !== undefined ? warehouseData.is_active : 1
+            warehouseData.is_active !== undefined ? warehouseData.is_active : (usePostgres ? true : 1)
         );
 
-        return this.getWarehouseById(result.lastInsertRowid);
+        return await this.getWarehouseById(result.lastInsertRowid);
     }
 
-    getWarehouseById(id) {
-        return db.prepare('SELECT * FROM warehouses WHERE id = ?').get(id);
+    async getWarehouseById(id) {
+        return await db.prepare('SELECT * FROM warehouses WHERE id = ?').get(id);
     }
 
-    updateWarehouse(id, warehouseData) {
+    async updateWarehouse(id, warehouseData) {
         const stmt = db.prepare(`
             UPDATE warehouses SET
                 name = ?, code = ?, address_line1 = ?, address_line2 = ?, city = ?, state = ?, pincode = ?,
@@ -618,7 +637,7 @@ class DatabaseAPI {
             WHERE id = ?
         `);
 
-        stmt.run(
+        await stmt.run(
             warehouseData.name,
             warehouseData.code,
             warehouseData.address_line1 || null,
@@ -632,16 +651,16 @@ class DatabaseAPI {
             warehouseData.capacity || null,
             warehouseData.latitude || null,
             warehouseData.longitude || null,
-            warehouseData.is_active !== undefined ? warehouseData.is_active : 1,
+            warehouseData.is_active !== undefined ? warehouseData.is_active : (usePostgres ? true : 1),
             id
         );
 
-        return this.getWarehouseById(id);
+        return await this.getWarehouseById(id);
     }
 
     // Warehouse Inventory Management
-    getAllWarehouseInventory() {
-        return db.prepare(`
+    async getAllWarehouseInventory() {
+        return await db.prepare(`
             SELECT wi.*, w.name as warehouse_name, w.code as warehouse_code,
                    p.name as product_name, p.sku as product_sku
             FROM warehouse_inventory wi
@@ -651,8 +670,8 @@ class DatabaseAPI {
         `).all();
     }
 
-    getWarehouseInventoryByWarehouse(warehouseId) {
-        return db.prepare(`
+    async getWarehouseInventoryByWarehouse(warehouseId) {
+        return await db.prepare(`
             SELECT wi.*, p.name as product_name, p.sku as product_sku, p.selling_price
             FROM warehouse_inventory wi
             JOIN products p ON wi.product_id = p.id
@@ -661,8 +680,8 @@ class DatabaseAPI {
         `).all(warehouseId);
     }
 
-    getWarehouseInventory(warehouseId, productId) {
-        return db.prepare(`
+    async getWarehouseInventory(warehouseId, productId) {
+        return await db.prepare(`
             SELECT wi.*, w.name as warehouse_name, p.name as product_name, p.sku as product_sku
             FROM warehouse_inventory wi
             JOIN warehouses w ON wi.warehouse_id = w.id
@@ -671,13 +690,13 @@ class DatabaseAPI {
         `).get(warehouseId, productId);
     }
 
-    updateWarehouseInventory(warehouseId, productId, data) {
+    async updateWarehouseInventory(warehouseId, productId, data) {
         // First check if inventory record exists
-        const existing = this.getWarehouseInventory(warehouseId, productId);
+        const existing = await this.getWarehouseInventory(warehouseId, productId);
 
         if (existing) {
             // Update existing record
-            db.prepare(`
+            await db.prepare(`
                 UPDATE warehouse_inventory SET
                     stock_quantity = ?, reserved_quantity = ?, last_updated = CURRENT_TIMESTAMP
                 WHERE warehouse_id = ? AND product_id = ?
@@ -689,7 +708,7 @@ class DatabaseAPI {
             );
         } else {
             // Create new record
-            db.prepare(`
+            await db.prepare(`
                 INSERT INTO warehouse_inventory (warehouse_id, product_id, stock_quantity, reserved_quantity)
                 VALUES (?, ?, ?, ?)
             `).run(
@@ -700,21 +719,22 @@ class DatabaseAPI {
             );
         }
 
-        return this.getWarehouseInventory(warehouseId, productId);
+        return await this.getWarehouseInventory(warehouseId, productId);
     }
 
     // Courier Partners Management
-    getAllCourierPartners() {
-        return db.prepare('SELECT * FROM courier_partners WHERE is_active = 1 ORDER BY name').all();
+    async getAllCourierPartners() {
+        return await db.prepare(`SELECT * FROM courier_partners WHERE is_active = ${usePostgres ? 'true' : '1'} ORDER BY name`).all();
     }
 
-    createCourierPartner(courierData) {
-        const stmt = db.prepare(`
+    async createCourierPartner(courierData) {
+        let sql = `
             INSERT INTO courier_partners (name, code, contact_person, phone, email, api_key, api_secret, tracking_url_template, serviceable_pincodes, is_active)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `);
+        `;
+        if (usePostgres) sql += ' RETURNING id';
 
-        const result = stmt.run(
+        const result = await db.prepare(sql).run(
             courierData.name,
             courierData.code,
             courierData.contact_person || null,
@@ -724,18 +744,18 @@ class DatabaseAPI {
             courierData.api_secret || null,
             courierData.tracking_url_template || null,
             courierData.serviceable_pincodes || null,
-            courierData.is_active !== undefined ? courierData.is_active : 1
+            courierData.is_active !== undefined ? courierData.is_active : (usePostgres ? true : 1)
         );
 
-        return this.getCourierPartnerById(result.lastInsertRowid);
+        return await this.getCourierPartnerById(result.lastInsertRowid);
     }
 
-    getCourierPartnerById(id) {
-        return db.prepare('SELECT * FROM courier_partners WHERE id = ?').get(id);
+    async getCourierPartnerById(id) {
+        return await db.prepare('SELECT * FROM courier_partners WHERE id = ?').get(id);
     }
 
     // Return Requests Management
-    getReturnRequests(filters = {}) {
+    async getReturnRequests(filters = {}) {
         let query = `
             SELECT rr.*, o.order_number, o.total_amount, u.first_name, u.last_name, u.email
             FROM return_requests rr
@@ -768,22 +788,24 @@ class DatabaseAPI {
             params.push(offset);
         }
 
-        const requests = db.prepare(query).all(...params);
+        const requests = await db.prepare(query).all(...params);
 
         // Attach items to each request
-        return requests.map(req => {
-            req.items = this.getOrderItems(req.order_id);
+        // Since we are async, we use Promise.all
+        return await Promise.all(requests.map(async req => {
+            req.items = await this.getOrderItems(req.order_id);
             return req;
-        });
+        }));
     }
 
-    createReturnRequest(returnData) {
-        const stmt = db.prepare(`
+    async createReturnRequest(returnData) {
+        let sql = `
             INSERT INTO return_requests (order_id, user_id, reason, description, refund_amount, refund_method, pickup_address_id)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-        `);
+        `;
+        if (usePostgres) sql += ' RETURNING id';
 
-        const result = stmt.run(
+        const result = await db.prepare(sql).run(
             returnData.order_id,
             returnData.user_id,
             returnData.reason,
@@ -793,11 +815,11 @@ class DatabaseAPI {
             returnData.pickup_address_id || null
         );
 
-        return this.getReturnRequestById(result.lastInsertRowid);
+        return await this.getReturnRequestById(result.lastInsertRowid);
     }
 
-    getReturnRequestById(id) {
-        return db.prepare(`
+    async getReturnRequestById(id) {
+        return await db.prepare(`
             SELECT rr.*, o.order_number, u.first_name, u.last_name, u.email
             FROM return_requests rr
             JOIN orders o ON rr.order_id = o.id
@@ -806,239 +828,55 @@ class DatabaseAPI {
         `).get(id);
     }
 
-    updateReturnRequest(id, updateData) {
+    async updateReturnRequest(id, updateData) {
         const fields = [];
-        const params = [];
+        const values = [];
 
-        if (updateData.status !== undefined) {
-            fields.push('status = ?');
-            params.push(updateData.status);
-        }
-        if (updateData.refund_amount !== undefined) {
-            fields.push('refund_amount = ?');
-            params.push(updateData.refund_amount);
-        }
-        if (updateData.refund_status !== undefined) {
-            fields.push('refund_status = ?');
-            params.push(updateData.refund_status);
-        }
-        if (updateData.pickup_scheduled_date !== undefined) {
-            fields.push('pickup_scheduled_date = ?');
-            params.push(updateData.pickup_scheduled_date);
-        }
-        if (updateData.pickup_completed_date !== undefined) {
-            fields.push('pickup_completed_date = ?');
-            params.push(updateData.pickup_completed_date);
-        }
-        if (updateData.inspection_date !== undefined) {
-            fields.push('inspection_date = ?');
-            params.push(updateData.inspection_date);
-        }
-        if (updateData.inspection_result !== undefined) {
-            fields.push('inspection_result = ?');
-            params.push(updateData.inspection_result);
-        }
-        if (updateData.refund_processed_date !== undefined) {
-            fields.push('refund_processed_date = ?');
-            params.push(updateData.refund_processed_date);
-        }
-        if (updateData.admin_notes !== undefined) {
-            fields.push('admin_notes = ?');
-            params.push(updateData.admin_notes);
+        const allowedFields = [
+            'status', 'refund_status', 'pickup_scheduled_date', 'pickup_completed_date',
+            'inspection_date', 'inspection_result', 'refund_processed_date', 'admin_notes'
+        ];
+
+        for (const field of allowedFields) {
+            if (updateData[field] !== undefined) {
+                fields.push(`${field} = ?`);
+                values.push(updateData[field]);
+            }
         }
 
-        if (fields.length > 0) {
-            fields.push('updated_at = CURRENT_TIMESTAMP');
-            const query = `UPDATE return_requests SET ${fields.join(', ')} WHERE id = ?`;
-            params.push(id);
-            db.prepare(query).run(...params);
+        fields.push('updated_at = CURRENT_TIMESTAMP');
+        values.push(id);
+
+        if (fields.length > 1) { // >1 because updated_at is always there
+            await db.prepare(`UPDATE return_requests SET ${fields.join(', ')} WHERE id = ?`).run(...values);
         }
 
-        return this.getReturnRequestById(id);
+        return await this.getReturnRequestById(id);
     }
 
-    // Customer Support Tickets
-    getSupportTickets(filters = {}) {
-        let query = `
-            SELECT st.*, u.first_name, u.last_name, u.email,
-                   (SELECT first_name || ' ' || last_name FROM users WHERE id = st.assigned_to) as assigned_to_name
-            FROM customer_support_tickets st
-            JOIN users u ON st.user_id = u.id
-        `;
 
-        const params = [];
-        const conditions = [];
-
-        if (filters.status) {
-            conditions.push('st.status = ?');
-            params.push(filters.status);
-        }
-        if (filters.priority) {
-            conditions.push('st.priority = ?');
-            params.push(filters.priority);
-        }
-
-        if (conditions.length > 0) {
-            query += ' WHERE ' + conditions.join(' AND ');
-        }
-
-        query += ' ORDER BY st.created_at DESC';
-
-        if (filters.limit) {
-            query += ' LIMIT ?';
-            params.push(filters.limit);
-        }
-
-        if (filters.page && filters.limit) {
-            const offset = (filters.page - 1) * filters.limit;
-            query += ' OFFSET ?';
-            params.push(offset);
-        }
-
-        return db.prepare(query).all(...params);
-    }
-
-    createSupportTicket(ticketData) {
-        // Generate ticket number
-        const ticketNumber = 'TICK-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5).toUpperCase();
-
-        const stmt = db.prepare(`
+    // Support Tickets
+    async createSupportTicket(ticketData) {
+        let sql = `
             INSERT INTO customer_support_tickets (ticket_number, user_id, order_id, subject, description, category, priority, status)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `);
+        `;
+        if (usePostgres) sql += ' RETURNING id';
 
-        const result = stmt.run(
-            ticketNumber,
+        const result = await db.prepare(sql).run(
+            ticketData.ticket_number,
             ticketData.user_id,
             ticketData.order_id || null,
             ticketData.subject,
             ticketData.description || null,
-            ticketData.category || null,
+            ticketData.category || 'general',
             ticketData.priority || 'medium',
-            'open'
+            ticketData.status || 'open'
         );
-
-        return this.getSupportTicketById(result.lastInsertRowid);
-    }
-
-    getSupportTicketById(id) {
-        return db.prepare(`
-            SELECT st.*, u.first_name, u.last_name, u.email,
-                   (SELECT first_name || ' ' || last_name FROM users WHERE id = st.assigned_to) as assigned_to_name
-            FROM customer_support_tickets st
-            JOIN users u ON st.user_id = u.id
-            WHERE st.id = ?
-        `).get(id);
-    }
-
-    updateSupportTicket(id, updateData) {
-        const fields = [];
-        const params = [];
-
-        if (updateData.status !== undefined) {
-            fields.push('status = ?');
-            params.push(updateData.status);
-        }
-        if (updateData.assigned_to !== undefined) {
-            fields.push('assigned_to = ?');
-            params.push(updateData.assigned_to);
-        }
-        if (updateData.resolution !== undefined) {
-            fields.push('resolution = ?');
-            params.push(updateData.resolution);
-        }
-        if (updateData.resolved_at !== undefined) {
-            fields.push('resolved_at = ?');
-            params.push(updateData.resolved_at);
-        }
-
-        if (fields.length > 0) {
-            fields.push('updated_at = CURRENT_TIMESTAMP');
-            const query = `UPDATE customer_support_tickets SET ${fields.join(', ')} WHERE id = ?`;
-            params.push(id);
-            db.prepare(query).run(...params);
-        }
-
-        return this.getSupportTicketById(id);
-    }
-
-    // Loyalty Points Management
-    getLoyaltyPoints(filters = {}) {
-        let query = `
-            SELECT lp.*, u.first_name, u.last_name, u.email
-            FROM loyalty_points lp
-            JOIN users u ON lp.user_id = u.id
-        `;
-
-        const params = [];
-        const conditions = [];
-
-        if (filters.userId) {
-            conditions.push('lp.user_id = ?');
-            params.push(filters.userId);
-        }
-
-        if (conditions.length > 0) {
-            query += ' WHERE ' + conditions.join(' AND ');
-        }
-
-        query += ' ORDER BY lp.created_at DESC';
-
-        if (filters.limit) {
-            query += ' LIMIT ?';
-            params.push(filters.limit);
-        }
-
-        return db.prepare(query).all(...params);
-    }
-
-    getUserLoyaltyPoints(userId) {
-        return db.prepare('SELECT * FROM loyalty_points WHERE user_id = ?').get(userId);
-    }
-
-    // Payment Settlements
-    getPaymentSettlements(filters = {}) {
-        let query = 'SELECT * FROM payment_settlements';
-        const params = [];
-        const conditions = [];
-
-        if (filters.status) {
-            conditions.push('settlement_status = ?');
-            params.push(filters.status);
-        }
-
-        if (conditions.length > 0) {
-            query += ' WHERE ' + conditions.join(' AND ');
-        }
-
-        query += ' ORDER BY settlement_date DESC';
-
-        if (filters.limit) {
-            query += ' LIMIT ?';
-            params.push(filters.limit);
-        }
-
-        return db.prepare(query).all(...params);
-    }
-
-    // Enhanced Order Management
-    assignWarehouseToOrder(orderId, warehouseId) {
-        db.prepare('UPDATE orders SET warehouse_id = ? WHERE id = ?').run(warehouseId, orderId);
-        return this.getOrderById(orderId);
-    }
-
-    updateOrderDetailedStatus(orderId, detailedStatus, notes) {
-        // Update order detailed status
-        db.prepare('UPDATE orders SET detailed_status = ? WHERE id = ?').run(detailedStatus, orderId);
-
-        // Add to order status history
-        db.prepare(`
-            INSERT INTO order_status_history (order_id, status, notes, created_by)
-            VALUES (?, ?, ?, ?)
-        `).run(orderId, detailedStatus, notes || null, null); // TODO: Add admin user ID
-
-        return this.getOrderById(orderId);
+        return result.lastInsertRowid;
     }
 }
 
-module.exports = new DatabaseAPI();
+// Export Singleton Instance
+const dbAPI = new DatabaseAPI();
+module.exports = dbAPI;

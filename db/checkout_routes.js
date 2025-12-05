@@ -14,7 +14,7 @@ function calculateDeliveryDate() {
 }
 
 // Helper function to calculate order fees
-function calculateOrderFees(items, giftCardCode = null) {
+async function calculateOrderFees(items, giftCardCode = null) {
     // Calculate subtotal
     const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
@@ -31,7 +31,7 @@ function calculateOrderFees(items, giftCardCode = null) {
     // Gift card discount
     let giftCardAmount = 0;
     if (giftCardCode) {
-        const giftCard = db.prepare('SELECT balance FROM gift_cards WHERE code = ? AND is_active = 1').get(giftCardCode);
+        const giftCard = await db.prepare('SELECT balance FROM gift_cards WHERE code = ? AND is_active = 1').get(giftCardCode);
         if (giftCard) {
             // Gift card can be used up to subtotal amount
             giftCardAmount = Math.min(giftCard.balance, subtotal);
@@ -59,9 +59,9 @@ module.exports = function (app, requireAuth) {
      * GET /api/payment-methods
      * Get all active payment methods
      */
-    app.get('/api/payment-methods', (req, res) => {
+    app.get('/api/payment-methods', async (req, res) => {
         try {
-            const methods = db.prepare(`
+            const methods = await db.prepare(`
                 SELECT id, name, type, provider, icon_url, description, display_order
                 FROM payment_methods 
                 WHERE is_active = 1 
@@ -84,7 +84,7 @@ module.exports = function (app, requireAuth) {
      * POST /api/gift-cards/validate
      * Validate a gift card code
      */
-    app.post('/api/gift-cards/validate', requireAuth, (req, res) => {
+    app.post('/api/gift-cards/validate', requireAuth, async (req, res) => {
         try {
             const { code } = req.body;
 
@@ -92,7 +92,7 @@ module.exports = function (app, requireAuth) {
                 return res.status(400).json({ error: 'Gift card code is required' });
             }
 
-            const giftCard = db.prepare(`
+            const giftCard = await db.prepare(`
                 SELECT code, balance, original_amount, expires_at
                 FROM gift_cards 
                 WHERE code = ? 
@@ -134,7 +134,7 @@ module.exports = function (app, requireAuth) {
      * POST /api/orders/calculate-fees
      * Calculate order fees before placing order
      */
-    app.post('/api/orders/calculate-fees', requireAuth, (req, res) => {
+    app.post('/api/orders/calculate-fees', requireAuth, async (req, res) => {
         try {
             const { items, giftCardCode } = req.body;
 
@@ -142,7 +142,7 @@ module.exports = function (app, requireAuth) {
                 return res.status(400).json({ error: 'Items are required' });
             }
 
-            const fees = calculateOrderFees(items, giftCardCode);
+            const fees = await calculateOrderFees(items, giftCardCode);
 
             res.json({
                 success: true,
@@ -160,7 +160,7 @@ module.exports = function (app, requireAuth) {
      * POST /api/orders/create-with-payment
      * Create order with payment method and fees
      */
-    app.post('/api/orders/create-with-payment', requireAuth, (req, res) => {
+    app.post('/api/orders/create-with-payment', requireAuth, async (req, res) => {
         try {
             console.log('📝 Creating order with payment...');
             const {
@@ -192,7 +192,7 @@ module.exports = function (app, requireAuth) {
             let finalAddressId = addressId;
             if (!finalAddressId) {
                 console.log('⚠️ No addressId provided, looking for most recent address...');
-                const recentAddress = db.prepare(
+                const recentAddress = await db.prepare(
                     'SELECT id FROM addresses WHERE user_id = ? ORDER BY created_at DESC LIMIT 1'
                 ).get(userId);
 
@@ -208,7 +208,7 @@ module.exports = function (app, requireAuth) {
             }
 
             // Verify address belongs to user
-            const address = db.prepare('SELECT id FROM addresses WHERE id = ? AND user_id = ?')
+            const address = await db.prepare('SELECT id FROM addresses WHERE id = ? AND user_id = ?')
                 .get(finalAddressId, userId);
 
             if (!address) {
@@ -227,7 +227,7 @@ module.exports = function (app, requireAuth) {
             console.log(`✅ Address ${finalAddressId} verified for user ${userId}`);
 
             // Verify payment method exists
-            const paymentMethod = db.prepare('SELECT id, type FROM payment_methods WHERE id = ?').get(paymentMethodId);
+            const paymentMethod = await db.prepare('SELECT id, type FROM payment_methods WHERE id = ?').get(paymentMethodId);
             if (!paymentMethod) {
                 console.error('❌ Payment method not found');
                 return res.status(404).json({ error: 'Payment method not found' });
@@ -235,7 +235,7 @@ module.exports = function (app, requireAuth) {
 
             // Calculate fees
             console.log('Calculating fees...');
-            const fees = calculateOrderFees(items, giftCardCode);
+            const fees = await calculateOrderFees(items, giftCardCode);
             console.log('Fees calculated:', fees);
 
             // Determine payment status
@@ -243,12 +243,12 @@ module.exports = function (app, requireAuth) {
 
             // Start transaction
             console.log('Starting DB transaction...');
-            const createOrder = db.transaction(() => {
+            const createOrder = db.transaction(async () => {
                 try {
                     // 1. Create order
                     console.log('Inserting order...');
                     const orderNumber = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-                    const orderResult = db.prepare(`
+                    const orderResult = await db.prepare(`
                         INSERT INTO orders (
                             order_number, user_id, shipping_address_id, payment_method_id,
                             subtotal, total_amount, status, payment_status,
@@ -273,14 +273,14 @@ module.exports = function (app, requireAuth) {
 
                     // 2. Insert order items
                     console.log('Inserting order items...');
-                    const insertItem = db.prepare(`
+                    const insertItem = await db.prepare(`
                         INSERT INTO order_items (order_id, product_id, quantity, unit_price, total_price)
                         VALUES (?, ?, ?, ?, ?)
                     `);
 
                     for (const item of items) {
                         const totalPrice = item.price * item.quantity;
-                        insertItem.run(orderId, item.id, item.quantity, item.price, totalPrice);
+                        await insertItem.run(orderId, item.id, item.quantity, item.price, totalPrice);
 
                         // Update product stock
                         db.prepare(`
@@ -292,7 +292,7 @@ module.exports = function (app, requireAuth) {
 
                     // 3. Insert order fees
                     console.log('Inserting order fees...');
-                    db.prepare(`
+                    await db.prepare(`
                         INSERT INTO order_fees (
                             order_id, delivery_charge, marketplace_fee,
                             tax_amount, gift_card_amount
@@ -308,7 +308,7 @@ module.exports = function (app, requireAuth) {
                     // 4. Apply gift card if used
                     if (giftCardCode && fees.giftCardAmount > 0) {
                         console.log('Updating gift card...');
-                        db.prepare(`
+                        await db.prepare(`
                             UPDATE gift_cards 
                             SET balance = balance - ? 
                             WHERE code = ?
@@ -319,7 +319,7 @@ module.exports = function (app, requireAuth) {
                     if (paymentMethod.type === 'online') {
                         console.log('Creating payment transaction...');
                         const transactionId = `TXN_${Date.now()}_${orderId}`;
-                        db.prepare(`
+                        await db.prepare(`
                             INSERT INTO payment_transactions (
                                 order_id, payment_method_id, transaction_id,
                                 amount, status
@@ -361,14 +361,14 @@ module.exports = function (app, requireAuth) {
      * POST /api/orders/:id/confirm-payment
      * Confirm payment for an order (after gateway success)
      */
-    app.post('/api/orders/:id/confirm-payment', requireAuth, (req, res) => {
+    app.post('/api/orders/:id/confirm-payment', requireAuth, async (req, res) => {
         try {
             const { id } = req.params;
             const { transactionId, gatewayResponse } = req.body;
             const userId = req.userId;
 
             // Verify order belongs to user
-            const order = db.prepare('SELECT id, payment_status FROM orders WHERE id = ? AND user_id = ?').get(id, userId);
+            const order = await db.prepare('SELECT id, payment_status FROM orders WHERE id = ? AND user_id = ?').get(id, userId);
             if (!order) {
                 return res.status(404).json({ error: 'Order not found' });
             }
@@ -378,9 +378,9 @@ module.exports = function (app, requireAuth) {
             }
 
             // Update in transaction
-            const confirmPayment = db.transaction(() => {
+            const confirmPayment = db.transaction(async () => {
                 // Update payment transaction
-                db.prepare(`
+                await db.prepare(`
                     UPDATE payment_transactions 
                     SET status = 'success',
                         transaction_id = ?,
@@ -391,7 +391,7 @@ module.exports = function (app, requireAuth) {
                 `).run(transactionId, JSON.stringify(gatewayResponse || {}), id);
 
                 // Update order
-                db.prepare(`
+                await db.prepare(`
                     UPDATE orders 
                     SET payment_status = 'paid',
                         status = 'confirmed',
@@ -417,22 +417,22 @@ module.exports = function (app, requireAuth) {
      * POST /api/orders/:id/payment-failed
      * Mark payment as failed and restore stock
      */
-    app.post('/api/orders/:id/payment-failed', requireAuth, (req, res) => {
+    app.post('/api/orders/:id/payment-failed', requireAuth, async (req, res) => {
         try {
             const { id } = req.params;
             const { reason } = req.body;
             const userId = req.userId;
 
             // Verify order belongs to user
-            const order = db.prepare('SELECT id FROM orders WHERE id = ? AND user_id = ?').get(id, userId);
+            const order = await db.prepare('SELECT id FROM orders WHERE id = ? AND user_id = ?').get(id, userId);
             if (!order) {
                 return res.status(404).json({ error: 'Order not found' });
             }
 
             // Update in transaction
-            const failPayment = db.transaction(() => {
+            const failPayment = db.transaction(async () => {
                 // Update payment transaction
-                db.prepare(`
+                await db.prepare(`
                     UPDATE payment_transactions 
                     SET status = 'failed',
                         gateway_response = ?,
@@ -441,7 +441,7 @@ module.exports = function (app, requireAuth) {
                 `).run(JSON.stringify({ reason }), id);
 
                 // Update order
-                db.prepare(`
+                await db.prepare(`
                     UPDATE orders 
                     SET payment_status = 'failed',
                         status = 'cancelled',
@@ -450,9 +450,9 @@ module.exports = function (app, requireAuth) {
                 `).run(id);
 
                 // Restore product stock
-                const orderItems = db.prepare('SELECT product_id, quantity FROM order_items WHERE order_id = ?').all(id);
+                const orderItems = await db.prepare('SELECT product_id, quantity FROM order_items WHERE order_id = ?').all(id);
                 for (const item of orderItems) {
-                    db.prepare(`
+                    await db.prepare(`
                         UPDATE products 
                         SET stock_quantity = stock_quantity + ? 
                         WHERE id = ?
@@ -479,13 +479,13 @@ module.exports = function (app, requireAuth) {
      * GET /api/orders/:id/details
      * Get complete order details including fees
      */
-    app.get('/api/orders/:id/details', requireAuth, (req, res) => {
+    app.get('/api/orders/:id/details', requireAuth, async (req, res) => {
         try {
             const { id } = req.params;
             const userId = req.userId;
 
             // Get order
-            const order = db.prepare(`
+            const order = await db.prepare(`
                 SELECT o.*, 
                        pm.name as payment_method_name,
                        pm.type as payment_type,
@@ -502,7 +502,7 @@ module.exports = function (app, requireAuth) {
             }
 
             // Get order items
-            const items = db.prepare(`
+            const items = await db.prepare(`
                 SELECT oi.*, p.name, p.model, p.slug
                 FROM order_items oi
                 JOIN products p ON oi.product_id = p.id
@@ -510,10 +510,10 @@ module.exports = function (app, requireAuth) {
             `).all(id);
 
             // Get order fees
-            const fees = db.prepare('SELECT * FROM order_fees WHERE order_id = ?').get(id);
+            const fees = await db.prepare('SELECT * FROM order_fees WHERE order_id = ?').get(id);
 
             // Get payment transaction
-            const transaction = db.prepare('SELECT * FROM payment_transactions WHERE order_id = ?').get(id);
+            const transaction = await db.prepare('SELECT * FROM payment_transactions WHERE order_id = ?').get(id);
 
             res.json({
                 success: true,
