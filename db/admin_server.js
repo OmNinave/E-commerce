@@ -1234,10 +1234,10 @@ app.get('/api/admin/products', requireAuth, requireAdmin, async (req, res) => {
     const products = await dbAPI.getAllProducts(filters);
 
     // Enrich each product with full details (images, parsed JSON fields, discounts)
-    const enrichedProducts = products.map(product => {
+    const enrichedProducts = await Promise.all(products.map(async product => {
       const fullProduct = await dbAPI.getProductById(product.id);
       return fullProduct;
-    });
+    }));
 
     res.json({
       success: true,
