@@ -42,7 +42,9 @@ const Login = () => {
     } catch (error) {
       setStatus({
         type: 'error',
-        message: error.message || 'Unable to sign in right now. Please try again.'
+        message: typeof error.message === 'string'
+          ? error.message
+          : (error.message?.error || error.message?.message || JSON.stringify(error.message))
       });
     } finally {
       setIsSubmitting(false);
