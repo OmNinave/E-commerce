@@ -553,7 +553,7 @@ app.get('/api/products', async (req, res) => {
     const products = await dbAPI.getAllProducts(filters);
 
     // Add active discounts to products
-    const productsWithDiscounts = products.map(product => {
+    const productsWithDiscounts = await Promise.all(products.map(async product => {
       const discount = await dbAPI.getActiveDiscount(product.id);
 
       // Add price field for frontend compatibility
@@ -576,7 +576,7 @@ app.get('/api/products', async (req, res) => {
         };
       }
       return baseProduct;
-    });
+    }));
 
     res.json({
       success: true,
