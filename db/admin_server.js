@@ -2443,7 +2443,7 @@ const Razorpay = require('razorpay');
 
 // Initialize Razorpay (or use mock for testing)
 // Set RAZORPAY_MODE=mock in .env to use mock implementation
-const RAZORPAY_MODE = process.env.RAZORPAY_MODE || 'mock';
+const RAZORPAY_MODE = (process.env.RAZORPAY_MODE || 'mock') === 'mock' || !process.env.RAZORPAY_KEY_ID ? 'mock' : process.env.RAZORPAY_MODE;
 
 let razorpay;
 
