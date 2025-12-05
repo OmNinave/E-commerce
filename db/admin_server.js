@@ -1277,14 +1277,15 @@ app.post('/api/admin/products', requireAuth, requireAdmin, validateProduct, asyn
 
     // Add images if provided
     if (productData.images && Array.isArray(productData.images)) {
-      productData.images.forEach((img, index) => {
+      for (let index = 0; index < productData.images.length; index++) {
+        const img = productData.images[index];
         await dbAPI.addProductImage(productId, {
           image_url: img.url || img.image_url,
           alt_text: img.alt_text || productData.name,
           is_primary: index === 0 ? 1 : 0,
           display_order: index
         });
-      });
+      }
     }
 
     const product = await dbAPI.getProductById(productId);
@@ -1592,10 +1593,10 @@ app.get('/api/admin/analytics', requireAuth, requireAdmin, async (req, res) => {
     `).all();
 
     // Add item counts to recent orders
-    const enrichedRecentOrders = recentOrders.map(order => {
-      const itemCount = await db.prepare('SELECT COUNT(*) as count FROM order_items WHERE order_id = ?').get(order.orderId).count;
-      return { ...order, items: { length: itemCount } };
-    });
+    const enrichedRecentOrders = await Promise.all(recentOrders.map(async order => {
+      const itemCount = await db.prepare('SELECT COUNT(*) as count FROM order_items WHERE order_id = ?').get(order.orderId);
+      return { ...order, items: { length: itemCount ? itemCount.count : 0 } };
+    }));
 
     res.json({
       summary: {
@@ -1663,10 +1664,10 @@ app.get('/api/admin/analytics/orders', requireAuth, requireAdmin, async (req, re
     `).all(startDate);
 
     // Add full item details for each order
-    const ordersWithItems = orders.map(order => {
+    const ordersWithItems = await Promise.all(orders.map(async order => {
       const items = await dbAPI.getOrderItems(order.orderId);
       return { ...order, items: items || [] };
-    });
+    }));
 
     res.json({
       chartData,
@@ -1809,7 +1810,8 @@ app.post('/api/orders', requireAuth, csrfProtection, validateOrder, async (req, 
 
     // Add Items
     console.log('DEBUG: Items array:', JSON.stringify(items, null, 2));
-    items.forEach((item, index) => {
+    for (let index = 0; index < items.length; index++) {
+      const item = items[index];
       console.log(`DEBUG: Processing item ${index}:`, JSON.stringify(item, null, 2));
       console.log(`DEBUG: item.productId = ${item.productId}, item.id = ${item.id}`);
 
@@ -1822,7 +1824,7 @@ app.post('/api/orders', requireAuth, csrfProtection, validateOrder, async (req, 
         unit_price: item.price,
         total_price: item.price * item.quantity
       });
-    });
+    }
 
     res.status(201).json({
       success: true,
@@ -1879,10 +1881,10 @@ app.get('/api/orders', requireAuth, async (req, res) => {
     const orders = await dbAPI.getAllOrders({ user_id: req.userId });
 
     // Fetch items for each order
-    const ordersWithItems = orders.map(order => {
+    const ordersWithItems = await Promise.all(orders.map(async order => {
       const items = await dbAPI.getOrderItems(order.id);
       return { ...order, items };
-    });
+    }));
 
     res.json({
       success: true,
