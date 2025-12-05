@@ -10,6 +10,7 @@ const cookieParser = require('cookie-parser');
 const csrf = require('csurf');
 require('dotenv').config();
 const { migrateToProfessionalWorkflow } = require('./migration_professional_workflow');
+const { migrateDatabase } = require('../migrate_to_postgres');
 const { sendTransactionalEmail, sendOrderStatusEmail, sendOrderEmails } = require('./emailService');
 
 // Import SQLite Database API
@@ -37,12 +38,7 @@ console.log('Using port:', PORT);
 
 
 
-try {
-  migrateToProfessionalWorkflow();
-  console.log('✅ Professional workflow tables verified');
-} catch (migrationError) {
-  console.error('⚠️ Failed to run professional workflow migration:', migrationError);
-}
+// Migration logic moved to startServer()
 
 async function ensureUserProfileColumns() {
   try {
@@ -71,7 +67,7 @@ async function ensureUserProfileColumns() {
   }
 }
 
-ensureUserProfileColumns().catch(err => console.error('Init columns failed:', err));
+// ensureUserProfileColumns called in startServer()
 
 // JWT Configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key_change_in_production';
@@ -3343,42 +3339,41 @@ app.use((err, req, res, next) => {
 
 // ==================== SERVER START ====================
 
-const server = app.listen(PORT, () => {
-  const actualPort = server.address().port;
-  console.log(`\n🚀 Enterprise E - commerce Server Started!`);
-  console.log(`📡 Server running on port ${actualPort} `);
-  console.log(`🗄️  Database: SQLite(ecommerce.db)`);
-  console.log(`🔒 JWT Authentication enabled`);
-  console.log(`\n✅ All routes integrated with SQLite database`);
-  console.log(`\nAvailable routes: `);
-  console.log(`  - GET / api / products`);
-  console.log(`  - GET / api / products /: id`);
-  console.log(`  - POST / api / auth / register`);
-  console.log(`  - POST / api / auth / login`);
-  console.log(`  - POST / api / auth / forgot - password`);
-  console.log(`  - POST / api / auth / reset - password`);
-  console.log(`  - POST / api / admin / login`);
-  console.log(`  - GET / api / admin / products`);
-  console.log(`  - POST / api / admin / products`);
-  console.log(`  - PUT / api / admin / products /: id`);
-  console.log(`  - DELETE / api / admin / products /: id`);
-  console.log(`  - GET / api / admin / orders`);
-  console.log(`  - PUT / api / admin / orders /: id / status`);
-  console.log(`  - GET / api / admin / analytics`);
-  console.log(`  - GET / api / admin / warehouses`);
-  console.log(`  - POST / api / admin / warehouses`);
-  console.log(`  - PUT / api / admin / warehouses /: id`);
-  console.log(`  - GET / api / admin / warehouse - inventory`);
-  console.log(`  - PUT / api / admin / warehouse - inventory /: warehouseId /: productId`);
-  console.log(`  - GET / api / admin / courier - partners`);
-  console.log(`  - POST / api / admin / courier - partners`);
-  console.log(`  - GET / api / admin /return -requests`);
-  console.log(`  - PUT / api / admin /return -requests /: id`);
-  console.log(`  - GET / api / admin / support - tickets`);
-  console.log(`  - PUT / api / admin / support - tickets /: id`);
-  console.log(`  - GET / api / admin / loyalty - points`);
-  console.log(`  - GET / api / admin / payment - settlements`);
-  console.log(`\n`);
-});
+// ==================== SERVER START ====================
+
+async function startServer() {
+  try {
+    console.log('🚀 Starting Enterprise E-commerce Server...');
+
+    // 1. Core Database Migration (PostgreSQL only)
+    if (usePostgres) {
+      console.log('📦 Running Core Migration...');
+      await migrateDatabase();
+    }
+
+    // 2. Professional Workflow Migration
+    console.log('🛠️ Running Professional Workflow Migration...');
+    await migrateToProfessionalWorkflow();
+
+    // 3. User Profile Columns
+    console.log('👤 Verifying User Profile Columns...');
+    await ensureUserProfileColumns();
+
+    // 4. Start Server
+    const server = app.listen(PORT, '0.0.0.0', () => {
+      const actualPort = server.address().port;
+      console.log(`\n✅ Server successfully started on port ${actualPort}`);
+      console.log(`🗄️  Database: ${usePostgres ? 'PostgreSQL' : 'SQLite'}`);
+      console.log(`🔒 Authentication: JWT Enabled`);
+      console.log(`\nReady to accept requests!`);
+    });
+
+  } catch (err) {
+    console.error('❌ FATAL: Failed to start server:', err);
+    process.exit(1);
+  }
+}
+
+startServer();
 
 module.exports = app;

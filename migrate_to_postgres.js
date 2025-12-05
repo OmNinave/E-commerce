@@ -8,8 +8,11 @@ const pool = new Pool({
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-// SQLite connection (local)
-const sqliteDb = sqlite3('./ecomerce.db');
+// SQLite connection (local) - Only initialize if file exists to prevent creating empty file on Render
+let sqliteDb = null;
+if (fs.existsSync('./ecomerce.db')) {
+    sqliteDb = sqlite3('./ecomerce.db');
+}
 
 async function migrateDatabase() {
     console.log('🔄 Starting database migration from SQLite to PostgreSQL...\n');
