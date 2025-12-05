@@ -14,7 +14,7 @@ const { sendTransactionalEmail, sendOrderStatusEmail, sendOrderEmails } = requir
 
 // Import SQLite Database API
 const dbAPI = require('./api');
-const { db } = require('./database');
+const { db, usePostgres } = require('./database');
 
 // Import Validation Middleware
 const {
@@ -44,23 +44,34 @@ try {
   console.error('⚠️ Failed to run professional workflow migration:', migrationError);
 }
 
-function ensureUserProfileColumns() {
+async function ensureUserProfileColumns() {
   try {
-    const columns = db.prepare("PRAGMA table_info('users')").all();
-    const columnNames = columns.map((col) => col.name);
+    let columnNames = [];
+
+    if (usePostgres) {
+      // PostgreSQL
+      const result = await db.prepare("SELECT column_name FROM information_schema.columns WHERE table_name = 'users'").all();
+      columnNames = result.map(row => row.column_name);
+    } else {
+      // SQLite
+      const columns = db.prepare("PRAGMA table_info('users')").all();
+      columnNames = columns.map((col) => col.name);
+    }
 
     if (!columnNames.includes('company')) {
-      db.prepare('ALTER TABLE users ADD COLUMN company TEXT').run();
+      const sql = 'ALTER TABLE users ADD COLUMN company TEXT';
+      usePostgres ? await db.prepare(sql).run() : db.prepare(sql).run();
     }
     if (!columnNames.includes('bio')) {
-      db.prepare('ALTER TABLE users ADD COLUMN bio TEXT').run();
+      const sql = 'ALTER TABLE users ADD COLUMN bio TEXT';
+      usePostgres ? await db.prepare(sql).run() : db.prepare(sql).run();
     }
   } catch (error) {
     console.error('Failed to ensure user profile columns:', error);
   }
 }
 
-ensureUserProfileColumns();
+ensureUserProfileColumns().catch(err => console.error('Init columns failed:', err));
 
 // JWT Configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key_change_in_production';
