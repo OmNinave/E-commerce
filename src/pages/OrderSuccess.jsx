@@ -183,7 +183,47 @@ export default function OrderSuccess() {
                                                     {order.payment_status === 'cod' ? 'Cash on Delivery' : order.payment_status}
                                                 </span>
                                             </div>
-                                            <Separator />
+
+                                            <Separator className="my-2" />
+
+                                            {/* Price Breakdown */}
+                                            <div className="space-y-2 text-sm">
+                                                <div className="flex justify-between text-gray-600">
+                                                    <span>Subtotal</span>
+                                                    <span>₹{order.subtotal?.toLocaleString('en-IN')}</span>
+                                                </div>
+
+                                                <div className="flex justify-between text-gray-600">
+                                                    <span>Delivery</span>
+                                                    <span className={order.fees?.delivery_charge === 0 ? 'text-green-600 font-medium' : ''}>
+                                                        {order.fees?.delivery_charge === 0 ? 'Free' : `₹${order.fees?.delivery_charge?.toLocaleString('en-IN')}`}
+                                                    </span>
+                                                </div>
+
+                                                {order.fees?.marketplace_fee > 0 && (
+                                                    <div className="flex justify-between text-gray-600">
+                                                        <span>Marketplace Fee</span>
+                                                        <span>₹{order.fees?.marketplace_fee?.toLocaleString('en-IN')}</span>
+                                                    </div>
+                                                )}
+
+                                                {order.fees?.tax_amount > 0 && (
+                                                    <div className="flex justify-between text-gray-600">
+                                                        <span>Tax (18% GST)</span>
+                                                        <span>₹{order.fees?.tax_amount?.toLocaleString('en-IN')}</span>
+                                                    </div>
+                                                )}
+
+                                                {order.fees?.gift_card_amount > 0 && (
+                                                    <div className="flex justify-between text-green-600">
+                                                        <span>Gift Card</span>
+                                                        <span>-₹{order.fees?.gift_card_amount?.toLocaleString('en-IN')}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <Separator className="my-2" />
+
                                             <div className="flex justify-between items-center pt-1">
                                                 <span className="text-gray-900 font-bold">Total Amount</span>
                                                 <span className="text-xl font-bold text-indigo-600">₹{order.total_amount.toLocaleString('en-IN')}</span>

@@ -41,10 +41,28 @@ response.json
 RUN_TESTS.txt
 cookies.txt
 
-# Database backups
+# Database files (SECURITY CRITICAL)
+ecomerce.db
+*.db
+*.sqlite
+*.sqlite3
 db/backup_old_databases/
 db/*.json
-!db/ecommerce.db
+
+# Test scripts with hardcoded credentials
+test_*.js
+create_*.js
+check_*.js
+update_*.js
+seed_*.js
+verify_*.js
+make_admin.js
+complete_e2e_test.js
+*_test.js
+*_TEST_RESULTS.md
+RETURN_FLOW_TEST_RESULTS.md
+FINAL_TEST_RESULTS.md
+ORDER_STATUS_TEST_RESULTS.md
 
 # IDE
 .vscode/

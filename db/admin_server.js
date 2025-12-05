@@ -143,19 +143,32 @@ function verifyJWT(token) {
 function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization;
 
+  console.log('=== AUTH MIDDLEWARE DEBUG ===');
+  console.log('Path:', req.method, req.path);
+  console.log('Auth Header:', authHeader ? 'Present' : 'Missing');
+
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.log('❌ No Bearer token');
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
   const token = authHeader.substring(7);
   const decoded = verifyJWT(token);
 
+  console.log('Token decoded:', decoded ? 'Success' : 'Failed');
+  if (decoded) {
+    console.log('User ID from token:', decoded.userId, 'Type:', typeof decoded.userId);
+    console.log('Is Admin:', decoded.isAdmin);
+  }
+
   if (!decoded) {
+    console.log('❌ Invalid token');
     return res.status(401).json({ error: 'Invalid token' });
   }
 
   req.userId = decoded.userId;
   req.isAdmin = decoded.isAdmin;
+  console.log('✅ Auth successful, userId set to:', req.userId);
   next();
 }
 
@@ -1638,10 +1651,10 @@ app.get('/api/admin/analytics/orders', requireAuth, requireAdmin, (req, res) => 
       ORDER BY o.created_at DESC
     `).all(startDate);
 
-    // Add item counts
+    // Add full item details for each order
     const ordersWithItems = orders.map(order => {
-      const itemCount = db.prepare('SELECT COUNT(*) as count FROM order_items WHERE order_id = ?').get(order.orderId).count;
-      return { ...order, items: { length: itemCount } };
+      const items = dbAPI.getOrderItems(order.orderId);
+      return { ...order, items: items || [] };
     });
 
     res.json({
@@ -1663,7 +1676,7 @@ app.put('/api/admin/orders/:id/status', requireAuth, requireAdmin, (req, res) =>
     const { status } = req.body;
     const { id } = req.params;
 
-    if (!['pending', 'processing', 'shipped', 'delivered', 'cancelled'].includes(status)) {
+    if (!['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'returned', 'replaced', 'return_requested', 'replace_requested'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }
 
@@ -2867,59 +2880,111 @@ const registerCheckoutRoutes = require('./checkout_routes');
 registerCheckoutRoutes(app, requireAuth);
 console.log('✅ Checkout routes registered');
 
-// ==================== ERROR HANDLING ====================
+// ==================== USER ORDER RETURN/REPLACE ROUTES ====================
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found' });
+// Request Return (User)
+app.put('/api/orders/:id/return', requireAuth, (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const userId = req.userId;
+    const { reason } = req.body;
+
+    console.log('=== RETURN REQUEST DEBUG ===');
+    console.log('Order ID:', orderId);
+    console.log('User ID from token:', userId, 'Type:', typeof userId);
+    console.log('Reason:', reason);
+
+    const order = dbAPI.getOrderById(orderId);
+
+    if (!order) {
+      console.log('❌ Order not found');
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    console.log('Order found:', {
+      id: order.id,
+      user_id: order.user_id,
+      user_id_type: typeof order.user_id,
+      status: order.status,
+      order_number: order.order_number
+    });
+
+    console.log('Ownership check:', {
+      order_user_id: order.user_id,
+      token_user_id: userId,
+      match: String(order.user_id) === String(userId),
+      strict_match: order.user_id === userId,
+      loose_match: order.user_id == userId
+    });
+
+    if (String(order.user_id) !== String(userId)) {
+      console.log('❌ Unauthorized - User mismatch!');
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    if (order.status !== 'delivered' && order.status !== 'pending' && order.status !== 'shipped') {
+      console.log('❌ Order not eligible for return, status:', order.status);
+      return res.status(400).json({ error: 'Only delivered, shipped or pending orders can be returned' });
+    }
+
+    dbAPI.updateOrderStatus(orderId, 'return_requested', `Return requested: ${reason}`);
+
+    // Create entry in return_requests table
+    dbAPI.createReturnRequest({
+      order_id: orderId,
+      user_id: userId,
+      reason: reason,
+      status: 'return_requested',
+      refund_amount: order.total_amount // Assuming full refund
+    });
+
+    // Notify Admin
+    dbAPI.createNotification({
+      user_id: null,
+      type: 'return_request',
+      title: 'Return Requested',
+      message: `Order #${order.order_number} return requested.`,
+      link: `/admin/orders`
+    });
+
+    res.json({ success: true, message: 'Return requested successfully' });
+  } catch (error) {
+    console.error('Return request error:', error);
+    res.status(500).json({ error: 'Failed to request return' });
+  }
 });
 
-// Global error handler
-app.use((err, req, res, next) => {
-  console.error('Global error:', err);
-  res.status(500).json({ error: 'Internal server error' });
+// Request Replacement (User)
+app.put('/api/orders/:id/replace', requireAuth, (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const userId = req.userId;
+    const { reason } = req.body;
+
+    const order = dbAPI.getOrderById(orderId);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.user_id !== userId) return res.status(403).json({ error: 'Unauthorized' });
+    if (order.status !== 'delivered' && order.status !== 'pending' && order.status !== 'shipped') return res.status(400).json({ error: 'Only delivered, shipped or pending orders can be replaced' });
+
+    dbAPI.updateOrderStatus(orderId, 'replace_requested', `Replacement requested: ${reason}`);
+
+    // Notify Admin
+    dbAPI.createNotification({
+      user_id: null,
+      type: 'replace_request',
+      title: 'Replacement Requested',
+      message: `Order #${order.order_number} replacement requested.`,
+      link: `/admin/orders`
+    });
+
+    res.json({ success: true, message: 'Replacement requested successfully' });
+  } catch (error) {
+    console.error('Replacement request error:', error);
+    res.status(500).json({ error: 'Failed to request replacement' });
+  }
 });
 
 
-// ==================== SERVER START ====================
-
-const server = app.listen(PORT, () => {
-  const actualPort = server.address().port;
-  console.log(`\n🚀 Enterprise E - commerce Server Started!`);
-  console.log(`📡 Server running on port ${actualPort} `);
-  console.log(`🗄️  Database: SQLite(ecommerce.db)`);
-  console.log(`🔒 JWT Authentication enabled`);
-  console.log(`\n✅ All routes integrated with SQLite database`);
-  console.log(`\nAvailable routes: `);
-  console.log(`  - GET / api / products`);
-  console.log(`  - GET / api / products /: id`);
-  console.log(`  - POST / api / auth / register`);
-  console.log(`  - POST / api / auth / login`);
-  console.log(`  - POST / api / auth / forgot - password`);
-  console.log(`  - POST / api / auth / reset - password`);
-  console.log(`  - POST / api / admin / login`);
-  console.log(`  - GET / api / admin / products`);
-  console.log(`  - POST / api / admin / products`);
-  console.log(`  - PUT / api / admin / products /: id`);
-  console.log(`  - DELETE / api / admin / products /: id`);
-  console.log(`  - GET / api / admin / orders`);
-  console.log(`  - PUT / api / admin / orders /: id / status`);
-  console.log(`  - GET / api / admin / analytics`);
-  console.log(`  - GET / api / admin / warehouses`);
-  console.log(`  - POST / api / admin / warehouses`);
-  console.log(`  - PUT / api / admin / warehouses /: id`);
-  console.log(`  - GET / api / admin / warehouse - inventory`);
-  console.log(`  - PUT / api / admin / warehouse - inventory /: warehouseId /: productId`);
-  console.log(`  - GET / api / admin / courier - partners`);
-  console.log(`  - POST / api / admin / courier - partners`);
-  console.log(`  - GET / api / admin /return -requests`);
-  console.log(`  - PUT / api / admin /return -requests /: id`);
-  console.log(`  - GET / api / admin / support - tickets`);
-  console.log(`  - PUT / api / admin / support - tickets /: id`);
-  console.log(`  - GET / api / admin / loyalty - points`);
-  console.log(`  - GET / api / admin / payment - settlements`);
-  console.log(`\n`);
-});
 
 // ==================== PROFESSIONAL WORKFLOW API ROUTES ====================
 
@@ -3117,6 +3182,24 @@ app.put('/api/admin/orders/:id/detailed-status', requireAuth, requireAdmin, (req
   }
 });
 
+// Extended Admin Return Management
+app.get('/api/admin/return-requests', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const { status, page, limit } = req.query;
+    const filters = {
+      status,
+      page: page ? parseInt(page) : 1,
+      limit: limit ? parseInt(limit) : 20
+    };
+
+    const returnRequests = dbAPI.getReturnRequests(filters);
+    res.json({ success: true, returnRequests });
+  } catch (error) {
+    console.error('Get return requests error:', error);
+    res.status(500).json({ error: 'Failed to fetch return requests' });
+  }
+});
+
 // User-facing Return Request Creation
 app.post('/api/returns', requireAuth, (req, res) => {
   try {
@@ -3229,5 +3312,60 @@ app.delete('/api/users/:userId/wishlist/:productId', requireAuth, (req, res) => 
 // ==================== REVIEWS & FEATURED ROUTES ====================
 // NOTE: These endpoints are already defined earlier in the file (lines 873, 1730, 1759)
 // Duplicates removed to avoid conflicts
+
+
+// ==================== ERROR HANDLING ====================
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ error: 'Route not found' });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('Global error:', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
+
+// ==================== SERVER START ====================
+
+const server = app.listen(PORT, () => {
+  const actualPort = server.address().port;
+  console.log(`\n🚀 Enterprise E - commerce Server Started!`);
+  console.log(`📡 Server running on port ${actualPort} `);
+  console.log(`🗄️  Database: SQLite(ecommerce.db)`);
+  console.log(`🔒 JWT Authentication enabled`);
+  console.log(`\n✅ All routes integrated with SQLite database`);
+  console.log(`\nAvailable routes: `);
+  console.log(`  - GET / api / products`);
+  console.log(`  - GET / api / products /: id`);
+  console.log(`  - POST / api / auth / register`);
+  console.log(`  - POST / api / auth / login`);
+  console.log(`  - POST / api / auth / forgot - password`);
+  console.log(`  - POST / api / auth / reset - password`);
+  console.log(`  - POST / api / admin / login`);
+  console.log(`  - GET / api / admin / products`);
+  console.log(`  - POST / api / admin / products`);
+  console.log(`  - PUT / api / admin / products /: id`);
+  console.log(`  - DELETE / api / admin / products /: id`);
+  console.log(`  - GET / api / admin / orders`);
+  console.log(`  - PUT / api / admin / orders /: id / status`);
+  console.log(`  - GET / api / admin / analytics`);
+  console.log(`  - GET / api / admin / warehouses`);
+  console.log(`  - POST / api / admin / warehouses`);
+  console.log(`  - PUT / api / admin / warehouses /: id`);
+  console.log(`  - GET / api / admin / warehouse - inventory`);
+  console.log(`  - PUT / api / admin / warehouse - inventory /: warehouseId /: productId`);
+  console.log(`  - GET / api / admin / courier - partners`);
+  console.log(`  - POST / api / admin / courier - partners`);
+  console.log(`  - GET / api / admin /return -requests`);
+  console.log(`  - PUT / api / admin /return -requests /: id`);
+  console.log(`  - GET / api / admin / support - tickets`);
+  console.log(`  - PUT / api / admin / support - tickets /: id`);
+  console.log(`  - GET / api / admin / loyalty - points`);
+  console.log(`  - GET / api / admin / payment - settlements`);
+  console.log(`\n`);
+});
 
 module.exports = app;

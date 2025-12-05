@@ -32,6 +32,7 @@ import CheckoutReview from './pages/CheckoutReview';
 import PaymentGateway from './pages/PaymentGateway';
 import OrderSuccess from './pages/OrderSuccess';
 
+
 import Settings from './pages/Settings';
 import Notifications from './pages/Notifications';
 import Reviews from './pages/Reviews';
@@ -64,12 +65,10 @@ function AppContent() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/products" element={<ProductList />} />
-            <Route path="/products/:id" element={<ProductDetail />} />
-            <Route path="/cart" element={
-              <PrivateRoute>
-                <Cart />
-              </PrivateRoute>
-            } />
+            {/* FIX: Changed to singular /product/:id for consistency */}
+            <Route path="/product/:id" element={<ProductDetail />} />
+            {/* FIX: Removed PrivateRoute - users can view cart without login, auth required only at checkout */}
+            <Route path="/cart" element={<Cart />} />
 
             {/* Checkout Flow Routes */}
             <Route path="/checkout" element={
@@ -162,6 +161,7 @@ function AppContent() {
             <Route path="/about" element={<About />} />
             <Route path="/solutions" element={<Solutions />} />
             <Route path="/contact-sales" element={<ContactSales />} />
+
 
             {/* 404 Route - Must be last */}
             <Route path="*" element={<NotFound />} />

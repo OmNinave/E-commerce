@@ -945,6 +945,44 @@
   border-color: rgba(158, 158, 158, 0.3);
 }
 
+.status-badge.return_requested {
+  background: #2196f3;
+  color: #ffffff;
+  border-color: #1976d2;
+  font-weight: 700;
+}
+
+.status-badge.replace_requested {
+  background: #9c27b0;
+  color: #ffffff;
+  border-color: #7b1fa2;
+  font-weight: 700;
+}
+
+.status-badge.delivered {
+  background: rgba(76, 175, 80, 0.15);
+  color: #4caf50;
+  border-color: rgba(76, 175, 80, 0.3);
+}
+
+.status-badge.cancelled {
+  background: rgba(244, 67, 54, 0.15);
+  color: #f44336;
+  border-color: rgba(244, 67, 54, 0.3);
+}
+
+.status-badge.returned {
+  background: rgba(156, 39, 176, 0.15);
+  color: #9c27b0;
+  border-color: rgba(156, 39, 176, 0.3);
+}
+
+.status-badge.replaced {
+  background: rgba(103, 58, 183, 0.15);
+  color: #673ab7;
+  border-color: rgba(103, 58, 183, 0.3);
+}
+
 .product-name {
   font-weight: 600;
   color: var(--text-primary);
@@ -1522,6 +1560,36 @@
 
 .status-badge.closed {
   background: #6c757d;
+  color: white;
+}
+
+.status-badge.delivered {
+  background: #28a745;
+  color: white;
+}
+
+.status-badge.shipped {
+  background: #17a2b8;
+  color: white;
+}
+
+.status-badge.processing {
+  background: #ffc107;
+  color: #212529;
+}
+
+.status-badge.cancelled {
+  background: #dc3545;
+  color: white;
+}
+
+.status-badge.returned {
+  background: #6c757d;
+  color: white;
+}
+
+.status-badge.replaced {
+  background: #fd7e14;
   color: white;
 }
 

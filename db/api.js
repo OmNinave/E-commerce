@@ -363,13 +363,13 @@ class DatabaseAPI {
 
     getOrderById(id) {
         const order = db.prepare(`
-      SELECT o.*, u.email as user_email, u.first_name, u.last_name, u.phone as user_phone,
-             sa.*, sa.id as shipping_address_id,
-             ba.*, ba.id as billing_address_id
+      SELECT 
+        sa.full_name, sa.phone, sa.address_line1, sa.address_line2, sa.city, sa.state, sa.pincode, sa.landmark,
+        u.email as user_email, u.first_name, u.last_name, u.phone as user_phone,
+        o.*
       FROM orders o
       JOIN users u ON o.user_id = u.id
       LEFT JOIN addresses sa ON o.shipping_address_id = sa.id
-      LEFT JOIN addresses ba ON o.billing_address_id = ba.id
       WHERE o.id = ?
     `).get(id);
 
@@ -737,7 +737,7 @@ class DatabaseAPI {
     // Return Requests Management
     getReturnRequests(filters = {}) {
         let query = `
-            SELECT rr.*, o.order_number, u.first_name, u.last_name, u.email
+            SELECT rr.*, o.order_number, o.total_amount, u.first_name, u.last_name, u.email
             FROM return_requests rr
             JOIN orders o ON rr.order_id = o.id
             JOIN users u ON rr.user_id = u.id
@@ -768,7 +768,13 @@ class DatabaseAPI {
             params.push(offset);
         }
 
-        return db.prepare(query).all(...params);
+        const requests = db.prepare(query).all(...params);
+
+        // Attach items to each request
+        return requests.map(req => {
+            req.items = this.getOrderItems(req.order_id);
+            return req;
+        });
     }
 
     createReturnRequest(returnData) {

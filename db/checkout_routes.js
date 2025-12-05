@@ -172,20 +172,59 @@ module.exports = function (app, requireAuth) {
             } = req.body;
 
             const userId = req.userId;
-            console.log(`User ID: ${userId}, Address ID: ${addressId}, Payment Method ID: ${paymentMethodId}`);
+
+            // === DEBUG LOGGING ===
+            console.log('=== ORDER CREATION DEBUG ===');
+            console.log('User ID:', userId);
+            console.log('Address ID:', addressId, 'Type:', typeof addressId);
+            console.log('Payment Method ID:', paymentMethodId);
+            console.log('Items count:', items?.length);
+            console.log('Request body keys:', Object.keys(req.body));
+            console.log('===========================');
 
             // Validate inputs
-            if (!addressId || !paymentMethodId || !items || items.length === 0) {
+            if (!paymentMethodId || !items || items.length === 0) {
                 console.error('❌ Missing required fields');
                 return res.status(400).json({ error: 'Missing required fields' });
             }
 
-            // Verify address belongs to user
-            const address = db.prepare('SELECT id FROM addresses WHERE id = ? AND user_id = ?').get(addressId, userId);
-            if (!address) {
-                console.error('❌ Address not found');
-                return res.status(404).json({ error: 'Address not found' });
+            // Handle missing addressId - use most recent address
+            let finalAddressId = addressId;
+            if (!finalAddressId) {
+                console.log('⚠️ No addressId provided, looking for most recent address...');
+                const recentAddress = db.prepare(
+                    'SELECT id FROM addresses WHERE user_id = ? ORDER BY created_at DESC LIMIT 1'
+                ).get(userId);
+
+                if (!recentAddress) {
+                    console.error('❌ No addresses found for user');
+                    return res.status(400).json({
+                        error: 'No address provided and no saved addresses found. Please add an address first.'
+                    });
+                }
+
+                finalAddressId = recentAddress.id;
+                console.log(`✅ Using most recent address: ${finalAddressId}`);
             }
+
+            // Verify address belongs to user
+            const address = db.prepare('SELECT id FROM addresses WHERE id = ? AND user_id = ?')
+                .get(finalAddressId, userId);
+
+            if (!address) {
+                console.error(`❌ Address ${finalAddressId} not found for user ${userId}`);
+
+                // List user's addresses for debugging
+                const userAddresses = db.prepare('SELECT id FROM addresses WHERE user_id = ?').all(userId);
+                console.log(`User ${userId} has ${userAddresses.length} addresses:`, userAddresses.map(a => a.id));
+
+                return res.status(404).json({
+                    error: 'Address not found. Please select a valid address.',
+                    availableAddresses: userAddresses.map(a => a.id)
+                });
+            }
+
+            console.log(`✅ Address ${finalAddressId} verified for user ${userId}`);
 
             // Verify payment method exists
             const paymentMethod = db.prepare('SELECT id, type FROM payment_methods WHERE id = ?').get(paymentMethodId);
@@ -219,7 +258,7 @@ module.exports = function (app, requireAuth) {
                     `).run(
                         orderNumber,
                         userId,
-                        addressId,
+                        finalAddressId,
                         paymentMethodId,
                         fees.subtotal,
                         fees.total,

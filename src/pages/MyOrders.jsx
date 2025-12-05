@@ -16,6 +16,8 @@ export default function MyOrders() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [returnModal, setReturnModal] = useState({ isOpen: false, orderId: null, type: null });
+  const [returnReason, setReturnReason] = useState('');
 
   useEffect(() => {
     if (isInitializing) return;
@@ -77,6 +79,57 @@ export default function MyOrders() {
     } catch (err) {
       alert('Error cancelling order: ' + err.message);
     }
+  };
+
+  const handleReturnOrder = (orderId) => {
+    setReturnModal({ isOpen: true, orderId, type: 'return' });
+  };
+
+  const handleReplaceOrder = (orderId) => {
+    setReturnModal({ isOpen: true, orderId, type: 'replace' });
+  };
+
+  const submitReturnRequest = async () => {
+    if (!returnReason.trim()) {
+      alert('Please enter a reason');
+      return;
+    }
+
+    const { orderId, type } = returnModal;
+    const endpoint = type === 'return' ? 'return' : 'replace';
+
+    try {
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+
+      const response = await fetch(`${API_URL}/api/orders/${orderId}/${endpoint}`, {
+        method: 'PUT',
+        credentials: 'include', // ✅ Send cookies with request
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        },
+        body: JSON.stringify({ reason: returnReason })
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || `Failed to request ${type}`);
+      }
+
+      await fetchOrders();
+      setSelectedOrder(null);
+      setReturnModal({ isOpen: false, orderId: null, type: null });
+      setReturnReason('');
+      alert(`${type.charAt(0).toUpperCase() + type.slice(1)} requested successfully`);
+    } catch (err) {
+      alert(`Error requesting ${type}: ` + err.message);
+    }
+  };
+
+  const closeReturnModal = () => {
+    setReturnModal({ isOpen: false, orderId: null, type: null });
+    setReturnReason('');
   };
 
   const getStatusColor = (status) => {
@@ -302,6 +355,86 @@ export default function MyOrders() {
                         </Button>
                       </div>
                     )}
+
+
+                    {(selectedOrder.status === 'delivered' || selectedOrder.status === 'pending' || selectedOrder.status === 'shipped') && (
+                      <div className="pt-6 border-t border-gray-100 flex gap-3">
+                        <Button
+                          onClick={() => handleReturnOrder(selectedOrder.id)}
+                          className="flex-1 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
+                        >
+                          Request Return
+                        </Button>
+                        <Button
+                          onClick={() => handleReplaceOrder(selectedOrder.id)}
+                          className="flex-1 bg-indigo-600 text-white hover:bg-indigo-700 border-0"
+                        >
+                          Request Replacement
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Return/Replace Modal */}
+          <AnimatePresence>
+            {returnModal.isOpen && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+                onClick={closeReturnModal}
+              >
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.95, opacity: 0 }}
+                  className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold text-gray-900">
+                      {returnModal.type === 'return' ? 'Request Return' : 'Request Replacement'}
+                    </h3>
+                    <button
+                      onClick={closeReturnModal}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      <X className="w-6 h-6" />
+                    </button>
+                  </div>
+
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Reason for {returnModal.type}:
+                    </label>
+                    <textarea
+                      value={returnReason}
+                      onChange={(e) => setReturnReason(e.target.value)}
+                      placeholder={`Please explain why you want to ${returnModal.type} this order...`}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                      rows={4}
+                      autoFocus
+                    />
+                  </div>
+
+                  <div className="flex gap-3">
+                    <Button
+                      onClick={closeReturnModal}
+                      className="flex-1 bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={submitReturnRequest}
+                      className="flex-1 bg-indigo-600 text-white hover:bg-indigo-700"
+                    >
+                      Submit Request
+                    </Button>
                   </div>
                 </motion.div>
               </motion.div>

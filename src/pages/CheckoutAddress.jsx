@@ -32,6 +32,12 @@ export default function CheckoutAddress() {
         isDefault: false
     });
 
+    // FIX: Get safe user ID (handles _id, id, user_id)
+    const getUserId = () => {
+        if (!user) return null;
+        return user._id || user.id || user.user_id || user.userId;
+    };
+
     useEffect(() => {
         if (!user) {
             navigate('/login');
@@ -51,14 +57,46 @@ export default function CheckoutAddress() {
     const fetchAddresses = async () => {
         try {
             setLoading(true);
+            setError(null);
+
+            const userId = getUserId();
+            if (!userId) {
+                console.error('No user ID found');
+                setError('User not authenticated');
+                return;
+            }
+
             const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
             const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
 
-            const response = await fetch(`${API_URL}/api/users/${user.id}/addresses`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+            if (!token) {
+                console.error('No token found');
+                setError('Please login again');
+                navigate('/login');
+                return;
+            }
+
+            console.log('Fetching addresses for user:', userId);
+
+            const response = await fetch(`${API_URL}/api/users/${userId}/addresses`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
             });
 
-            if (!response.ok) throw new Error('Failed to load addresses');
+            if (response.status === 401) {
+                setError('Session expired. Please login again.');
+                localStorage.removeItem('token');
+                localStorage.removeItem('adminToken');
+                navigate('/login');
+                return;
+            }
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ error: 'Failed to load addresses' }));
+                throw new Error(errorData.error || 'Failed to load addresses');
+            }
 
             const data = await response.json();
             if (data.success) {
@@ -69,6 +107,7 @@ export default function CheckoutAddress() {
                 }
             }
         } catch (err) {
+            console.error('Error fetching addresses:', err);
             setError(err.message);
         } finally {
             setLoading(false);
@@ -104,14 +143,30 @@ export default function CheckoutAddress() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
+            setError(null);
+
+            const userId = getUserId();
+            if (!userId) {
+                setError('User not authenticated');
+                return;
+            }
+
             const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
             const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
 
+            if (!token) {
+                setError('Please login again');
+                navigate('/login');
+                return;
+            }
+
             const url = editingAddressId
-                ? `${API_URL}/api/users/${user.id}/addresses/${editingAddressId}`
-                : `${API_URL}/api/users/${user.id}/addresses`;
+                ? `${API_URL}/api/users/${userId}/addresses/${editingAddressId}`
+                : `${API_URL}/api/users/${userId}/addresses`;
 
             const method = editingAddressId ? 'PUT' : 'POST';
+
+            console.log('Saving address:', method, url);
 
             const response = await fetch(url, {
                 method: method,
@@ -121,6 +176,14 @@ export default function CheckoutAddress() {
                 },
                 body: JSON.stringify(formData)
             });
+
+            if (response.status === 401) {
+                setError('Session expired. Please login again.');
+                localStorage.removeItem('token');
+                localStorage.removeItem('adminToken');
+                navigate('/login');
+                return;
+            }
 
             const data = await response.json();
 
@@ -136,6 +199,7 @@ export default function CheckoutAddress() {
                 setError(data.error || 'Failed to save address');
             }
         } catch (err) {
+            console.error('Error saving address:', err);
             setError(err.message);
         }
     };

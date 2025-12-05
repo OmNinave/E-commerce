@@ -19,7 +19,7 @@ const ProductCardProfessional = ({ product }) => {
     return (
         <div
             className="group relative bg-white rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:-translate-y-1 product-card hover-lift"
-            onClick={() => navigate(`/products/${product.id}`)}
+            onClick={() => navigate(`/product/${product.id}`)}
         >
             {/* Image Container */}
             <div className="aspect-[4/5] bg-gray-50 relative overflow-hidden rounded-2xl product-image-wrapper">
@@ -53,7 +53,7 @@ const ProductCardProfessional = ({ product }) => {
                         className="bg-white/90 backdrop-blur-md hover:bg-white shadow-lg text-gray-900 hover-glow"
                         onClick={(e) => {
                             e.stopPropagation();
-                            navigate(`/products/${product.id}`);
+                            navigate(`/product/${product.id}`);
                         }}
                     >
                         <Eye className="w-4 h-4" />

@@ -242,20 +242,24 @@ const ProductDetail = () => {
                   <TabsTrigger value="shipping" className="rounded-lg">Shipping</TabsTrigger>
                 </TabsList>
 
-                <div className="bg-gray-50/50 rounded-2xl p-6 mt-6 border border-gray-100">
-                  <TabsContent value="features" className="mt-0 space-y-4">
-                    <ul className="space-y-3">
-                      {features.map((feature, i) => (
+                <TabsContent value="features" className="mt-6 bg-gray-50/50 rounded-2xl p-6 border border-gray-100 space-y-4">
+                  <ul className="space-y-3">
+                    {Array.isArray(features) && features.length > 0 ? (
+                      features.map((feature, i) => (
                         <li key={i} className="flex items-start gap-3 text-gray-600">
                           <div className="mt-1 w-5 h-5 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
                             <Check className="w-3 h-3 text-green-600" />
                           </div>
                           {feature}
                         </li>
-                      )) || <p className="text-gray-500">No specific features listed.</p>}
-                    </ul>
-                  </TabsContent>
-                  <TabsContent value="specs" className="mt-0">
+                      ))
+                    ) : (
+                      <p className="text-gray-500 text-center py-8">No specific features listed for this product.</p>
+                    )}
+                  </ul>
+                </TabsContent>
+                <TabsContent value="specs" className="mt-6 bg-gray-50/50 rounded-2xl p-6 border border-gray-100">
+                  {specifications && Object.keys(specifications).length > 0 ? (
                     <div className="border rounded-xl overflow-hidden bg-white">
                       <table className="w-full text-sm text-left">
                         <tbody className="divide-y divide-gray-100">
@@ -270,26 +274,28 @@ const ProductDetail = () => {
                         </tbody>
                       </table>
                     </div>
-                  </TabsContent>
-                  <TabsContent value="shipping" className="mt-0 text-gray-600 leading-relaxed">
-                    {Object.keys(shippingInfo).length > 0 ? (
-                      <div className="grid gap-4">
-                        {Object.entries(shippingInfo).map(([key, value]) => (
-                          <div key={key} className="flex justify-between border-b border-gray-100 pb-2 last:border-0">
-                            <span className="font-medium text-gray-900">{key}</span>
-                            <span>{value}</span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p>
-                        We offer <strong>free expedited shipping</strong> on all orders over $5,000.
-                        Most instruments ship within 24-48 hours.
-                        White-glove delivery and installation services are available for sensitive equipment.
-                      </p>
-                    )}
-                  </TabsContent>
-                </div>
+                  ) : (
+                    <p className="text-gray-500 text-center py-8">No specifications available for this product.</p>
+                  )}
+                </TabsContent>
+                <TabsContent value="shipping" className="mt-6 bg-gray-50/50 rounded-2xl p-6 border border-gray-100 text-gray-600 leading-relaxed">
+                  {Object.keys(shippingInfo).length > 0 ? (
+                    <div className="grid gap-4">
+                      {Object.entries(shippingInfo).map(([key, value]) => (
+                        <div key={key} className="flex justify-between border-b border-gray-100 pb-2 last:border-0">
+                          <span className="font-medium text-gray-900">{key}</span>
+                          <span>{value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p>
+                      We offer <strong>free expedited shipping</strong> on all orders over $5,000.
+                      Most instruments ship within 24-48 hours.
+                      White-glove delivery and installation services are available for sensitive equipment.
+                    </p>
+                  )}
+                </TabsContent>
               </Tabs>
 
             </motion.div>

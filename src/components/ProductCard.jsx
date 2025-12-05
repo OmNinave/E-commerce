@@ -78,7 +78,7 @@ const ProductCard = ({ product }) => {
 
   return (
     <Link
-      to={`/products/${product.id}`}
+      to={`/product/${product.id}`}
       className="product-card-link group"
       aria-label={`View details for ${product.name}`}
     >
